@@ -155,13 +155,13 @@ void rate_change(unsigned int pST,double pLH, double pHL, double *sexH, double *
 			for(x = 0; x < d; x++){
 				*(sexCN + x) = *(sexH + x);
 			}
-			*tts = 0;
+			*tts = HUGE_VALF;
 		}
 	}else if(pST == 3){		/* If constant, no time to sex switch */
 		for(x = 0; x < d; x++){
 				*(sexCN + x) = *(sexL + x);
 			}
-		*tts = 0;
+		*tts = HUGE_VALF;
 		*npST = pST;
 	}
 }	/* End of 'rate_change' function */
