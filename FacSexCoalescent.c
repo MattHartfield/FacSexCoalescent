@@ -31,6 +31,10 @@ double P10(unsigned int x, unsigned int y, unsigned int k, double mee);
 double P11(unsigned int y, unsigned int k, double sexC, double ree, unsigned int lrec, unsigned int nlrec, unsigned int nlrec2);
 void probset2(unsigned int N, double g, double *sexC, double rec, unsigned int lrec, unsigned int *nlrec, unsigned int *nlrec2, double mig, unsigned int *Nwith, unsigned int *Nbet, unsigned int *kin, unsigned int sw, double **pr);
 void rate_change(unsigned int pST,double pLH, double pHL, double *sexH, double *sexL, unsigned int Na, unsigned int d, unsigned int switch1, double *sexCN, double *tts, unsigned int *npST,const gsl_rng *r);
+unsigned int isanyUI(unsigned int *vin, unsigned int size_t, unsigned int match);
+unsigned int isanyD(double *vin, unsigned int size_t, double match);
+unsigned int isallUI(unsigned int *vin, unsigned int size_t, unsigned int match);
+unsigned int isallD(double *vin, unsigned int size_t, double match);
 
 /* Global variable declaration */
 unsigned int N = 0;			/* Population Size */
@@ -46,6 +50,54 @@ unsigned int d = 0;			/* Number of demes */
 unsigned int Itot = 0;		/* Number of initial samples */
 unsigned int Iindv = 0;		/* Number of initial individuals */
 unsigned int Nreps = 0;		/* Number of simulation replicates */
+
+/* Function to replicate the 'any' func in R (unsigned int) */
+unsigned int isanyUI(unsigned int *vin, unsigned int size_t, unsigned int match){
+	unsigned int i;
+	unsigned int res = 0;
+	for(i = 0; i < size_t; i++){
+		if(*(vin + 1) == match){
+			res = 1;
+		}
+	}
+	return res;
+}
+
+/* Function to replicate the 'any' func in R (double) */
+unsigned int isanyD(double *vin, unsigned int size_t, double match){
+	unsigned int i;
+	unsigned int res = 0;
+	for(i = 0; i < size_t; i++){
+		if(*(vin + 1) == match){
+			res = 1;
+		}
+	}
+	return res;
+}
+
+/* Function to replicate the 'all' func in R (unsigned int) */
+unsigned int isallUI(unsigned int *vin, unsigned int size_t, unsigned int match){
+	unsigned int i;
+	unsigned int res = 1;
+	for(i = 0; i < size_t; i++){
+		if(*(vin + 1) != match){
+			res = 0;
+		}
+	}
+	return res;
+}
+
+/* Function to replicate the 'all' func in R (double) */
+unsigned int isallD(double *vin, unsigned int size_t, double match){
+	unsigned int i;
+	unsigned int res = 1;
+	for(i = 0; i < size_t; i++){
+		if(*(vin + 1) != match){
+			res = 0;
+		}
+	}
+	return res;
+}
 
 /* 'Triangle function' calculation */
 unsigned int trig(unsigned int x){
@@ -164,6 +216,9 @@ void rate_change(unsigned int pST,double pLH, double pHL, double *sexH, double *
 		*tts = (0.0/0.0);
 		*npST = pST;
 	}
+	
+	printf("%lf %d \n",*tts,*npST);
+	
 }	/* End of 'rate_change' function */
 
 /* Main program */
@@ -180,6 +235,8 @@ int main(int argc, char *argv[]){
 	unsigned int IbetC = 0;		/* Cumulative Ibet sum */
 	double tls = 0;				/* 'Time since Last Switch' or tls */
 	double tts = 0;				/* 'Time to switch' */
+	unsigned int done = 0;		/* Is simulation complete? */
+	unsigned int nbreaks = 0;	/* Number of non-rec tracts */
 
 	/* GSL random number definitions */
 	const gsl_rng_type * T; 
@@ -385,7 +442,7 @@ int main(int argc, char *argv[]){
 		tls = 0;
 		
 		/* Setting up summary table of individual samples */
-		/* ASSISNING MEMORY FROM SCRATCH HERE, SINCE TABLES WILL BE MODIFIED FOR EACH SIM */
+		/* ASSIGNING MEMORY FROM SCRATCH HERE, SINCE TABLES WILL BE MODIFIED FOR EACH SIM */
 		
 		unsigned int **indvs = calloc(Itot,sizeof(unsigned int *));		/* Table of individual samples */
 		unsigned int **GType = calloc(Itot,sizeof(unsigned int *));		/* Table of sample genotypes */
@@ -403,6 +460,8 @@ int main(int argc, char *argv[]){
 		}
 		breaks[0] = calloc(1,sizeof(unsigned int));
 		breaks[1] = calloc(1,sizeof(unsigned int));
+		unsigned int *bcoal = calloc(1,sizeof(unsigned int));
+		nbreaks = 1;
 		
 		IwithC = 0;
 		IbetC = 0;
@@ -430,7 +489,7 @@ int main(int argc, char *argv[]){
 		}
 		if(IbetT != 0){
 			for(j = 0; j < IbetT; j++){
-				*((*(indvs + (2*IwithT + j))) + 1) = 2*IwithT + j;
+				*((*(indvs + (2*IwithT + j))) + 1) = IwithT + j;
 				*((*(indvs + (2*IwithT + j))) + 2) = 1;
 			}
 			for(x = 0; x < d; x++){
@@ -441,16 +500,35 @@ int main(int argc, char *argv[]){
 			}
 		}
 		
-		/* Simulation code here... */
+		for(j = 0; j < Itot; j++){
+			for(x = 0; x < 4; x++){
+				printf("%d ",*((*(indvs + j)) + x));
+			}
+			printf("\n");
+		}
 		
+		done = 0;
+		while(done != 1){
+			/* Simulation code here... */
+			
+			/* Testing if all sites coalesced or not */
+			for(x = 0; x < nbreaks; x++){
+				*(bcoal + x) = *((*(breaks + 1)) + x);
+			}
+			done = isallUI(bcoal,nbreaks,1);
+		}
 		
 		/* ...then freeing the memory */
+		free(bcoal);
+		free(breaks[1]);
+		free(breaks[0]);
 		for(j = 0; j < Itot; j++){
 			free(TAnc[j]);
 			free(CTms[j]);
 			free(GType[j]);
 			free(indvs[j]);
 		}
+		free(breaks);
 		free(TAnc);
 		free(CTms);
 		free(GType);		
