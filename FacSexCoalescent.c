@@ -155,25 +155,29 @@ void rate_change(unsigned int pST,double pLH, double pHL, double *sexH, double *
 			for(x = 0; x < d; x++){
 				*(sexCN + x) = *(sexH + x);
 			}
-			*tts = HUGE_VALF;
+			*tts = (0.0/0.0);
 		}
 	}else if(pST == 3){		/* If constant, no time to sex switch */
 		for(x = 0; x < d; x++){
 				*(sexCN + x) = *(sexL + x);
 			}
-		*tts = HUGE_VALF;
+		*tts = (0.0/0.0);
 		*npST = pST;
 	}
 }	/* End of 'rate_change' function */
 
 /* Main program */
 int main(int argc, char *argv[]){
-	unsigned int x, i;		/* Assignment counter, rep counter */
+	unsigned int x, i, j;		/* Assignment counter, rep counter, indv counter */
 	unsigned int pST, npST = 0;		/* State of reproduction heterogeneity */	
 	double Ttot = 0;			/* Time in past, initiate at zero */
 	unsigned int Ntot = 0;		/* Total number of samples at time */
 	unsigned int Nindv = 0;		/* Total number of individuals */
 	unsigned int lrec = 0;		/* Length of recombinable genome */
+	unsigned int IwithT = 0;	/* Total within individual samples */
+	unsigned int IbetT = 0;		/* Total between individual samples */	
+	unsigned int IwithC = 0;	/* Cumulative Iwith sum */
+	unsigned int IbetC = 0;		/* Cumulative Ibet sum */
 	double tls = 0;				/* 'Time since Last Switch' or tls */
 	double tts = 0;				/* 'Time to switch' */
 
@@ -286,6 +290,8 @@ int main(int argc, char *argv[]){
 		*(Ibet + x) = strtod(argv[11 + (4*x + 1)],NULL);
 		*(sexL + x) = strtod(argv[11 + (4*x + 2)],NULL);
 		*(sexH + x) = strtod(argv[11 + (4*x + 3)],NULL);
+		IwithT += (*(Iwith + x));
+		IbetT += (*(Ibet + x));
 		Itot += 2*(*(Iwith + x)) + (*(Ibet + x));
 		Iindv += (*(Iwith + x)) + (*(Ibet + x));
 		
@@ -377,6 +383,78 @@ int main(int argc, char *argv[]){
 		rate_change(pST,pLH,pHL,sexH,sexL,N,d,0,sexC,&tts,&npST,r);
 		pST = npST;
 		tls = 0;
+		
+		/* Setting up summary table of individual samples */
+		/* ASSISNING MEMORY FROM SCRATCH HERE, SINCE TABLES WILL BE MODIFIED FOR EACH SIM */
+		
+		unsigned int **indvs = calloc(Itot,sizeof(unsigned int *));		/* Table of individual samples */
+		unsigned int **GType = calloc(Itot,sizeof(unsigned int *));		/* Table of sample genotypes */
+		unsigned int **CTms = calloc(Itot,sizeof(unsigned int *));		/* Coalescent times per sample */
+		unsigned int **TAnc = calloc(Itot,sizeof(unsigned int *));		/* Table of ancestors for each sample */
+		unsigned int **breaks = calloc(2,sizeof(unsigned int *));		/* Table of breakpoints created in the simulation */
+		for (x = 0; x < 11; x++){										/* Assigning space for each population within each deme */
+			pr[x] = calloc(d,sizeof(double));
+		}
+		for(j = 0; j < Itot; j++){										/* Assigning space for each genome sample */
+			indvs[j] = calloc(4,sizeof(unsigned int));
+			GType[j] = calloc(2,sizeof(unsigned int));
+			CTms[j] = calloc(2,sizeof(unsigned int));
+			TAnc[j] = calloc(2,sizeof(unsigned int));
+		}
+		breaks[0] = calloc(1,sizeof(unsigned int));
+		breaks[1] = calloc(1,sizeof(unsigned int));
+		
+		IwithC = 0;
+		IbetC = 0;
+		for(j = 0; j < Itot; j++){
+			*((*(indvs + j)) + 0) = j;
+			*((*(GType + j)) + 0) = j;
+			*((*(GType + j)) + 1) = j;
+			*((*(CTms + j)) + 0) = j;
+			*((*(TAnc + j)) + 0) = j;
+		}
+		if(IwithT != 0){
+			for(j = 0; j < IwithT; j++){
+				*((*(indvs + 2*j)) + 1) = j;
+				*((*(indvs + (2*j+1))) + 1) = j;
+				*((*(indvs + 2*j)) + 2) = 0;
+				*((*(indvs + (2*j+1))) + 2) = 0;
+			}
+			for(x = 0; x < d; x++){
+				for(j = IwithC; j < (IwithC + *(Iwith + x)); j++){
+					*((*(indvs + 2*j)) + 3) = x;
+					*((*(indvs + (2*j+1))) + 3) = x;
+				}
+				IwithC += *(Iwith + x);
+			}
+		}
+		if(IbetT != 0){
+			for(j = 0; j < IbetT; j++){
+				*((*(indvs + (2*IwithT + j))) + 1) = 2*IwithT + j;
+				*((*(indvs + (2*IwithT + j))) + 2) = 1;
+			}
+			for(x = 0; x < d; x++){
+				for(j = IbetC; j < (IbetC + *(Ibet + x)); j++){
+					*((*(indvs + (2*IwithT + j))) + 3) = x;
+				}
+				IbetC += *(Ibet + x);
+			}
+		}
+		
+		/* Simulation code here... */
+		
+		
+		/* ...then freeing the memory */
+		for(j = 0; j < Itot; j++){
+			free(TAnc[j]);
+			free(CTms[j]);
+			free(GType[j]);
+			free(indvs[j]);
+		}
+		free(TAnc);
+		free(CTms);
+		free(GType);		
+		free(indvs);
 	}
 	
 	/* Freeing memory and wrapping up */
