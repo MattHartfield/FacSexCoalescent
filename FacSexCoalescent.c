@@ -20,6 +20,22 @@ separately from this file.
 #include <gsl/gsl_randist.h>
 
 /* Function prototypes */
+unsigned int isanyUI(unsigned int *vin, unsigned int size_t, unsigned int match);
+unsigned int isanyD(double *vin, unsigned int size_t, double match);
+unsigned int isallUI(unsigned int *vin, unsigned int size_t, unsigned int match);
+unsigned int isallD(double *vin, unsigned int size_t, double match);
+double prodDUI(double *Va, unsigned int *Vb, unsigned int size_t);
+unsigned int sumUI(unsigned int *Vin, unsigned int size_t);
+double sumT_D(double **Tin, unsigned int nrow, unsigned int ncol);
+unsigned int isanylessD_2D(double **Tin, unsigned int nrow, unsigned int ncol, double match);
+void vcopyUI(unsigned int *Vout, unsigned int *Vin, unsigned int size_t);
+void vcopyI(int *Vout, int *Vin, unsigned int size_t);
+void vcopyD(double *Vout, double *Vin, unsigned int size_t);
+void rowsumD(double **Tin, unsigned int nrow, unsigned int ncol, double *Vout);
+unsigned int matchUI(unsigned int *Vin, unsigned int size_t, unsigned int match);
+void smultI_UI(int *Vout, unsigned int *Vin, unsigned int size_t, int scale);
+void vsum_UI_I(unsigned int *Vbase, int *Vadd, unsigned int size_t);
+
 unsigned int trig(unsigned int x);
 double P23(unsigned int y, unsigned int k, unsigned int Na);
 double P4(unsigned int x, unsigned int k, unsigned int Na);
@@ -31,13 +47,7 @@ double P10(unsigned int x, unsigned int y, unsigned int k, double mee);
 double P11(unsigned int y, unsigned int k, double sexC, double ree, unsigned int lrec, unsigned int nlrec, unsigned int nlrec2);
 void probset2(unsigned int N, double g, double *sexC, double rec, unsigned int lrec, unsigned int *nlrec, unsigned int *nlrec2, double mig, unsigned int *Nwith, unsigned int *Nbet, unsigned int *kin, unsigned int sw, double **pr);
 void rate_change(unsigned int pST,double pLH, double pHL, double *sexH, double *sexL, unsigned int Na, unsigned int d, unsigned int switch1, double *sexCN, double *sexCNInv, double *tts, unsigned int *npST,const gsl_rng *r);
-unsigned int isanyUI(unsigned int *vin, unsigned int size_t, unsigned int match);
-unsigned int isanyD(double *vin, unsigned int size_t, double match);
-unsigned int isallUI(unsigned int *vin, unsigned int size_t, unsigned int match);
-unsigned int isallD(double *vin, unsigned int size_t, double match);
-double prodDUI(double *Va, unsigned int *Vb, unsigned int size_t);
-double sumT_D(double **Tin, unsigned int nrow, unsigned int ncol);
-unsigned int isanylessD_2D(double **Tin, unsigned int nrow, unsigned int ncol, double match);
+void stchange2(unsigned int ev, unsigned int deme, unsigned int *kin, unsigned int *Nwith, int *WCH, int *BCH);
 
 /* Global variable declaration */
 unsigned int N = 0;			/* Population Size */
@@ -112,12 +122,22 @@ double prodDUI(double *Va, unsigned int *Vb, unsigned int size_t){
 	return res;
 }
 
+/* Summing vector (UI) */
+unsigned int sumUI(unsigned int *Vin, unsigned int size_t){
+	unsigned int i;
+	unsigned int res = 0;
+	for(i = 0; i < size_t; i++){
+		res += *(Vin + i);
+	}
+	return res;
+}
+
 /* Summing entire table (double) */
 double sumT_D(double **Tin, unsigned int nrow, unsigned int ncol){
 	unsigned int i, j;
 	double res = 0;
 	for(i = 0; i < nrow; i++){
-		for(j = 0; j < nrow; j++){
+		for(j = 0; j < ncol; j++){
 			res += (*((*(Tin + i)) + j));
 		}
 	}
@@ -129,13 +149,76 @@ unsigned int isanylessD_2D(double **Tin, unsigned int nrow, unsigned int ncol, d
 	unsigned int i, j;
 	double res = 0;
 	for(i = 0; i < nrow; i++){
-		for(j = 0; j < nrow; j++){
+		for(j = 0; j < ncol; j++){
 			if(*((*(Tin + i)) + j) < match){
 				res = 1;
 			}
 		}
 	}
 	return res;
+}
+
+/* Copying vectors (UI) */
+void vcopyUI(unsigned int *Vout, unsigned int *Vin, unsigned int size_t){
+	unsigned int x;
+	for(x = 0; x < d; x++){
+		*(Vout + x) = *(Vin + x);
+	}
+}
+
+/* Copying vectors (Int) */
+void vcopyI(int *Vout, int *Vin, unsigned int size_t){
+	unsigned int x;
+	for(x = 0; x < d; x++){
+		*(Vout + x) = *(Vin + x);
+	}
+}
+
+/* Copying vectors (double) */
+void vcopyD(double *Vout, double *Vin, unsigned int size_t){
+	unsigned int x;
+	for(x = 0; x < d; x++){
+		*(Vout + x) = *(Vin + x);
+	}
+}
+
+/* Calculating rowsums (double) */
+void rowsumD(double **Tin, unsigned int nrow, unsigned int ncol, double *Vout){
+	unsigned int i, j;
+	for(i = 0; i < nrow; i++){
+		*(Vout + i) = 0;
+		for(j = 0; j < ncol; j++){
+			*(Vout + i) += *((*(Tin + i)) + j);
+		}
+	}
+}
+
+/* Replicating 'match' R function (UI) */
+unsigned int matchUI(unsigned int *Vin, unsigned int size_t, unsigned int match){
+	unsigned int i;
+	unsigned int res = 0;
+	for(i = 0; i < size_t; i++){
+		if(*(Vin + i) == match){
+			res = i;
+		}
+	}
+	return res;
+}
+
+/* Multiplying vector by a scalar (Int) */
+void smultI_UI(int *Vout, unsigned int *Vin, unsigned int size_t, int scale){
+	unsigned int i;
+	for(i = 0; i < size_t; i++){
+		*(Vout + i) = (scale)*(*(Vin + i));
+	}
+}
+
+/* Summing two vector (UI + Int) */
+void vsum_UI_I(unsigned int *Vbase, int *Vadd, unsigned int size_t){
+	unsigned int i;
+	for(i = 0; i < size_t; i++){
+		*(Vbase + i) += *(Vadd + i);
+	}
 }
 
 /* 'Triangle function' calculation */
@@ -217,6 +300,12 @@ void probset2(unsigned int N, double g, double *sexC, double rec, unsigned int l
 			}
 			*((*(pr + 2)) + x) = P23(*(Nbet + x),*(kin + x),N);
 			*((*(pr + 3)) + x) = P4(*(Nwith + x),*(kin + x),N);
+
+			/* Last entry is simply 1-(sum all other probs) */
+			if(x == 0){
+				*((*(pr + 0)) + x) = sumT_D(pr,11,d);
+			}
+			
 		}else if(sw == 0){
 			*((*(pr + 1)) + x) = 0;
 			*((*(pr + 2)) + x) = 0;
@@ -273,6 +362,80 @@ void rate_change(unsigned int pST,double pLH, double pHL, double *sexH, double *
 	
 }	/* End of 'rate_change' function */
 
+/* Function to determine how to change state numbers following an event,
+taking into account events over all demes*/
+void stchange2(unsigned int ev, unsigned int deme, unsigned int *kin, unsigned int *Nwith, int *WCH, int *BCH){
+
+	int *oo3 = calloc(2,sizeof(int));		/* Extra change in pop due to event */
+	int *negk = calloc(d,sizeof(int));		/* Negative of k */
+	int *dblek = calloc(d,sizeof(int));		/* Double k */
+	
+	/* Rescaling k */
+	smultI_UI(negk, kin, d, (-1));
+	smultI_UI(dblek, kin, d, 2);
+	
+	/* Baseline sex events */
+	vcopyI(WCH, negk, d);
+	vcopyI(BCH, dblek, d);
+	
+	/* Now deciding extra events depending on deme and event */
+	switch(ev)
+	{
+		case 0:
+			*(oo3 + 0) = 0;
+			*(oo3 + 1) = 0;
+			break;
+		case 1:
+			*(oo3 + 0) = 1;
+			*(oo3 + 1) = -2;
+			break;
+		case 2:
+			*(oo3 + 0) = 0;
+			*(oo3 + 1) = -1;
+			break;
+		case 3:
+			*(oo3 + 0) = 0;
+			*(oo3 + 1) = -1;
+			break;
+		case 4:
+			*(oo3 + 0) = 1;
+			*(oo3 + 1) = -2;
+			break;
+		case 5:
+			*(oo3 + 0) = 0;
+			*(oo3 + 1) = -1;
+			break;
+		case 6:
+			*(oo3 + 0) = -1;
+			*(oo3 + 1) = 0;
+			break;
+		case 7:
+			*(oo3 + 0) = 0;
+			*(oo3 + 1) = -1;
+			break;
+		case 8:
+			*(oo3 + 0) = -1;
+			*(oo3 + 1) = 1;
+			break;
+		case 9:
+			*(oo3 + 0) = 0;
+			*(oo3 + 1) = 0;
+			break;
+		case 10:
+			*(oo3 + 0) = 0;
+			*(oo3 + 1) = 1;
+			break;															
+	}
+	
+	*(WCH + deme) += *(oo3 + 0);
+	*(BCH + deme) += *(oo3 + 1);	
+	
+	free(dblek);
+	free(negk);
+	free(oo3);
+	
+}	/* End of 'stchange' function */
+
 /* Main program */
 int main(int argc, char *argv[]){
 	unsigned int x, i, j;		/* Assignment counter, rep counter, indv counter */
@@ -290,10 +453,15 @@ int main(int argc, char *argv[]){
 	double tts = 0;				/* 'Time to switch' */
 	double nosex = 0;			/* Probability of no sexual reproduction over all demes */
 	double psum = 0;			/* Sum of transition probs (first go) */
-	double psum2 = 0;			/* Sum of transition probs (second go) */	
 	double tjump = 0;			/* Time until next event */
+	unsigned int esex = 0;		/* Total sex events (segregation of paired samples) */
+	unsigned int CsexS = 0;		/* Switch once sex samples chosen */
 	unsigned int done = 0;		/* Is simulation complete? */
 	unsigned int nbreaks = 0;	/* Number of non-rec tracts */
+	unsigned int event = 0;		/* What event happens? */
+	unsigned int deme = 0;		/* Which deme does event happen in? */
+	unsigned int drec = 0;		/* Receiving deme for migration event */
+	unsigned int e2 = 0;		/* Outcome of mig sampling, type of deme that migrates */
 
 	/* GSL random number definitions */
 	const gsl_rng_type * T; 
@@ -397,6 +565,7 @@ int main(int argc, char *argv[]){
 	unsigned int *Nwith = calloc(d,sizeof(unsigned int));		/* To be used in individual rep */
 	unsigned int *Nbet = calloc(d,sizeof(unsigned int));		/* To be used in individual rep */
 	unsigned int *zeros = calloc(d,sizeof(unsigned int));		/* Placeholder array of zeros */
+	unsigned int *demes = calloc(d,sizeof(unsigned int));		/* Indices of demes (for sampling) */
 	double *sexL = calloc(d,sizeof(double));		/* Low-sex rates */	
 	double *sexH = calloc(d,sizeof(double));		/* High-sex rates */
 	
@@ -406,6 +575,7 @@ int main(int argc, char *argv[]){
 		*(sexL + x) = strtod(argv[11 + (4*x + 2)],NULL);
 		*(sexH + x) = strtod(argv[11 + (4*x + 3)],NULL);
 		*(zeros + x) = 0;
+		*(demes + x) = x;
 		IwithT += (*(Iwith + x));
 		IbetT += (*(Ibet + x));
 		Itot += 2*(*(Iwith + x)) + (*(Ibet + x));
@@ -447,9 +617,19 @@ int main(int argc, char *argv[]){
 	
 	/* Arrays definition and memory assignment */
 	unsigned int *nlrec = calloc(d,sizeof(unsigned int));			/* Non-recombinable samples 1 */
-	unsigned int *nlrec2 = calloc(d,sizeof(unsigned int));			/* Non-recombinable samples 2 */	
+	unsigned int *nlrec2 = calloc(d,sizeof(unsigned int));			/* Non-recombinable samples 2 */
+	unsigned int *evsex = calloc(d,sizeof(unsigned int));			/* Number of sex events per deme */
+	unsigned int *csex = calloc(2,sizeof(unsigned int));			/* Does sex occur or not? */
+	unsigned int *draw = calloc(d,sizeof(unsigned int));			/* Event that happens */
+	unsigned int *draw2 = calloc(11,sizeof(unsigned int));			/* Deme in which event happens */
+	unsigned int *draw3 = calloc(2,sizeof(unsigned int));			/* Which type of sample migrates */	
+	double *Nsamps = calloc(2,sizeof(double));						/* Within and between-indv samples in deme */
+	int *WCH = calloc(d,sizeof(int));								/* How within-indv samples change */
+	int *BCH = calloc(d,sizeof(int));								/* How between-indv samples change */
 	double *sexC = calloc(d,sizeof(double));						/* Current rates of sex per deme */	
 	double *sexCInv = calloc(d,sizeof(double));						/* Inverse of current rates of sex (1-sexC) */
+	double *psex = calloc(2,sizeof(double));						/* Individual probabilities if individuals undergo sex or not */
+	double *pr_rsums = calloc(11,sizeof(double));					/* Rowsums of probs (for event choosing) */
 	double **pr = calloc(11,sizeof(double *));						/* Probability matrix per deme */
 	for (x = 0; x < 11; x++){										/* Assigning space for each population within each deme */
 		pr[x] = calloc(d,sizeof(double));
@@ -592,6 +772,93 @@ int main(int argc, char *argv[]){
 			}
 			NextT = (Ttot + tjump);
 			
+			/* Outcomes depends on what's next: an event or change in rates of sex!	*/
+			if(NextT > (tls + tts)){ 	/* If next event happens after a switch, change rates of sex */
+				tls = (tls + tts);	/* 'Time since Last Switch' or tls	*/
+				Ttot = tls;
+				rate_change(pST,pLH,pHL,sexH,sexL,N,d,1,sexC,sexCInv,&tts,&npST,r);
+				pST = npST;
+			}else if (NextT <= (tls + tts)){	/* If next event happens before a switch, draw an action	*/
+			
+				Ttot = NextT;
+						
+				/* Determines if sex occurs; if so, which samples are chosen */
+				/* (deme-independent Binomial draws) */
+				esex = 0;
+				CsexS = 0;
+				vcopyUI(evsex,zeros,d);
+				*(psex + 0) = nosex*(sumT_D(pr,11,d));
+				*(psex + 1) = 1-nosex;
+				gsl_ran_multinomial(r,2,1,psex,csex);
+				if(*(csex + 1) == 1){				/* Working out number of sex events IF it does occur */
+					while(CsexS == 0){
+						for(x = 0; x < d; x++){
+							*(evsex + x) = gsl_ran_binomial(r,*(sexC + x),*(Nwith + x));
+							esex += *(evsex + x);
+						}
+						if(esex > 0){
+							CsexS = 1;
+						}
+					}
+				}
+				
+				/* Now redrawing probabilities with changed configuration */
+				if(esex >= 1){
+					/* New in ARG simulation: 
+					already determining which samples have split 
+					(so can calculate recombination prob accurately) */
+					
+					/* UNCOMMENT ONCE 'RECCAL' CODE PUT IN AND TESTED */
+					/*
+					recinfo <- reccal(indvs,GType,breaks,evsex,nsites,lrec,1)
+					nlrec2 <- recinfo$lnrec
+					ssex <- recinfo$ssex
+					*/
+					
+					probset2(N, g, sexC, rec, lrec, nlrec, nlrec2, mig, Nwith, Nbet, evsex, 1, pr);
+				}
+				if(isanylessD_2D(pr,11,d,0) == 1){
+					fprintf(stderr,"A negative probability exists, you need to double-check your algebra (or probability inputs).\n");
+					exit(1);				
+				}
+				
+				/* Given event happens, what is that event? 
+				Weighted average based on above probabilities. 
+				Then drawing deme of event. */
+				rowsumD(pr,11,d,pr_rsums);
+				gsl_ran_multinomial(r,11,1,pr_rsums,draw);
+				event = matchUI(draw,11,1);
+				gsl_ran_multinomial(r,d,1,(*(pr + event)),draw2);
+				deme = matchUI(draw2,d,1);
+				
+				/* Based on outcome, altering states accordingly */
+				stchange2(event,deme,evsex,Nwith,WCH,BCH);
+				vsum_UI_I(Nwith, WCH, d);
+				vsum_UI_I(Nbet, BCH, d);
+				Ntot = 2*(sumUI(Nwith,d)) + sumUI(Nbet,d);
+				*(Nsamps + 0) = *(Nwith + deme);
+				*(Nsamps + 1) = *(Nbet + deme);
+				
+				if(event == 9){		/* Choosing demes to swap if there is a migration */
+					drec = deme;
+					while(drec == deme){
+						gsl_ran_choose(r,&drec,1,demes,d,sizeof(unsigned int));
+					}
+					gsl_ran_multinomial(r,2,1,Nsamps,draw3);
+					e2 = matchUI(draw3,2,1);
+					if(e2 == 0){	/* Paired sample migrates */
+						(*(Nwith + deme))--;
+						(*(Nwith + drec))++;
+					}else if(e2 == 1){	/* Single sample migrates */
+						(*(Nbet + deme))--;
+						(*(Nbet + drec))++;
+					}
+				}
+				
+				
+				
+			}
+			
 			/* Testing if all sites coalesced or not */
 			/*
 			for(x = 0; x < nbreaks; x++){
@@ -624,12 +891,23 @@ int main(int argc, char *argv[]){
 		free(pr[x]);
 	}
 	free(pr);
+	free(pr_rsums);
+	free(psex);
 	free(sexCInv);	
 	free(sexC);
 	free(nlrec2);
 	free(nlrec);
  	free(sexH);
  	free(sexL);
+ 	free(BCH);
+ 	free(WCH);
+ 	free(Nsamps);
+ 	free(draw3);
+ 	free(draw2);
+ 	free(draw);
+ 	free(csex);
+ 	free(evsex);
+  	free(demes);	
  	free(zeros);
  	free(Nbet);
  	free(Nwith);
