@@ -30,11 +30,14 @@ double P9(unsigned int x, unsigned int k, double gee);
 double P10(unsigned int x, unsigned int y, unsigned int k, double mee);
 double P11(unsigned int y, unsigned int k, double sexC, double ree, unsigned int lrec, unsigned int nlrec, unsigned int nlrec2);
 void probset2(unsigned int N, double g, double *sexC, double rec, unsigned int lrec, unsigned int *nlrec, unsigned int *nlrec2, double mig, unsigned int *Nwith, unsigned int *Nbet, unsigned int *kin, unsigned int sw, double **pr);
-void rate_change(unsigned int pST,double pLH, double pHL, double *sexH, double *sexL, unsigned int Na, unsigned int d, unsigned int switch1, double *sexCN, double *tts, unsigned int *npST,const gsl_rng *r);
+void rate_change(unsigned int pST,double pLH, double pHL, double *sexH, double *sexL, unsigned int Na, unsigned int d, unsigned int switch1, double *sexCN, double *sexCNInv, double *tts, unsigned int *npST,const gsl_rng *r);
 unsigned int isanyUI(unsigned int *vin, unsigned int size_t, unsigned int match);
 unsigned int isanyD(double *vin, unsigned int size_t, double match);
 unsigned int isallUI(unsigned int *vin, unsigned int size_t, unsigned int match);
 unsigned int isallD(double *vin, unsigned int size_t, double match);
+double prodDUI(double *Va, unsigned int *Vb, unsigned int size_t);
+double sumT_D(double **Tin, unsigned int nrow, unsigned int ncol);
+unsigned int isanylessD_2D(double **Tin, unsigned int nrow, unsigned int ncol, double match);
 
 /* Global variable declaration */
 unsigned int N = 0;			/* Population Size */
@@ -99,6 +102,42 @@ unsigned int isallD(double *vin, unsigned int size_t, double match){
 	return res;
 }
 
+/* Dot product of two vectors (double X UI) */
+double prodDUI(double *Va, unsigned int *Vb, unsigned int size_t){
+	unsigned int i;
+	double res = 0;
+	for(i = 0; i < size_t; i++){
+		res += (*(Va + i))*(*(Vb + i));
+	}
+	return res;
+}
+
+/* Summing entire table (double) */
+double sumT_D(double **Tin, unsigned int nrow, unsigned int ncol){
+	unsigned int i, j;
+	double res = 0;
+	for(i = 0; i < nrow; i++){
+		for(j = 0; j < nrow; j++){
+			res += (*((*(Tin + i)) + j));
+		}
+	}
+	return res;
+}
+
+/* Is any entry of table less than input? */
+unsigned int isanylessD_2D(double **Tin, unsigned int nrow, unsigned int ncol, double match){
+	unsigned int i, j;
+	double res = 0;
+	for(i = 0; i < nrow; i++){
+		for(j = 0; j < nrow; j++){
+			if(*((*(Tin + i)) + j) < match){
+				res = 1;
+			}
+		}
+	}
+	return res;
+}
+
 /* 'Triangle function' calculation */
 unsigned int trig(unsigned int x){
 	return (x*(x-1))/2.0;
@@ -121,16 +160,22 @@ double P56(unsigned int y, unsigned int Na){
 }
 double P7(unsigned int x, unsigned int k, unsigned int Na){
 	/* Two remaining paired samples doubly coalesce asexually: (x,y) -> (x-k-1,y+2k) */
-	return trig(x-k)/(1.0*Na);
+	unsigned int diff = 0;
+	diff = x-k;
+	return trig(diff)/(1.0*Na);
 }
 double P8(unsigned int x, unsigned int y, unsigned int k, unsigned int Na){
 	/* One of the x - k remaining paired samples can coalesce with a unique sample: (x,y) -> (x-k,y+2k-1) */
-	return ((x-k)*y)/(1.0*Na);
+	unsigned int diff = 0;
+	diff = x-k;
+	return (diff*y)/(1.0*Na);
 }
 double P9(unsigned int x, unsigned int k, double gee){
 	/* Paired sample coaleses via gene conversion: (x,y) -> (x-k-1,y+2k+1) */
 	/* NEEDS TO BE UPDATED TO ACCOUNT FOR MULTIPLE SITES */
-	return gee*(x-k);
+	unsigned int diff = 0;
+	diff = x-k;
+	return gee*(diff);
 }
 double P10(unsigned int x, unsigned int y, unsigned int k, double mee){
 	/* A sample migrates to another deme */
@@ -153,46 +198,50 @@ void probset2(unsigned int N, double g, double *sexC, double rec, unsigned int l
 	
 	/* Calculate each transition probability, per deme */
 	for(x = 0; x < d; x++){
+		*((*(pr + 4)) + x) = P56(*(Nbet + x),N);
 		*((*(pr + 5)) + x) = P56(*(Nbet + x),N);
-		*((*(pr + 6)) + x) = P56(*(Nbet + x),N);
-		*((*(pr + 7)) + x) = P7(*(Nwith + x),*(kin + x),N);
-		*((*(pr + 8)) + x) = P8(*(Nwith + x),*(Nbet + x),*(kin + x),N);
-		*((*(pr + 9)) + x) = P9(*(Nwith + x),*(kin + x),g);
-		*((*(pr + 10)) + x) = P10(*(Nwith + x),*(Nbet + x),*(kin + x),mig);		
-		*((*(pr + 11)) + x) = P11(*(Nbet + x),*(kin + x),*(sexC + x),rec,lrec,*(nlrec + x),*(nlrec2 + x));
+		*((*(pr + 6)) + x) = P7(*(Nwith + x),*(kin + x),N);
+		*((*(pr + 7)) + x) = P8(*(Nwith + x),*(Nbet + x),*(kin + x),N);
+		*((*(pr + 8)) + x) = P9(*(Nwith + x),*(kin + x),g);
+		*((*(pr + 9)) + x) = P10(*(Nwith + x),*(Nbet + x),*(kin + x),mig);		
+		*((*(pr + 10)) + x) = P11(*(Nbet + x),*(kin + x),*(sexC + x),rec,lrec,*(nlrec + x),*(nlrec2 + x));
 		
 		/* Only activate the first three events if need to consider segregation via sex 
 		(fourth is 'split pairs remain split') */
+		/* ADD IN SUMMED EVENT WHEN TIME COMES */
 		if(sw == 1){
 			if(ksum != 1){
-				*((*(pr + 2)) + x) = P23(*(Nbet + x),*(kin + x),N);
+				*((*(pr + 1)) + x) = P23(*(Nbet + x),*(kin + x),N);
 			}else if(ksum == 1){
-				*((*(pr + 2)) + x) = 0;
+				*((*(pr + 1)) + x) = 0;
 			}
-			*((*(pr + 3)) + x) = P23(*(Nbet + x),*(kin + x),N);
-			*((*(pr + 4)) + x) = P4(*(Nwith + x),*(kin + x),N);
+			*((*(pr + 2)) + x) = P23(*(Nbet + x),*(kin + x),N);
+			*((*(pr + 3)) + x) = P4(*(Nwith + x),*(kin + x),N);
 		}else if(sw == 0){
+			*((*(pr + 1)) + x) = 0;
 			*((*(pr + 2)) + x) = 0;
 			*((*(pr + 3)) + x) = 0;
-			*((*(pr + 4)) + x) = 0;
+			*((*(pr + 0)) + x) = 0;
 		}
 	}
 }	/* End of 'probset2' function */
 
 /* Function to change rates of sex given a state change */
-void rate_change(unsigned int pST,double pLH, double pHL, double *sexH, double *sexL, unsigned int Na, unsigned int d, unsigned int switch1, double *sexCN, double *tts, unsigned int *npST, const gsl_rng *r){
+void rate_change(unsigned int pST,double pLH, double pHL, double *sexH, double *sexL, unsigned int Na, unsigned int d, unsigned int switch1, double *sexCN, double *sexCNInv, double *tts, unsigned int *npST, const gsl_rng *r){
 	unsigned int x = 0;			/* Deme counter */
 	
 	/* Setting up transition time (tts, or 'time to switch')	*/
 	if(pST == 0){
 		for(x = 0; x < d; x++){
 			*(sexCN + x) = *(sexL + x);
+			*(sexCNInv + x) = 1.0 - (*(sexL + x));
 		}
 		*tts = gsl_ran_geometric(r,pLH)/(2.0*Na*d);
 		*npST = 1;
 	}else if(pST == 1){
 		for(x = 0; x < d; x++){
 			*(sexCN + x) = *(sexH + x);
+			*(sexCNInv + x) = 1.0 - (*(sexH + x));
 		}
 		*tts = gsl_ran_geometric(r,pHL)/(2.0*Na*d);
 		*npST = 0;
@@ -201,23 +250,26 @@ void rate_change(unsigned int pST,double pLH, double pHL, double *sexH, double *
 		if(switch1 == 0){
 			for(x = 0; x < d; x++){
 				*(sexCN + x) = *(sexL + x);
+				*(sexCNInv + x) = 1.0 - (*(sexL + x));
 			}
 			*tts = pLH;
 		}else if(switch1 == 1){
 			for(x = 0; x < d; x++){
 				*(sexCN + x) = *(sexH + x);
+				*(sexCNInv + x) = 1 - (*(sexH + x));
 			}
 			*tts = (0.0/0.0);
 		}
 	}else if(pST == 3){		/* If constant, no time to sex switch */
 		for(x = 0; x < d; x++){
 				*(sexCN + x) = *(sexL + x);
+				*(sexCNInv + x) = 1 - (*(sexL + x));
 			}
 		*tts = (0.0/0.0);
 		*npST = pST;
 	}
 	
-	printf("%lf %d \n",*tts,*npST);
+	/* printf("%lf %d \n",*tts,*npST);*/
 	
 }	/* End of 'rate_change' function */
 
@@ -226,6 +278,7 @@ int main(int argc, char *argv[]){
 	unsigned int x, i, j;		/* Assignment counter, rep counter, indv counter */
 	unsigned int pST, npST = 0;		/* State of reproduction heterogeneity */	
 	double Ttot = 0;			/* Time in past, initiate at zero */
+	double NextT = 0;			/* Next time, after drawing event */
 	unsigned int Ntot = 0;		/* Total number of samples at time */
 	unsigned int Nindv = 0;		/* Total number of individuals */
 	unsigned int lrec = 0;		/* Length of recombinable genome */
@@ -235,6 +288,10 @@ int main(int argc, char *argv[]){
 	unsigned int IbetC = 0;		/* Cumulative Ibet sum */
 	double tls = 0;				/* 'Time since Last Switch' or tls */
 	double tts = 0;				/* 'Time to switch' */
+	double nosex = 0;			/* Probability of no sexual reproduction over all demes */
+	double psum = 0;			/* Sum of transition probs (first go) */
+	double psum2 = 0;			/* Sum of transition probs (second go) */	
+	double tjump = 0;			/* Time until next event */
 	unsigned int done = 0;		/* Is simulation complete? */
 	unsigned int nbreaks = 0;	/* Number of non-rec tracts */
 
@@ -337,8 +394,9 @@ int main(int argc, char *argv[]){
 	
 	unsigned int *Iwith = calloc(d,sizeof(unsigned int));		/* Within-individual samples */
 	unsigned int *Ibet = calloc(d,sizeof(unsigned int));		/* Between-individual samples */
-	unsigned int *Nwith = calloc(d,sizeof(unsigned int));		/* To be used in sim */
-	unsigned int *Nbet = calloc(d,sizeof(unsigned int));		/* To be used in sim */
+	unsigned int *Nwith = calloc(d,sizeof(unsigned int));		/* To be used in individual rep */
+	unsigned int *Nbet = calloc(d,sizeof(unsigned int));		/* To be used in individual rep */
+	unsigned int *zeros = calloc(d,sizeof(unsigned int));		/* Placeholder array of zeros */
 	double *sexL = calloc(d,sizeof(double));		/* Low-sex rates */	
 	double *sexH = calloc(d,sizeof(double));		/* High-sex rates */
 	
@@ -347,6 +405,7 @@ int main(int argc, char *argv[]){
 		*(Ibet + x) = strtod(argv[11 + (4*x + 1)],NULL);
 		*(sexL + x) = strtod(argv[11 + (4*x + 2)],NULL);
 		*(sexH + x) = strtod(argv[11 + (4*x + 3)],NULL);
+		*(zeros + x) = 0;
 		IwithT += (*(Iwith + x));
 		IbetT += (*(Ibet + x));
 		Itot += 2*(*(Iwith + x)) + (*(Ibet + x));
@@ -390,6 +449,7 @@ int main(int argc, char *argv[]){
 	unsigned int *nlrec = calloc(d,sizeof(unsigned int));			/* Non-recombinable samples 1 */
 	unsigned int *nlrec2 = calloc(d,sizeof(unsigned int));			/* Non-recombinable samples 2 */	
 	double *sexC = calloc(d,sizeof(double));						/* Current rates of sex per deme */	
+	double *sexCInv = calloc(d,sizeof(double));						/* Inverse of current rates of sex (1-sexC) */
 	double **pr = calloc(11,sizeof(double *));						/* Probability matrix per deme */
 	for (x = 0; x < 11; x++){										/* Assigning space for each population within each deme */
 		pr[x] = calloc(d,sizeof(double));
@@ -437,7 +497,7 @@ int main(int argc, char *argv[]){
 		}
 		
 		/* Setting up temporal heterogeneity */
-		rate_change(pST,pLH,pHL,sexH,sexL,N,d,0,sexC,&tts,&npST,r);
+		rate_change(pST,pLH,pHL,sexH,sexL,N,d,0,sexC,sexCInv,&tts,&npST,r);
 		pST = npST;
 		tls = 0;
 		
@@ -500,22 +560,45 @@ int main(int argc, char *argv[]){
 			}
 		}
 		
-		for(j = 0; j < Itot; j++){
-			for(x = 0; x < 4; x++){
-				printf("%d ",*((*(indvs + j)) + x));
-			}
-			printf("\n");
-		}
-		
 		done = 0;
 		while(done != 1){
-			/* Simulation code here... */
+			
+			/* Setting up vector of state-change probabilities WITHOUT SEX */
+			probset2(N, g, sexC, rec, lrec, nlrec, zeros, mig, Nwith, Nbet, zeros, 0, pr);
+			nosex = prodDUI(sexCInv,Nwith,d);				/* Probability of no segregation via sex, accounting for within-deme variation */
+			psum = (1-nosex) + nosex*(sumT_D(pr,11,d));		/* Sum of all event probabilites, for drawing random time */
+			
+			/* Intermediate error checking */
+			if(psum > 1){
+				fprintf(stderr,"Summed probabilities exceed one, you need to double-check your algebra (or probability inputs).\n");
+				exit(1);
+			}
+			if((psum <= 0) && (isallD(sexC,d,0) != 1)){
+				fprintf(stderr,"Summed probabilites are zero or negative, you need to double-check your algebra (or probability inputs).\n");
+				exit(1);
+			}
+			if(isanylessD_2D(pr,11,d,0) == 1){
+				fprintf(stderr,"A negative probability exists, you need to double-check your algebra (or probability inputs).\n");
+				exit(1);				
+			}
+			
+			/* Drawing time to next event, SCALED TO 2NT GENERATIONS */
+			if(psum == 1){
+				tjump = 0.0;
+			}else if(psum == 0){
+				tjump = (0.0/0.0);
+			}else{
+				tjump = gsl_ran_exponential(r,1.0/(psum*(2.0*N*d)));
+			}
+			NextT = (Ttot + tjump);
 			
 			/* Testing if all sites coalesced or not */
+			/*
 			for(x = 0; x < nbreaks; x++){
 				*(bcoal + x) = *((*(breaks + 1)) + x);
 			}
 			done = isallUI(bcoal,nbreaks,1);
+			*/
 		}
 		
 		/* ...then freeing the memory */
@@ -541,11 +624,13 @@ int main(int argc, char *argv[]){
 		free(pr[x]);
 	}
 	free(pr);
+	free(sexCInv);	
 	free(sexC);
 	free(nlrec2);
 	free(nlrec);
  	free(sexH);
  	free(sexL);
+ 	free(zeros);
  	free(Nbet);
  	free(Nwith);
  	free(Ibet);
