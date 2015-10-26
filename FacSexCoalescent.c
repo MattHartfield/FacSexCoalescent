@@ -436,6 +436,62 @@ void stchange2(unsigned int ev, unsigned int deme, unsigned int *kin, unsigned i
 	
 }	/* End of 'stchange' function */
 
+/* Returning subtable of WH samples */
+void WHtab(unsigned int **indvs, unsigned int **WH, unsigned int NWtot){
+	unsigned int j,x ;
+	unsigned int count = 0;		/* Counter of number of WH samples */
+
+	for(j = 0; j < NWtot; j++){
+		if( (*((*(indvs + j)) + 2)) == 0){
+			vcopyUI((*(WH + count)), (*(indvs + j)), 4);
+			count++;
+		}
+	}
+}
+
+/* Function to change status of samples following event change */
+void coalesce(unsigned int **indvs, unsigned int **GType, unsigned int **CTms ,unsigned int **TAnc, unsigned int Ttot, unsigned int *Nwith, unsigned int *Nbet, unsigned int deme, unsigned int *rsex, unsigned int ex, unsigned int drec, unsigned int e2, unsigned int **breaks, unsigned int nsites, unsigned int lrec){
+	unsigned int j;
+	unsigned int NWtot = 2*sumUI(Nwith,d);
+	unsigned int NBtot = sumUI(Nbet,d);	
+
+	/* Assigning space for WH etc subtables */
+	unsigned int **WH = calloc(NWtot,sizeof(unsigned int *));		/* WH sub-table */
+	for(j = 0; j < NWtot; j++){
+		WH[j] = calloc(4,sizeof(unsigned int));
+	}
+	
+	/* Subtables of different types of samples - needed here??? */	
+	
+	/*
+	WHtab(indvs,WH,NWtot);
+	BHtab(indvs,WH);
+	CTtab(indvs,WH);
+	
+	WH <- WHtab(itab)
+	BH <- BHtab(itab)
+	CT <- Ctab(itab)
+	*/
+	
+	switch(ex)
+	{
+		case 0:		/* Event 1: 2k new samples created from paired samples */
+			WH[WH[,2]%in%rsex,3] <- 1	/* Setting samples as 'between-host' (due to split) */
+			*(oo3 + 0) = 0;
+			*(oo3 + 1) = 0;
+			break;
+	}
+	/* Switch code here... */
+	
+	/* Freeing memory */
+	for(j = 0; j < NWtot; j++){
+			free(WH[j]);
+	}
+	free(WH);
+	
+}	/* End of coalescent routine */
+	
+
 /* Main program */
 int main(int argc, char *argv[]){
 	unsigned int x, i, j;		/* Assignment counter, rep counter, indv counter */
@@ -689,9 +745,6 @@ int main(int argc, char *argv[]){
 		unsigned int **CTms = calloc(Itot,sizeof(unsigned int *));		/* Coalescent times per sample */
 		unsigned int **TAnc = calloc(Itot,sizeof(unsigned int *));		/* Table of ancestors for each sample */
 		unsigned int **breaks = calloc(2,sizeof(unsigned int *));		/* Table of breakpoints created in the simulation */
-		for (x = 0; x < 11; x++){										/* Assigning space for each population within each deme */
-			pr[x] = calloc(d,sizeof(double));
-		}
 		for(j = 0; j < Itot; j++){										/* Assigning space for each genome sample */
 			indvs[j] = calloc(4,sizeof(unsigned int));
 			GType[j] = calloc(2,sizeof(unsigned int));
@@ -855,20 +908,30 @@ int main(int argc, char *argv[]){
 					}
 				}
 				
-				
-				
-			}
+				/* Changing ancestry accordingly */
+				otab <- coalesce(indvs,GType,CTms,TAnc,Ttot,Nwith,Nbet,deme,ssex,event,drec,e2,breaks,nsites,lrec); 
+				if(otab$orec != (nsites-coalcalc(otab$obreaks,nsites))){
+					stop('Mismatch calculating coalesced samples')
+				}
 			
-			/* Testing if all sites coalesced or not */
-			/*
-			for(x = 0; x < nbreaks; x++){
-				*(bcoal + x) = *((*(breaks + 1)) + x);
+				# Updating baseline recombinable material depending on number single samples
+				if(all(breaks[2,]==1)!=1){
+					recinfo <- reccal(indvs,GType,breaks,rep(0,d),nsites,lrec,0)
+					nlrec <- recinfo$lnrec
+					nlrec;
+				}
+				
+				/* Testing if all sites coalesced or not */
+				/*
+				for(x = 0; x < nbreaks; x++){
+					*(bcoal + x) = *((*(breaks + 1)) + x);
+				}
+				done = isallUI(bcoal,nbreaks,1);
+				*/
 			}
-			done = isallUI(bcoal,nbreaks,1);
-			*/
 		}
 		
-		/* ...then freeing the memory */
+		/* Freeing memory at end of particular run */
 		free(bcoal);
 		free(breaks[1]);
 		free(breaks[0]);
