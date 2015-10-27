@@ -551,7 +551,7 @@ void coalesce(unsigned int **indvs, unsigned int **GType, double **CTms ,unsigne
 			}
 			free(singsamps);
 			break;
-		case 2:		/* Event 3: One of the unique samples coaleses with another unique one (either pre-existing or new) */
+		case 2:		/* Event 2: One of the unique samples coaleses with another unique one (either pre-existing or new) */
 			done = 0;
 			unsigned int *singsamps2 = calloc((*(Nbet + deme) + 2*(*(nsex + deme))),sizeof(unsigned int));			/* For storing BH samples */
 			sselect_UI(indvs, singsamps2, Ntot, 2, 0, 1, 3, deme);
@@ -583,6 +583,26 @@ void coalesce(unsigned int **indvs, unsigned int **GType, double **CTms ,unsigne
 			
 			free(singsamps2);
 			break;
+		case 3:		/* Event 4: A paired sample coaleses with new unique sample */
+			
+			/* update this code tomorrow (Wed)...
+			ord <- sample(WH[WH[,3]==1 & WH[,4]==deme,1],1)			# Unique sample involved in coalescence
+			ord <- c(ord,sample(WH[WH[,3]==0 & WH[,4]==deme,1],1))	# Paired sample involved in coalescence
+			jumb <- sample(ord)
+			csamp <- jumb[1]	# The one that disappears
+			par <- jumb[2]	# The one that does not
+		
+			if(WH[WH[,1]==par,3] == 1){		# Correction if parential sample is unique sample
+				WH[WH[,1]==par,3] <- 0			# Merged sample becomes WH
+				WH[WH[,1]==par,2] <- WH[WH[,1]==csamp,2]			# Ensuring remaining sample enters same parent as coalesced sample
+			}
+			*/
+		
+			/* Now updating coalescent times */
+			cchange(indvs, GType, CTms, TAnc, &csamp, &par, 1, Ntot, nbreaks, Ttot);
+			
+			/* Check if nbreaks have coalesced */
+			ccheck(indvs,GType,breaks,nsites,&lrec,Ntot,nbreaks);
 	}
 	
 }	/* End of coalescent routine */
