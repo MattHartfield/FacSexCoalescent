@@ -35,6 +35,7 @@ void rowsumD(double **Tin, unsigned int nrow, unsigned int ncol, double *Vout);
 unsigned int matchUI(unsigned int *Vin, unsigned int size_t, unsigned int match);
 void smultI_UI(int *Vout, unsigned int *Vin, unsigned int size_t, int scale);
 void vsum_UI_I(unsigned int *Vbase, int *Vadd, unsigned int size_t);
+void sselect_UI(unsigned int **Tin, unsigned int *Vout, unsigned int nrow, unsigned int matchcol, unsigned int datcol, unsigned int match, unsigned int deme);
 
 unsigned int trig(unsigned int x);
 double P23(unsigned int y, unsigned int k, unsigned int Na);
@@ -221,6 +222,18 @@ void vsum_UI_I(unsigned int *Vbase, int *Vadd, unsigned int size_t){
 	}
 }
 
+/* Choosing elements from array that match certain pattern (UI) */
+void sselect_UI(unsigned int **Tin, unsigned int *Vout, unsigned int nrow, unsigned int matchcol, unsigned int datcol, unsigned int match, unsigned int deme){
+	unsigned int j = 0;
+	unsigned int count = 0;
+	for(j = 0; j < nrow; j++){
+		if((*((*(Tin + j)) + matchcol) == match) & (*((*(Tin + j)) + 3) == deme) ){
+			*(Vout + count) = *((*(Tin + j)) + datcol);
+			count++;
+		}
+	}
+}
+
 /* 'Triangle function' calculation */
 unsigned int trig(unsigned int x){
 	return (x*(x-1))/2.0;
@@ -291,7 +304,6 @@ void probset2(unsigned int N, double g, double *sexC, double rec, unsigned int l
 		
 		/* Only activate the first three events if need to consider segregation via sex 
 		(fourth is 'split pairs remain split') */
-		/* ADD IN SUMMED EVENT WHEN TIME COMES */
 		if(sw == 1){
 			if(ksum != 1){
 				*((*(pr + 1)) + x) = P23(*(Nbet + x),*(kin + x),N);
@@ -436,58 +448,88 @@ void stchange2(unsigned int ev, unsigned int deme, unsigned int *kin, unsigned i
 	
 }	/* End of 'stchange' function */
 
-/* Returning subtable of WH samples */
-void WHtab(unsigned int **indvs, unsigned int **WH, unsigned int NWtot){
-	unsigned int j,x ;
-	unsigned int count = 0;		/* Counter of number of WH samples */
-
-	for(j = 0; j < NWtot; j++){
-		if( (*((*(indvs + j)) + 2)) == 0){
-			vcopyUI((*(WH + count)), (*(indvs + j)), 4);
-			count++;
-		}
-	}
-}
-
 /* Function to change status of samples following event change */
-void coalesce(unsigned int **indvs, unsigned int **GType, unsigned int **CTms ,unsigned int **TAnc, unsigned int Ttot, unsigned int *Nwith, unsigned int *Nbet, unsigned int deme, unsigned int *rsex, unsigned int ex, unsigned int drec, unsigned int e2, unsigned int **breaks, unsigned int nsites, unsigned int lrec){
-	unsigned int j;
-	unsigned int NWtot = 2*sumUI(Nwith,d);
+void coalesce(unsigned int **indvs, unsigned int **GType, unsigned int **CTms ,unsigned int **TAnc, unsigned int Ttot, unsigned int *Nwith, unsigned int *Nbet, unsigned int deme, unsigned int *rsex, unsigned int *nsex, unsigned int ex, unsigned int drec, unsigned int e2, unsigned int **breaks, unsigned int nsites, unsigned int lrec, const gsl_rng *r){
+	
+	unsigned int NWtot = 2*sumUI(Nwith,d);	
 	unsigned int NBtot = sumUI(Nbet,d);	
-
-	/* Assigning space for WH etc subtables */
-	unsigned int **WH = calloc(NWtot,sizeof(unsigned int *));		/* WH sub-table */
-	for(j = 0; j < NWtot; j++){
-		WH[j] = calloc(4,sizeof(unsigned int));
+	unsigned int Ntot = NWtot+NBtot;
+	unsigned int nsum = sumUI(nsex,d);
+	unsigned int j;
+	unsigned int count = 0;		/* For converting WH to BH samples */
+	unsigned int done = 0;		/* For sampling right individual */
+	unsigned int rands2 = 0;	/* Sample that does not split fully (event 1) */
+	unsigned int nos = 0;		/* Sub-sample that does not split fully (event 1) */
+	unsigned int bhc = 0;		/* Single sample that repairs (ev 1) */
+	
+	/* Generic action: setting sex samples as 'between-host' (due to split) */
+	if(ex != 1){	/* Routine slightly altered for event 1 */
+		while(count < nsum){
+			for(j = 0; j < Ntot; j++){
+				if( *((*(indvs + j)) + 1) == *(rsex + count) ){
+					*((*(indvs + j)) + 2) = 1;
+					*((*(indvs + j + 1)) + 2) = 1;		/* Since other paired sample also split */
+					*((*(indvs + j + 1)) + 1) = (Ntot + count);		/* Assuming first indv has index zero... */
+					count++;
+				}
+			}
+		}	
 	}
 	
-	/* Subtables of different types of samples - needed here??? */	
-	
-	/*
-	WHtab(indvs,WH,NWtot);
-	BHtab(indvs,WH);
-	CTtab(indvs,WH);
-	
-	WH <- WHtab(itab)
-	BH <- BHtab(itab)
-	CT <- Ctab(itab)
-	*/
-	
+	/* Then further actions based on other event */
 	switch(ex)
 	{
-		case 0:		/* Event 1: 2k new samples created from paired samples */
-			WH[WH[,2]%in%rsex,3] <- 1	/* Setting samples as 'between-host' (due to split) */
-			*(oo3 + 0) = 0;
-			*(oo3 + 1) = 0;
+		case 0:		/* Event 0: 2k new samples created from paired samples. Nothing else to be done */
+			break;
+		case 1:		/* Event 1: One of the paired samples is recreated, no coalescence */
+			/* First choose sample that does not split fully */
+			while(done == 0){
+				gsl_ran_choose(r,&rands2,1,rsex,nsum,sizeof(unsigned int));
+				/* Then checking it is in the same deme as the action */
+				for(j = 0; j < Ntot; j++){
+					if( *((*(indvs + j)) + 1) == rands2 ){
+						if(*((*(indvs + j)) + 3) == deme){
+							done = 1;
+						}
+					}
+				}
+			}
+			
+			/* Then setting BH samples */
+			nos = gsl_ran_bernoulli(r,0.5);	/* Only sample that splits fully */
+			while(count < nsum){
+				for(j = 0; j < Ntot; j++){
+					if( *((*(indvs + j)) + 1) == *(rsex + count) ){
+						if(*(rsex + count) != rands2){
+							*((*(indvs + j)) + 2) = 1;
+							*((*(indvs + j + 1)) + 2) = 1;
+							*((*(indvs + j + 1)) + 1) = (Ntot + count);
+							count++;
+						}else if(*(rsex + count) != rands2){
+							*((*(indvs + j + nos)) + 2) = 1;
+							*((*(indvs + j + nos)) + 1) = (Ntot + count);
+							count++;
+						}
+					}
+				}
+			}
+			
+			/* Now; out of all single samples, choose one to rebind with the single sample */
+			unsigned int *singsamps = calloc((*(Nbet + deme) + 2*(*(nsex + deme)) - 1),sizeof(unsigned int));			/* For storing BH samples */
+			sselect_UI(indvs, singsamps, Ntot, 2, 0, 1, deme);
+			gsl_ran_choose(r,&bhc,1,singsamps,(*(Nbet + deme) + 2*(*(nsex + deme)) - 1),sizeof(unsigned int));
+			for(j = 0; j < Ntot; j++){
+					if( *((*(indvs + j)) + 0) == bhc ){
+						*((*(indvs + j)) + 2) = 0;
+						*((*(indvs + j)) + 1) = rands2;	/* Ensuring paired samples have same parents*/
+					}
+				}
+			free(singsamps);
+			break;
+		case 2:		/* Event 3: One of the unique samples coaleses with another unique one (either pre-existing or new) */
+			
 			break;
 	}
-	/* Switch code here... */
-	
-	/* Freeing memory */
-	for(j = 0; j < NWtot; j++){
-			free(WH[j]);
-	}
-	free(WH);
 	
 }	/* End of coalescent routine */
 	
@@ -796,7 +838,7 @@ int main(int argc, char *argv[]){
 		done = 0;
 		while(done != 1){
 			
-			/* Setting up vector of state-change probabilities WITHOUT SEX */
+			/* Setting up vector of state-change probabilities *without sex* */
 			probset2(N, g, sexC, rec, lrec, nlrec, zeros, mig, Nwith, Nbet, zeros, 0, pr);
 			nosex = prodDUI(sexCInv,Nwith,d);				/* Probability of no segregation via sex, accounting for within-deme variation */
 			psum = (1-nosex) + nosex*(sumT_D(pr,11,d));		/* Sum of all event probabilites, for drawing random time */
@@ -825,7 +867,7 @@ int main(int argc, char *argv[]){
 			}
 			NextT = (Ttot + tjump);
 			
-			/* Outcomes depends on what's next: an event or change in rates of sex!	*/
+			/* Outcomes depends on what's next: an event or change in rates of sex	*/
 			if(NextT > (tls + tts)){ 	/* If next event happens after a switch, change rates of sex */
 				tls = (tls + tts);	/* 'Time since Last Switch' or tls	*/
 				Ttot = tls;
@@ -866,6 +908,7 @@ int main(int argc, char *argv[]){
 					recinfo <- reccal(indvs,GType,breaks,evsex,nsites,lrec,1)
 					nlrec2 <- recinfo$lnrec
 					ssex <- recinfo$ssex
+					nsex <- < SOMETHING >	***Number of sexual events - NEW PARAMETER***
 					*/
 					
 					probset2(N, g, sexC, rec, lrec, nlrec, nlrec2, mig, Nwith, Nbet, evsex, 1, pr);
@@ -883,6 +926,15 @@ int main(int argc, char *argv[]){
 				event = matchUI(draw,11,1);
 				gsl_ran_multinomial(r,d,1,(*(pr + event)),draw2);
 				deme = matchUI(draw2,d,1);
+				
+				/* Changing ancestry accordingly */
+				/* 	MOVED CODE HERE TO AVOID ERRORS WITH NUMBER SAMPLES MISMATCH */
+				/*
+				otab <- coalesce(indvs,GType,CTms,TAnc,Ttot,Nwith,Nbet,deme,ssex,event,drec,e2,breaks,nsites,lrec); 
+				if(otab$orec != (nsites-coalcalc(otab$obreaks,nsites))){
+					stop('Mismatch calculating coalesced samples')
+				}
+				*/
 				
 				/* Based on outcome, altering states accordingly */
 				stchange2(event,deme,evsex,Nwith,WCH,BCH);
@@ -907,19 +959,14 @@ int main(int argc, char *argv[]){
 						(*(Nbet + drec))++;
 					}
 				}
-				
-				/* Changing ancestry accordingly */
-				otab <- coalesce(indvs,GType,CTms,TAnc,Ttot,Nwith,Nbet,deme,ssex,event,drec,e2,breaks,nsites,lrec); 
-				if(otab$orec != (nsites-coalcalc(otab$obreaks,nsites))){
-					stop('Mismatch calculating coalesced samples')
-				}
-			
+				/*
 				# Updating baseline recombinable material depending on number single samples
 				if(all(breaks[2,]==1)!=1){
 					recinfo <- reccal(indvs,GType,breaks,rep(0,d),nsites,lrec,0)
 					nlrec <- recinfo$lnrec
 					nlrec;
 				}
+				*/
 				
 				/* Testing if all sites coalesced or not */
 				/*
