@@ -50,6 +50,9 @@ double P11(unsigned int y, unsigned int k, double sexC, double ree, unsigned int
 void probset2(unsigned int N, double g, double *sexC, double rec, unsigned int lrec, unsigned int *nlrec, unsigned int *nlrec2, double mig, unsigned int *Nwith, unsigned int *Nbet, unsigned int *kin, unsigned int sw, double **pr);
 void rate_change(unsigned int pST,double pLH, double pHL, double *sexH, double *sexL, unsigned int Na, unsigned int d, unsigned int switch1, double *sexCN, double *sexCNInv, double *tts, unsigned int *npST,const gsl_rng *r);
 void stchange2(unsigned int ev, unsigned int deme, unsigned int *kin, int *WCH, int *BCH);
+void cchange(unsigned int **indvs, unsigned int **GType, double **CTms, unsigned int **TAnc, unsigned int *csamp, unsigned int *par, unsigned int lsamp, unsigned int Ntot, unsigned int nbreaks, double Ttot);
+void ccheck(unsigned int **indvs, unsigned int **GType, unsigned int **breaks, unsigned int nsites, unsigned int *lrec, unsigned int Ntot, unsigned int nbreaks);
+unsigned int coalcalc(unsigned int **breaks, unsigned int nsites, unsigned int nbreaks);
 
 /* Global variable declaration */
 unsigned int N = 0;			/* Population Size */
@@ -466,7 +469,7 @@ void stchange2(unsigned int ev, unsigned int deme, unsigned int *kin, int *WCH, 
 }	/* End of 'stchange' function */
 
 /* Function to change status of samples following event change */
-void coalesce(unsigned int **indvs, unsigned int **GType, unsigned int **CTms ,unsigned int **TAnc, unsigned int Ttot, unsigned int *Nwith, unsigned int *Nbet, unsigned int deme, unsigned int *rsex, unsigned int *nsex, unsigned int ex, unsigned int drec, unsigned int e2, unsigned int **breaks, unsigned int nsites, unsigned int lrec, const gsl_rng *r){
+void coalesce(unsigned int **indvs, unsigned int **GType, double **CTms ,unsigned int **TAnc, unsigned int Ttot, unsigned int *Nwith, unsigned int *Nbet, unsigned int deme, unsigned int *rsex, unsigned int *nsex, unsigned int ex, unsigned int drec, unsigned int e2, unsigned int **breaks, unsigned int nsites, unsigned int lrec, unsigned int nbreaks, const gsl_rng *r){
 	
 	unsigned int NWtot = 2*sumUI(Nwith,d);	
 	unsigned int NBtot = sumUI(Nbet,d);	
@@ -573,13 +576,126 @@ void coalesce(unsigned int **indvs, unsigned int **GType, unsigned int **CTms ,u
 			}
 			
 			/* Now updating coalescent times */
-			/* FUNCTION HERE */
+			cchange(indvs, GType, CTms, TAnc, &csamp, &par, 1, Ntot, nbreaks, Ttot);
+			
+			/* Check if nbreaks have coalesced */
+			ccheck(indvs,GType,breaks,nsites,&lrec,Ntot,nbreaks);
 			
 			free(singsamps2);
 			break;
 	}
 	
 }	/* End of coalescent routine */
+
+/* Updating information following coalescent event */
+void cchange(unsigned int **indvs, unsigned int **GType, double **CTms, unsigned int **TAnc, unsigned int *csamp, unsigned int *par, unsigned int lsamp, unsigned int Ntot, unsigned int nbreaks, double Ttot){
+	unsigned int j, i, x;
+	unsigned int crow = 0;
+	unsigned int prow = 0;
+	
+	/* Code works on assumption that columns 'align' 
+	(i.e. column with 'csamp' in indvs is same column in other tables) */
+	
+	for(i = 0; i < lsamp; i++){
+		/* Finding crow, prow */
+		for(j = 0; j < Ntot; j++){
+			if(*((*(indvs + j)) + 0) == *(csamp + i)){
+				crow = j;
+				break;
+			}
+		}
+		for(j = 0; j < Ntot; j++){
+			if(*((*(indvs + j)) + 0) == *(par + i)){
+				prow = j;
+				break;
+			}
+		}
+		
+		/* 'csamp' coalesces */
+		*((*(indvs + crow)) + 1) = 0;
+		*((*(indvs + crow)) + 2) = 2;
+		
+		for(x = 0; x < nbreaks; x++){
+	
+			/* Updating genotype table */
+			if( (*((*(GType + crow)) + (x+1))) != 0 || (*((*(GType + prow)) + (x+1))) == 0){
+				(*((*(GType + prow)) + (x+1))) = (*((*(GType + crow)) + (x+1)));
+			}
+
+			/* Updating coalescent time and parental sample */
+			if( (*((*(GType + crow)) + (x+1))) != 0 || (*((*(GType + prow)) + (x+1))) != 0){
+				*((*(CTms + crow)) + (x+1)) = Ttot;
+				*((*(TAnc + crow)) + (x+1)) = (*((*(GType + prow)) + (x+1)));
+			}
+		}
+	}
+	
+}	/* End of 'cchange' function */
+
+/* After coalescence, check if tracts have coalesced */
+void ccheck(unsigned int **indvs, unsigned int **GType, unsigned int **breaks, unsigned int nsites, unsigned int *lrec, unsigned int Ntot, unsigned int nbreaks){
+	unsigned int achange = 0;	/* Has there been 'a change'? */
+	unsigned int j, x;
+	unsigned int gcount;	/* count of extant tracts present */
+	unsigned int lcoal;		/* Length of coalesced tracts */
+	
+	/* Has tract coalesced completely? Checking this */
+	
+	for(x = 0; x < nbreaks; x++){
+		if( *((*(breaks + 1)) + x) != 1 ){		/* If not yet coalesced... */
+			gcount = 0;
+			for(j = 0; j < Ntot; j++){
+				if( (*((*(indvs + j)) + 2) != 2 ) && ( *((*(GType + j)) + (x+1)) != 0 )){
+					gcount++;
+				}
+			}
+			/* If only one individual exists which carries that tract, then it has coalesced */
+			if(gcount == 1){
+				*((*(breaks + 1)) + x) = 1;
+				achange = 1;
+			}
+		}
+	}
+	
+	/* If there has been a coalescence: update number of recombinable sites */
+	if(achange == 1){
+		lcoal = 0;
+		/*lcoal = coalcalc(breaks,nsites);*/
+		*lrec = (nsites - lcoal);
+	}
+	
+}	/* End of 'ccheck' function */
+
+/* Routine to calculate length of coalesced tracts */
+unsigned int coalcalc(unsigned int **breaks, unsigned int nsites, unsigned int nbreaks){
+	
+	/* Calculating length of coalesced samples: 
+	deducting 1 to account for edge effects; 
+	adding on breakpoints lying between two coalesced samples */
+	
+	unsigned int x;
+	unsigned int val1, val2;
+	unsigned int lcoal = 0;
+	
+	for(x = 0; x < (nbreaks - 1); x++){
+		if(*((*(breaks + 1)) + x) == 1){
+			val1 = *((*(breaks + 0)) + x);
+			val2 = *((*(breaks + 0)) + x + 1);
+			lcoal += (val2 - val1 - 1);
+			if(*((*(breaks + 1)) + x + 1) == 1){
+				lcoal++;
+			}
+		}
+	}
+	if(*((*(breaks + 1)) + (nbreaks - 1)) == 1){
+		val1 = *((*(breaks + 0)) + (nbreaks - 1));
+		val2 = nsites;
+		lcoal += (val2 - val1 - 1);
+	}
+	
+	return(lcoal);
+	
+}	/* End of coalcalc function */
 	
 
 /* Main program */
@@ -832,13 +948,13 @@ int main(int argc, char *argv[]){
 		
 		unsigned int **indvs = calloc(Itot,sizeof(unsigned int *));		/* Table of individual samples */
 		unsigned int **GType = calloc(Itot,sizeof(unsigned int *));		/* Table of sample genotypes */
-		unsigned int **CTms = calloc(Itot,sizeof(unsigned int *));		/* Coalescent times per sample */
+		double **CTms = calloc(Itot,sizeof(unsigned int *));			/* Coalescent times per sample */
 		unsigned int **TAnc = calloc(Itot,sizeof(unsigned int *));		/* Table of ancestors for each sample */
 		unsigned int **breaks = calloc(2,sizeof(unsigned int *));		/* Table of breakpoints created in the simulation */
 		for(j = 0; j < Itot; j++){										/* Assigning space for each genome sample */
 			indvs[j] = calloc(4,sizeof(unsigned int));
 			GType[j] = calloc(2,sizeof(unsigned int));
-			CTms[j] = calloc(2,sizeof(unsigned int));
+			CTms[j] = calloc(2,sizeof(double));
 			TAnc[j] = calloc(2,sizeof(unsigned int));
 		}
 		breaks[0] = calloc(1,sizeof(unsigned int));
