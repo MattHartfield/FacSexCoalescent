@@ -24,7 +24,7 @@ unsigned int isanyUI(unsigned int *vin, unsigned int size_t, unsigned int match)
 unsigned int isanyD(double *vin, unsigned int size_t, double match);
 unsigned int isallUI(unsigned int *vin, unsigned int size_t, unsigned int match);
 unsigned int isallD(double *vin, unsigned int size_t, double match);
-double prodDUI(double *Va, unsigned int *Vb, unsigned int size_t);
+double powDUI(double *Va, unsigned int *Vb, unsigned int size_t);
 unsigned int sumUI(unsigned int *Vin, unsigned int size_t);
 double sumT_D(double **Tin, unsigned int nrow, unsigned int ncol);
 unsigned int isanylessD_2D(double **Tin, unsigned int nrow, unsigned int ncol, double match);
@@ -35,7 +35,8 @@ void rowsumD(double **Tin, unsigned int nrow, unsigned int ncol, double *Vout);
 unsigned int matchUI(unsigned int *Vin, unsigned int size_t, unsigned int match);
 void smultI_UI(int *Vout, unsigned int *Vin, unsigned int size_t, int scale);
 void vsum_UI_I(unsigned int *Vbase, int *Vadd, unsigned int size_t);
-void sselect_UI(unsigned int **Tin, unsigned int *Vout, unsigned int nrow, unsigned int matchcol, unsigned int datcol, unsigned int match, unsigned int deme);
+void sselect_UI(unsigned int **Tin, unsigned int *Vout, unsigned int nrow, unsigned int matchcol, unsigned int datcol, unsigned int match, unsigned int dcol, unsigned int deme);
+void sselect_UIV(unsigned int **Tin, unsigned int *Vout, unsigned int nrow, unsigned int matchcol, unsigned int datcol, unsigned int *match, unsigned int mlength, unsigned int dcol, unsigned int deme);
 
 unsigned int trig(unsigned int x);
 double P23(unsigned int y, unsigned int k, unsigned int Na);
@@ -48,7 +49,7 @@ double P10(unsigned int x, unsigned int y, unsigned int k, double mee);
 double P11(unsigned int y, unsigned int k, double sexC, double ree, unsigned int lrec, unsigned int nlrec, unsigned int nlrec2);
 void probset2(unsigned int N, double g, double *sexC, double rec, unsigned int lrec, unsigned int *nlrec, unsigned int *nlrec2, double mig, unsigned int *Nwith, unsigned int *Nbet, unsigned int *kin, unsigned int sw, double **pr);
 void rate_change(unsigned int pST,double pLH, double pHL, double *sexH, double *sexL, unsigned int Na, unsigned int d, unsigned int switch1, double *sexCN, double *sexCNInv, double *tts, unsigned int *npST,const gsl_rng *r);
-void stchange2(unsigned int ev, unsigned int deme, unsigned int *kin, unsigned int *Nwith, int *WCH, int *BCH);
+void stchange2(unsigned int ev, unsigned int deme, unsigned int *kin, int *WCH, int *BCH);
 
 /* Global variable declaration */
 unsigned int N = 0;			/* Population Size */
@@ -114,11 +115,11 @@ unsigned int isallD(double *vin, unsigned int size_t, double match){
 }
 
 /* Dot product of two vectors (double X UI) */
-double prodDUI(double *Va, unsigned int *Vb, unsigned int size_t){
+double powDUI(double *Va, unsigned int *Vb, unsigned int size_t){
 	unsigned int i;
-	double res = 0;
+	double res = 1;
 	for(i = 0; i < size_t; i++){
-		res += (*(Va + i))*(*(Vb + i));
+		res *= pow((*(Va + i)),(*(Vb + i)));
 	}
 	return res;
 }
@@ -223,13 +224,29 @@ void vsum_UI_I(unsigned int *Vbase, int *Vadd, unsigned int size_t){
 }
 
 /* Choosing elements from array that match certain pattern (UI) */
-void sselect_UI(unsigned int **Tin, unsigned int *Vout, unsigned int nrow, unsigned int matchcol, unsigned int datcol, unsigned int match, unsigned int deme){
+void sselect_UI(unsigned int **Tin, unsigned int *Vout, unsigned int nrow, unsigned int matchcol, unsigned int datcol, unsigned int match, unsigned int dcol, unsigned int deme){
 	unsigned int j = 0;
 	unsigned int count = 0;
 	for(j = 0; j < nrow; j++){
-		if((*((*(Tin + j)) + matchcol) == match) & (*((*(Tin + j)) + 3) == deme) ){
+		if((*((*(Tin + j)) + matchcol) == match) & (*((*(Tin + j)) + dcol) == deme) ){
 			*(Vout + count) = *((*(Tin + j)) + datcol);
 			count++;
+		}
+	}
+}
+
+/* Choosing elements from array that match certain vector (UI) */
+void sselect_UIV(unsigned int **Tin, unsigned int *Vout, unsigned int nrow, unsigned int matchcol, unsigned int datcol, unsigned int *match, unsigned int mlength, unsigned int dcol, unsigned int deme){
+	unsigned int j = 0;
+	unsigned int count = 0;
+	while(count < mlength){
+		for(j = 0; j < nrow; j++){
+			if((*((*(Tin + j)) + matchcol) == *(match + count)) & (*((*(Tin + j)) + dcol) == deme) ){
+				*(Vout + 2*count) = *((*(Tin + j)) + datcol);
+				*(Vout + 2*count+1) = *((*(Tin + j + 1)) + datcol);
+				count++;
+				break;
+			}
 		}
 	}
 }
@@ -331,7 +348,7 @@ void probset2(unsigned int N, double g, double *sexC, double rec, unsigned int l
 void rate_change(unsigned int pST,double pLH, double pHL, double *sexH, double *sexL, unsigned int Na, unsigned int d, unsigned int switch1, double *sexCN, double *sexCNInv, double *tts, unsigned int *npST, const gsl_rng *r){
 	unsigned int x = 0;			/* Deme counter */
 	
-	/* Setting up transition time (tts, or 'time to switch')	*/
+	/* Setting up transition time (tts, or 'time to switch') */
 	if(pST == 0){
 		for(x = 0; x < d; x++){
 			*(sexCN + x) = *(sexL + x);
@@ -359,14 +376,14 @@ void rate_change(unsigned int pST,double pLH, double pHL, double *sexH, double *
 				*(sexCN + x) = *(sexH + x);
 				*(sexCNInv + x) = 1 - (*(sexH + x));
 			}
-			*tts = (0.0/0.0);
+			*tts = (1.0/0.0);
 		}
 	}else if(pST == 3){		/* If constant, no time to sex switch */
 		for(x = 0; x < d; x++){
 				*(sexCN + x) = *(sexL + x);
 				*(sexCNInv + x) = 1 - (*(sexL + x));
 			}
-		*tts = (0.0/0.0);
+		*tts = (1.0/0.0);
 		*npST = pST;
 	}
 	
@@ -376,7 +393,7 @@ void rate_change(unsigned int pST,double pLH, double pHL, double *sexH, double *
 
 /* Function to determine how to change state numbers following an event,
 taking into account events over all demes*/
-void stchange2(unsigned int ev, unsigned int deme, unsigned int *kin, unsigned int *Nwith, int *WCH, int *BCH){
+void stchange2(unsigned int ev, unsigned int deme, unsigned int *kin, int *WCH, int *BCH){
 
 	int *oo3 = calloc(2,sizeof(int));		/* Extra change in pop due to event */
 	int *negk = calloc(d,sizeof(int));		/* Negative of k */
@@ -455,12 +472,14 @@ void coalesce(unsigned int **indvs, unsigned int **GType, unsigned int **CTms ,u
 	unsigned int NBtot = sumUI(Nbet,d);	
 	unsigned int Ntot = NWtot+NBtot;
 	unsigned int nsum = sumUI(nsex,d);
-	unsigned int j;
+	unsigned int j, a;
 	unsigned int count = 0;		/* For converting WH to BH samples */
 	unsigned int done = 0;		/* For sampling right individual */
 	unsigned int rands2 = 0;	/* Sample that does not split fully (event 1) */
 	unsigned int nos = 0;		/* Sub-sample that does not split fully (event 1) */
 	unsigned int bhc = 0;		/* Single sample that repairs (ev 1) */
+	unsigned int csamp = 0;		/* Sample that coalesces */
+	unsigned int par = 0;		/* Parental sample in coalescence */
 	
 	/* Generic action: setting sex samples as 'between-host' (due to split) */
 	if(ex != 1){	/* Routine slightly altered for event 1 */
@@ -471,6 +490,7 @@ void coalesce(unsigned int **indvs, unsigned int **GType, unsigned int **CTms ,u
 					*((*(indvs + j + 1)) + 2) = 1;		/* Since other paired sample also split */
 					*((*(indvs + j + 1)) + 1) = (Ntot + count);		/* Assuming first indv has index zero... */
 					count++;
+					break;
 				}
 			}
 		}	
@@ -505,29 +525,57 @@ void coalesce(unsigned int **indvs, unsigned int **GType, unsigned int **CTms ,u
 							*((*(indvs + j + 1)) + 2) = 1;
 							*((*(indvs + j + 1)) + 1) = (Ntot + count);
 							count++;
-						}else if(*(rsex + count) != rands2){
+						}else if(*(rsex + count) == rands2){
 							*((*(indvs + j + nos)) + 2) = 1;
 							*((*(indvs + j + nos)) + 1) = (Ntot + count);
-							count++;
+							count++;						
 						}
+						break;
 					}
 				}
 			}
 			
 			/* Now; out of all single samples, choose one to rebind with the single sample */
 			unsigned int *singsamps = calloc((*(Nbet + deme) + 2*(*(nsex + deme)) - 1),sizeof(unsigned int));			/* For storing BH samples */
-			sselect_UI(indvs, singsamps, Ntot, 2, 0, 1, deme);
+			sselect_UI(indvs, singsamps, Ntot, 2, 0, 1, 3, deme);
 			gsl_ran_choose(r,&bhc,1,singsamps,(*(Nbet + deme) + 2*(*(nsex + deme)) - 1),sizeof(unsigned int));
 			for(j = 0; j < Ntot; j++){
-					if( *((*(indvs + j)) + 0) == bhc ){
-						*((*(indvs + j)) + 2) = 0;
-						*((*(indvs + j)) + 1) = rands2;	/* Ensuring paired samples have same parents*/
-					}
+				if( *((*(indvs + j)) + 0) == bhc ){
+					*((*(indvs + j)) + 2) = 0;
+					*((*(indvs + j)) + 1) = rands2;	/* Ensuring paired samples have same parents*/
+					break;
 				}
+			}
 			free(singsamps);
 			break;
 		case 2:		/* Event 3: One of the unique samples coaleses with another unique one (either pre-existing or new) */
+			done = 0;
+			unsigned int *singsamps2 = calloc((*(Nbet + deme) + 2*(*(nsex + deme))),sizeof(unsigned int));			/* For storing BH samples */
+			sselect_UI(indvs, singsamps2, Ntot, 2, 0, 1, 3, deme);
 			
+			while(done == 0){
+				gsl_ran_choose(r,&csamp,1,singsamps2,(*(nsex + deme)),sizeof(unsigned int));			/* One sample involved in coalescence (csamp) */
+				par = csamp;
+				while(par == csamp){	/* Ensuring par != csamp */
+					gsl_ran_choose(r,&par,1,singsamps2,(*(nsex + deme)),sizeof(unsigned int));			/* Other sample involved in coalescence (par) */
+				}
+		
+				/* Now checking that at least one of the two is from sample split by sex */
+				for(j = 0; j < Ntot; j++){
+					if( (*((*(indvs + j)) + 0) == csamp) ||  (*((*(indvs + j)) + 0) == par) ){
+						for(a = 0; a < nsum; a++){
+							if( *((*(indvs + j)) + 1) == *(rsex + a)){
+								done = 1;
+							}
+						}
+					}
+				}
+			}
+			
+			/* Now updating coalescent times */
+			/* FUNCTION HERE */
+			
+			free(singsamps2);
 			break;
 	}
 	
@@ -729,8 +777,8 @@ int main(int argc, char *argv[]){
 	double *psex = calloc(2,sizeof(double));						/* Individual probabilities if individuals undergo sex or not */
 	double *pr_rsums = calloc(11,sizeof(double));					/* Rowsums of probs (for event choosing) */
 	double **pr = calloc(11,sizeof(double *));						/* Probability matrix per deme */
-	for (x = 0; x < 11; x++){										/* Assigning space for each population within each deme */
-		pr[x] = calloc(d,sizeof(double));
+	for (j = 0; j < 11; j++){										/* Assigning space for each population within each deme */
+		pr[j] = calloc(d,sizeof(double));
 	}
 	  
 	/* create a generator chosen by the 
@@ -840,7 +888,7 @@ int main(int argc, char *argv[]){
 			
 			/* Setting up vector of state-change probabilities *without sex* */
 			probset2(N, g, sexC, rec, lrec, nlrec, zeros, mig, Nwith, Nbet, zeros, 0, pr);
-			nosex = prodDUI(sexCInv,Nwith,d);				/* Probability of no segregation via sex, accounting for within-deme variation */
+			nosex = powDUI(sexCInv,Nwith,d);				/* Probability of no segregation via sex, accounting for within-deme variation */
 			psum = (1-nosex) + nosex*(sumT_D(pr,11,d));		/* Sum of all event probabilites, for drawing random time */
 			
 			/* Intermediate error checking */
@@ -857,15 +905,25 @@ int main(int argc, char *argv[]){
 				exit(1);				
 			}
 			
+			/*
+			for(j = 0; j < 11; j++){
+				for(x = 0; x < d; x++){
+					printf("%.10lf ",*((*(pr + j)) + x));
+				}
+				printf("\n");
+			}
+			*/
+			
 			/* Drawing time to next event, SCALED TO 2NT GENERATIONS */
 			if(psum == 1){
 				tjump = 0.0;
 			}else if(psum == 0){
-				tjump = (0.0/0.0);
+				tjump = (1.0/0.0);
 			}else{
-				tjump = gsl_ran_exponential(r,1.0/(psum*(2.0*N*d)));
+				tjump = gsl_ran_exponential(r,(1.0/(psum*(2.0*N*d))));
 			}
 			NextT = (Ttot + tjump);
+			/*printf("NextT; Ttot; tj are %.10lf %.10lf %.10lf\n",NextT,Ttot,tjump);*/
 			
 			/* Outcomes depends on what's next: an event or change in rates of sex	*/
 			if(NextT > (tls + tts)){ 	/* If next event happens after a switch, change rates of sex */
@@ -874,7 +932,6 @@ int main(int argc, char *argv[]){
 				rate_change(pST,pLH,pHL,sexH,sexL,N,d,1,sexC,sexCInv,&tts,&npST,r);
 				pST = npST;
 			}else if (NextT <= (tls + tts)){	/* If next event happens before a switch, draw an action	*/
-			
 				Ttot = NextT;
 						
 				/* Determines if sex occurs; if so, which samples are chosen */
@@ -908,7 +965,7 @@ int main(int argc, char *argv[]){
 					recinfo <- reccal(indvs,GType,breaks,evsex,nsites,lrec,1)
 					nlrec2 <- recinfo$lnrec
 					ssex <- recinfo$ssex
-					nsex <- < SOMETHING >	***Number of sexual events - NEW PARAMETER***
+					nsex <- < SOMETHING >	***Number of sexual events per deme - NEW PARAMETER: this is an ARRAY ***
 					*/
 					
 					probset2(N, g, sexC, rec, lrec, nlrec, nlrec2, mig, Nwith, Nbet, evsex, 1, pr);
@@ -926,9 +983,10 @@ int main(int argc, char *argv[]){
 				event = matchUI(draw,11,1);
 				gsl_ran_multinomial(r,d,1,(*(pr + event)),draw2);
 				deme = matchUI(draw2,d,1);
+				/*printf("%d %d\n",event,deme);*/
 				
 				/* Changing ancestry accordingly */
-				/* 	MOVED CODE HERE TO AVOID ERRORS WITH NUMBER SAMPLES MISMATCH */
+				/* 	MOVED CODE HERE TO AVOID ERRORS WHEN NUMBER OF SAMPLES MISMATCH */
 				/*
 				otab <- coalesce(indvs,GType,CTms,TAnc,Ttot,Nwith,Nbet,deme,ssex,event,drec,e2,breaks,nsites,lrec); 
 				if(otab$orec != (nsites-coalcalc(otab$obreaks,nsites))){
@@ -937,12 +995,47 @@ int main(int argc, char *argv[]){
 				*/
 				
 				/* Based on outcome, altering states accordingly */
-				stchange2(event,deme,evsex,Nwith,WCH,BCH);
+				stchange2(event,deme,evsex,WCH,BCH);
+				/*
+				printf("Nwith: ");
+				for(x = 0; x < d; x++){
+					printf("%d ",*(Nwith + x));
+				}
+				printf("\n");
+				printf("Nbet: ");
+				for(x = 0; x < d; x++){
+					printf("%d ",*(Nbet + x));
+				}
+				printf("\n");
+				printf("WCH: ");
+				for(x = 0; x < d; x++){
+					printf("%d ",*(WCH + x));
+				}
+				printf("\n");
+				printf("BCH: ");
+				for(x = 0; x < d; x++){
+					printf("%d ",*(BCH + x));
+				}
+				printf("\n");
+				*/
 				vsum_UI_I(Nwith, WCH, d);
 				vsum_UI_I(Nbet, BCH, d);
 				Ntot = 2*(sumUI(Nwith,d)) + sumUI(Nbet,d);
 				*(Nsamps + 0) = *(Nwith + deme);
 				*(Nsamps + 1) = *(Nbet + deme);
+				/*
+				printf("Nwith NEW: ");
+				for(x = 0; x < d; x++){
+					printf("%d ",*(Nwith + x));
+				}
+				printf("\n");
+				printf("Nbet NEW: ");
+				for(x = 0; x < d; x++){
+					printf("%d ",*(Nbet + x));
+				}
+				printf("\n");
+				printf("Ntot is %d\n",Ntot);
+				*/
 				
 				if(event == 9){		/* Choosing demes to swap if there is a migration */
 					drec = deme;
@@ -975,6 +1068,9 @@ int main(int argc, char *argv[]){
 				}
 				done = isallUI(bcoal,nbreaks,1);
 				*/
+				if(Ntot == 1){
+					done = 1;
+				}
 			}
 		}
 		
