@@ -51,9 +51,11 @@ void probset2(unsigned int N, double g, double *sexC, double rec, unsigned int l
 void rate_change(unsigned int pST,double pLH, double pHL, double *sexH, double *sexL, unsigned int Na, unsigned int d, unsigned int switch1, double *sexCN, double *sexCNInv, double *tts, unsigned int *npST,const gsl_rng *r);
 void stchange2(unsigned int ev, unsigned int deme, unsigned int *kin, int *WCH, int *BCH);
 void sexconv(unsigned int **Tin, unsigned int *rsex, unsigned int nsum, unsigned int Ntot);
+void coalesce(unsigned int **indvs, unsigned int **GType, double **CTms ,unsigned int **TAnc, unsigned int Ttot, unsigned int *Nwith, unsigned int *Nbet, unsigned int deme, unsigned int *rsex, unsigned int *nsex, unsigned int ex, unsigned int drec, unsigned int e2, unsigned int **breaks, unsigned int nsites, unsigned int *lrec, unsigned int nbreaks, const gsl_rng *r);
 void cchange(unsigned int **indvs, unsigned int **GType, double **CTms, unsigned int **TAnc, unsigned int *csamp, unsigned int *par, unsigned int lsamp, unsigned int Ntot, unsigned int nbreaks, double Ttot);
 void ccheck(unsigned int **indvs, unsigned int **GType, unsigned int **breaks, unsigned int nsites, unsigned int *lrec, unsigned int Ntot, unsigned int nbreaks);
 unsigned int coalcalc(unsigned int **breaks, unsigned int nsites, unsigned int nbreaks);
+void sexsamp(unsigned int **indvs, unsigned int *rsex, unsigned int *nsex, unsigned int *Nwith, unsigned int Ntot, const gsl_rng *r);
 
 /* Global variable declaration */
 unsigned int N = 0;			/* Population Size */
@@ -487,23 +489,24 @@ void sexconv(unsigned int **Tin, unsigned int *rsex, unsigned int nsum, unsigned
 }
 
 /* Function to change status of samples following event change */
-void coalesce(unsigned int **indvs, unsigned int **GType, double **CTms ,unsigned int **TAnc, unsigned int Ttot, unsigned int *Nwith, unsigned int *Nbet, unsigned int deme, unsigned int *rsex, unsigned int *nsex, unsigned int ex, unsigned int drec, unsigned int e2, unsigned int **breaks, unsigned int nsites, unsigned int lrec, unsigned int nbreaks, const gsl_rng *r){
+void coalesce(unsigned int **indvs, unsigned int **GType, double **CTms ,unsigned int **TAnc, unsigned int Ttot, unsigned int *Nwith, unsigned int *Nbet, unsigned int deme, unsigned int *rsex, unsigned int *nsex, unsigned int ex, unsigned int drec, unsigned int e2, unsigned int **breaks, unsigned int nsites, unsigned int *lrec, unsigned int nbreaks, const gsl_rng *r){
 	
 	unsigned int NWtot = 2*sumUI(Nwith,d);	
 	unsigned int NBtot = sumUI(Nbet,d);	
-	unsigned int Ntot = NWtot+NBtot;
+	unsigned int Ntot = NWtot + NBtot;
 	unsigned int nsum = sumUI(nsex,d);
 	unsigned int j, a;
 	unsigned int count = 0;		/* For converting WH to BH samples */
 	unsigned int done = 0;		/* For sampling right individual */
 	unsigned int rands2 = 0;	/* Sample that does not split fully (event 1) */
 	unsigned int nos = 0;		/* Sub-sample that does not split fully (event 1) */
-	unsigned int bhc = 0;		/* Single sample that repairs (ev 1) */
+	unsigned int bhc = 0;		/* Single sample that repairs (ev 1) or migrates (ev 9); */
 	unsigned int csamp = 0;		/* Sample that coalesces */
 	unsigned int par = 0;		/* Parental sample in coalescence */
 	unsigned int par2 = 0;		/* Parental sample of paired coalescence (ev 2) */
 	unsigned int WHsel = 0;		/* WH sample involved in event (ev 7) */
 	unsigned int isWH = 0;		/* Is the sample from WH? (ev 7) */
+	unsigned int lrecN = 0;		/* New lrec output */
 	
 	/* Then further actions based on other event */
 	switch(ex)
@@ -586,7 +589,8 @@ void coalesce(unsigned int **indvs, unsigned int **GType, double **CTms ,unsigne
 			cchange(indvs, GType, CTms, TAnc, &csamp, &par, 1, Ntot, nbreaks, Ttot);
 			
 			/* Check if tracts have coalesced */
-			ccheck(indvs,GType,breaks,nsites,&lrec,Ntot,nbreaks);
+			ccheck(indvs,GType,breaks,nsites,&lrecN,Ntot,nbreaks);
+			*lrec = lrecN;
 			
 			free(singsamps2);
 			break;
@@ -628,7 +632,8 @@ void coalesce(unsigned int **indvs, unsigned int **GType, double **CTms ,unsigne
 			cchange(indvs, GType, CTms, TAnc, &csamp, &par, 1, Ntot, nbreaks, Ttot);
 			
 			/* Check if tracts have coalesced */
-			ccheck(indvs,GType,breaks,nsites,&lrec,Ntot,nbreaks);
+			ccheck(indvs,GType,breaks,nsites,&lrecN,Ntot,nbreaks);
+			*lrec = lrecN;
 			
 			free(twosamps);
 			free(singsamps3B);
@@ -681,7 +686,8 @@ void coalesce(unsigned int **indvs, unsigned int **GType, double **CTms ,unsigne
 			cchange(indvs, GType, CTms, TAnc, &csamp, &par, 1, Ntot, nbreaks, Ttot);
 			
 			/* Check if tracts have coalesced */
-			ccheck(indvs,GType,breaks,nsites,&lrec,Ntot,nbreaks);
+			ccheck(indvs,GType,breaks,nsites,&lrecN,Ntot,nbreaks);
+			*lrec = lrecN;
 		
 			/* THEN convert WH to BH samples */
 			sexconv(indvs, rsex, nsum, Ntot);
@@ -737,7 +743,8 @@ void coalesce(unsigned int **indvs, unsigned int **GType, double **CTms ,unsigne
 			cchange(indvs, GType, CTms, TAnc, csamp2, parT, 2, Ntot, nbreaks, Ttot);
 			
 			/* Check if tracts have coalesced */
-			ccheck(indvs,GType,breaks,nsites,&lrec,Ntot,nbreaks);
+			ccheck(indvs,GType,breaks,nsites,&lrecN,Ntot,nbreaks);
+			*lrec = lrecN;
 			
 			free(parT);
 			free(csamp2);
@@ -815,12 +822,71 @@ void coalesce(unsigned int **indvs, unsigned int **GType, double **CTms ,unsigne
 			cchange(indvs, GType, CTms, TAnc, &csamp, &par, 1, Ntot, nbreaks, Ttot);
 			
 			/* Check if tracts have coalesced */
-			ccheck(indvs,GType,breaks,nsites,&lrec,Ntot,nbreaks);
+			ccheck(indvs,GType,breaks,nsites,&lrecN,Ntot,nbreaks);
+			*lrec = lrecN;
 		
 			free(twosamps7);
 			free(singsamps7);
 			free(parsamps7);
 			break;
+		case 8:		/* Event 8: Paired sample coaleses via gene conversion */
+			fprintf(stderr,"No gene conversion yet - will implement multiple sites in course.\n");
+			exit(1);
+			break;
+		case 9:		/* Event 9: Migration of a sample */
+		
+			/* Converting WH to BH samples  */
+			sexconv(indvs, rsex, nsum, Ntot);
+			
+			if(e2 == 0){		/* WH sample migrates */
+				/* For storing WH indvs */
+				unsigned int *parsamps9 = calloc((*(Nwith + deme) + 1),sizeof(unsigned int));
+				
+				/* Obtaining list of samples to choose from */
+				sselect_UI(indvs, parsamps9, Ntot, 2, 1, 0, 3, deme);
+				
+				/* Sample that migrates */
+				gsl_ran_choose(r,&bhc,1,parsamps9,(*(Nwith + deme) + 1),sizeof(unsigned int));
+				
+				for(j = 0; j < Ntot; j++){
+					if(*((*(indvs + j)) + 1) == bhc){
+						*((*(indvs + j)) + 3) = drec;
+						*((*(indvs + j + 1)) + 3) = drec;		/* Altering deme accordingly */
+						break;
+					}
+				}
+				
+				free(parsamps9);
+				
+			}else if(e2 == 1){	/* BH sample migrates */
+				/* For storing BH samples */
+				unsigned int *singsamps9 = calloc((*(Nbet + deme) + 1),sizeof(unsigned int));
+
+				/* Obtaining list of samples to choose from */
+				sselect_UI(indvs, singsamps9, Ntot, 2, 0, 1, 3, deme);
+				
+				/* Sample that migrates */
+				gsl_ran_choose(r,&bhc,1,singsamps9,(*(Nbet + deme) + 1),sizeof(unsigned int));
+
+				for(j = 0; j < Ntot; j++){
+					if(*((*(indvs + j)) + 0) == bhc){
+						*((*(indvs + j)) + 3) = drec;			/* Altering deme accordingly */
+						break;
+					}
+				}
+				
+				free(singsamps9);
+				
+			}
+			break;
+		case 10:	/* Event 10: Recombination - splitting a sample to create a new one */
+			fprintf(stderr,"No recombination yet.\n");
+			exit(1);
+			break;
+		default:	/* If none of these cases chosen, exit with error message */
+			fprintf(stderr,"Error: Non-standard coalescent case selected.\n");
+			exit(1);
+            break;
 	}
 	
 }	/* End of coalescent routine */
@@ -934,12 +1000,37 @@ unsigned int coalcalc(unsigned int **breaks, unsigned int nsites, unsigned int n
 	return(lcoal);
 	
 }	/* End of coalcalc function */
+
+/* Function to choose which samples split by sex */
+void sexsamp(unsigned int **indvs, unsigned int *rsex, unsigned int *nsex, unsigned int *Nwith, unsigned int Ntot, const gsl_rng *r){
+	unsigned int count = 0;
+	unsigned int x, a;
 	
+	for(x = 0; x < d; x++){
+		if(*(Nwith + x) != 0){		/* Avoiding errors if no WH in deme */
+			unsigned int *WHsamp = calloc(*(Nwith + x),sizeof(unsigned int));
+			unsigned int *WHchosen = calloc(*(nsex + x),sizeof(unsigned int));
+			/* Obtaining WH in that deme */
+			sselect_UI(indvs, WHsamp, Ntot, 2, 1, 0, 3, x);
+			/* Sampling those to be split */
+			gsl_ran_choose(r,WHchosen,*(nsex + x),WHsamp,(*(nsex + x)),sizeof(unsigned int));
+			
+			/* Assigning samples to 'rsex' */
+			for(a = 0; a < *(nsex + x); a++){
+				*(rsex + (count + a)) = *(WHchosen + a);
+			}
+			count += *(nsex + x);
+			
+			free(WHchosen);
+			free(WHsamp);
+		}
+	}
+}
 
 /* Main program */
 int main(int argc, char *argv[]){
 	unsigned int x, i, j;		/* Assignment counter, rep counter, indv counter */
-	unsigned int pST, npST = 0;		/* State of reproduction heterogeneity */	
+	unsigned int pST, npST = 0;	/* State of reproduction heterogeneity */	
 	double Ttot = 0;			/* Time in past, initiate at zero */
 	double NextT = 0;			/* Next time, after drawing event */
 	unsigned int Ntot = 0;		/* Total number of samples at time */
@@ -1308,6 +1399,7 @@ int main(int argc, char *argv[]){
 					}
 				}
 				
+				unsigned int *rsex = calloc(esex,sizeof(unsigned int));
 				/* Now redrawing probabilities with changed configuration */
 				if(esex >= 1){
 					/* New in ARG simulation: 
@@ -1322,6 +1414,9 @@ int main(int argc, char *argv[]){
 					nsex <- < SOMETHING >	***Number of sexual events per deme - NEW PARAMETER: this is an ARRAY ***
 					*/
 					
+					/* For now, just choosing samples to split by sex */
+					sexsamp(indvs, rsex, evsex, Nwith, Ntot, r);
+					
 					probset2(N, g, sexC, rec, lrec, nlrec, nlrec2, mig, Nwith, Nbet, evsex, 1, pr);
 				}
 				if(isanylessD_2D(pr,11,d,0) == 1){
@@ -1332,66 +1427,20 @@ int main(int argc, char *argv[]){
 				/* Given event happens, what is that event? 
 				Weighted average based on above probabilities. 
 				Then drawing deme of event. */
+				
 				rowsumD(pr,11,d,pr_rsums);
 				gsl_ran_multinomial(r,11,1,pr_rsums,draw);
 				event = matchUI(draw,11,1);
 				gsl_ran_multinomial(r,d,1,(*(pr + event)),draw2);
 				deme = matchUI(draw2,d,1);
-				/*printf("%d %d\n",event,deme);*/
-				
-				/* Changing ancestry accordingly */
-				/* 	MOVED CODE HERE TO AVOID ERRORS WHEN NUMBER OF SAMPLES MISMATCH */
-				/*
-				otab <- coalesce(indvs,GType,CTms,TAnc,Ttot,Nwith,Nbet,deme,ssex,event,drec,e2,breaks,nsites,lrec); 
-				if(otab$orec != (nsites-coalcalc(otab$obreaks,nsites))){
-					stop('Mismatch calculating coalesced samples')
-				}
-				*/
-				
-				/* Based on outcome, altering states accordingly */
-				stchange2(event,deme,evsex,WCH,BCH);
-				/*
-				printf("Nwith: ");
-				for(x = 0; x < d; x++){
-					printf("%d ",*(Nwith + x));
-				}
-				printf("\n");
-				printf("Nbet: ");
-				for(x = 0; x < d; x++){
-					printf("%d ",*(Nbet + x));
-				}
-				printf("\n");
-				printf("WCH: ");
-				for(x = 0; x < d; x++){
-					printf("%d ",*(WCH + x));
-				}
-				printf("\n");
-				printf("BCH: ");
-				for(x = 0; x < d; x++){
-					printf("%d ",*(BCH + x));
-				}
-				printf("\n");
-				*/
-				vsum_UI_I(Nwith, WCH, d);
-				vsum_UI_I(Nbet, BCH, d);
-				Ntot = 2*(sumUI(Nwith,d)) + sumUI(Nbet,d);
-				*(Nsamps + 0) = *(Nwith + deme);
-				*(Nsamps + 1) = *(Nbet + deme);
-				/*
-				printf("Nwith NEW: ");
-				for(x = 0; x < d; x++){
-					printf("%d ",*(Nwith + x));
-				}
-				printf("\n");
-				printf("Nbet NEW: ");
-				for(x = 0; x < d; x++){
-					printf("%d ",*(Nbet + x));
-				}
-				printf("\n");
-				printf("Ntot is %d\n",Ntot);
-				*/
-				
-				if(event == 9){		/* Choosing demes to swap if there is a migration */
+
+				if(event == 9){		/* Choosing demes to swap NOW if there is a migration */
+					stchange2(event,deme,evsex,WCH,BCH);
+					vsum_UI_I(Nwith, WCH, d);
+					vsum_UI_I(Nbet, BCH, d);
+					Ntot = 2*(sumUI(Nwith,d)) + sumUI(Nbet,d);
+					*(Nsamps + 0) = *(Nwith + deme);
+					*(Nsamps + 1) = *(Nbet + deme);
 					drec = deme;
 					while(drec == deme){
 						gsl_ran_choose(r,&drec,1,demes,d,sizeof(unsigned int));
@@ -1406,6 +1455,30 @@ int main(int argc, char *argv[]){
 						(*(Nbet + drec))++;
 					}
 				}
+				/*printf("%d %d\n",event,deme);*/
+				
+				/* Changing ancestry accordingly */
+				/* 	MOVED CODE HERE TO AVOID ERRORS WHEN NUMBER OF SAMPLES MISMATCH */
+				coalesce(indvs, GType, CTms, TAnc, Ttot, Nwith, Nbet, deme, rsex, evsex, event, drec, e2, breaks, nsites, &lrec, nbreaks, r);
+
+				free(rsex);		/* Can be discarded once used to change ancestry */
+
+				/*
+				if(otab$orec != (nsites-coalcalc(otab$obreaks,nsites))){
+					stop('Mismatch calculating coalesced samples')
+				}
+				*/
+				
+				/* Based on outcome, altering (non-mig) states accordingly */
+				if(event != 9){		/* Since already done for state = 9 above... */
+					stchange2(event,deme,evsex,WCH,BCH);
+					vsum_UI_I(Nwith, WCH, d);
+					vsum_UI_I(Nbet, BCH, d);
+					Ntot = 2*(sumUI(Nwith,d)) + sumUI(Nbet,d);
+					*(Nsamps + 0) = *(Nwith + deme);
+					*(Nsamps + 1) = *(Nbet + deme);
+				}
+				
 				/*
 				# Updating baseline recombinable material depending on number single samples
 				if(all(breaks[2,]==1)!=1){
@@ -1427,6 +1500,8 @@ int main(int argc, char *argv[]){
 				}
 			}
 		}
+		
+		/* Then code here for assigning mutation, recreating tree, and so on */
 		
 		/* Freeing memory at end of particular run */
 		free(bcoal);
