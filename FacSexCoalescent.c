@@ -502,6 +502,8 @@ void coalesce(unsigned int **indvs, unsigned int **GType, double **CTms ,unsigne
 	unsigned int csamp = 0;		/* Sample that coalesces */
 	unsigned int par = 0;		/* Parental sample in coalescence */
 	unsigned int par2 = 0;		/* Parental sample of paired coalescence (ev 2) */
+	unsigned int WHsel = 0;		/* WH sample involved in event (ev 7) */
+	unsigned int isWH = 0;		/* Is the sample from WH? (ev 7) */
 	
 	/* Then further actions based on other event */
 	switch(ex)
@@ -685,6 +687,139 @@ void coalesce(unsigned int **indvs, unsigned int **GType, double **CTms ,unsigne
 			sexconv(indvs, rsex, nsum, Ntot);
 			
 			free(singsamps5);
+			break;
+		case 6:			/* Event 6: Two remaining paired samples doubly coalesce asexually. */
+		
+			/* Converting WH to BH samples */
+			sexconv(indvs, rsex, nsum, Ntot);
+			
+			unsigned int *parsamps6 = calloc((*(Nwith + deme) - *(nsex + deme)),sizeof(unsigned int));			/* For storing WH indvs */
+			unsigned int *twopars6 = calloc(2,sizeof(unsigned int));
+			unsigned int *lhs = calloc(2,sizeof(unsigned int));
+			unsigned int *rhs = calloc(2,sizeof(unsigned int));			
+			unsigned int *csamp2 = calloc(2,sizeof(unsigned int));
+			unsigned int *parT = calloc(2,sizeof(unsigned int));			
+			
+			sselect_UI(indvs, parsamps6, Ntot, 2, 1, 0, 3, deme);
+			/* Two parents involved in coalescence */
+			gsl_ran_choose(r,twopars6,2,parsamps6,(*(Nwith + deme) - *(nsex + deme)),sizeof(unsigned int));
+			
+			/* Finding parents and partitioning samples (twice) */
+			for(j = 0; j < Ntot; j++){
+				if(*((*(indvs + j)) + 1) == *(twopars6 + 0)){
+					*(lhs + 0) = *((*(indvs + j)) + 0);
+					*(rhs + 0) = *((*(indvs + j + 1)) + 0);
+					break;
+				}
+			}
+			for(j = 0; j < Ntot; j++){
+				if(*((*(indvs + j)) + 1) == *(twopars6 + 1)){
+					*(lhs + 1) = *((*(indvs + j)) + 0);
+					*(rhs + 1) = *((*(indvs + j + 1)) + 0);
+					break;
+				}
+			}
+			
+			/* Now assigning coalesced and parental samples respectively */
+			gsl_ran_choose(r,&csamp2[0],1,lhs,2,sizeof(unsigned int));
+			parT[0] = csamp2[0];
+			while(parT[0] == csamp2[0]){
+				gsl_ran_choose(r,&parT[0],1,lhs,2,sizeof(unsigned int));
+			}
+			
+			gsl_ran_choose(r,&csamp2[1],1,rhs,2,sizeof(unsigned int));
+			parT[1] = csamp2[1];
+			while(parT[1] == csamp2[1]){
+				gsl_ran_choose(r,&parT[1],1,lhs,2,sizeof(unsigned int));
+			}
+			
+			/* Now updating coalescent times */
+			cchange(indvs, GType, CTms, TAnc, csamp2, parT, 2, Ntot, nbreaks, Ttot);
+			
+			/* Check if tracts have coalesced */
+			ccheck(indvs,GType,breaks,nsites,&lrec,Ntot,nbreaks);
+			
+			free(parT);
+			free(csamp2);
+			free(rhs);
+			free(lhs);
+			free(twopars6);
+			free(parsamps6);
+			break;
+		case 7: 	/* Event 7: One of the x - k remaining paired samples coalesces with a unique sample */
+		
+			/* Converting WH to BH samples 
+			(idea being that I later check if chosen BH originated from WH 
+			- discard if so) */
+			sexconv(indvs, rsex, nsum, Ntot);
+
+			/* For storing WH indvs */
+			unsigned int *parsamps7 = calloc((*(Nwith + deme) - *(nsex + deme)),sizeof(unsigned int));
+			unsigned int *singsamps7 = calloc((*(Nbet + deme) + 2*(*(nsex + deme))),sizeof(unsigned int));			/* For storing BH samples */
+			unsigned int *twosamps7 = calloc(2,sizeof(unsigned int));
+			
+			sselect_UI(indvs, parsamps7, Ntot, 2, 1, 0, 3, deme);
+			sselect_UI(indvs, singsamps7, Ntot, 2, 0, 1, 3, deme);
+						
+			/* A paired sample involved in coalescence */
+			gsl_ran_choose(r,&WHsel,1,parsamps7,(*(Nwith + deme) - *(nsex + deme)),sizeof(unsigned int));
+			nos = gsl_ran_bernoulli(r,0.5);		/* Which side involved in event */
+			/* Finding sample */
+			for(j = 0; j < Ntot; j++){
+				if(*((*(indvs + j)) + 1) == WHsel){
+					*(twosamps7 + 0) = *((*(indvs + j + nos)) + 0);
+					break;
+				}
+			}
+			
+			/* Choosing BH sample */
+			while(done == 0){
+				gsl_ran_choose(r,&twosamps7[1],1,singsamps7,(*(Nbet + deme) + 2*(*(nsex + deme))),sizeof(unsigned int));
+				/* Checking that it didn't originate from WH */
+				for(j = 0; j < Ntot; j++){
+					if(*((*(indvs + j)) + 0) == *(twosamps7 + 1)){
+						/* ACTIONS */
+						isWH = 1;
+						for(a = 0; a < nsum; a++){
+							if( *((*(indvs + j)) + 1) == *(rsex + a)){
+								isWH = 0;
+							}
+						}
+						if(isWH == 1){
+							done = 1;
+						}
+						break;
+					}
+				}
+			}
+			
+			/* Choosing csamp, par */
+			gsl_ran_choose(r,&csamp,1,twosamps7,2,sizeof(unsigned int));			/* One sample involved in coalescence (csamp) */
+			par = csamp;
+			while(par == csamp){	/* Ensuring par != csamp */
+				gsl_ran_choose(r,&par,1,twosamps7,2,sizeof(unsigned int));			/* Other sample involved in coalescence (par) */
+			}
+			
+			/* Correction if parental sample is BH */
+			if(par == *(twosamps7 + 1)){
+				for(j = 0; j < Ntot; j++){
+					if(*((*(indvs + j)) + 0) == par){
+						*((*(indvs + j)) + 2) = 0;
+						*((*(indvs + j)) + 1) = WHsel;		/* Same parent as WH sample */
+						break;
+					}
+				}
+			}
+			
+			/* Now updating coalescent times */
+			cchange(indvs, GType, CTms, TAnc, &csamp, &par, 1, Ntot, nbreaks, Ttot);
+			
+			/* Check if tracts have coalesced */
+			ccheck(indvs,GType,breaks,nsites,&lrec,Ntot,nbreaks);
+		
+			free(twosamps7);
+			free(singsamps7);
+			free(parsamps7);
 			break;
 	}
 	
