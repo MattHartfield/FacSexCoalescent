@@ -51,8 +51,8 @@ void probset2(unsigned int N, double g, double *sexC, double rec, unsigned int l
 void rate_change(unsigned int pST,double pLH, double pHL, double *sexH, double *sexL, unsigned int Na, unsigned int d, unsigned int switch1, double *sexCN, double *sexCNInv, double *tts, unsigned int *npST,const gsl_rng *r);
 void stchange2(unsigned int ev, unsigned int deme, unsigned int *kin, int *WCH, int *BCH);
 void sexconv(unsigned int **Tin, unsigned int *rsex, unsigned int nsum, unsigned int Ntot, unsigned int Itot);
-void coalesce(unsigned int **indvs, unsigned int **GType, double **CTms ,unsigned int **TAnc, unsigned int Ttot, unsigned int *Nwith, unsigned int *Nbet, unsigned int Itot, unsigned int deme, unsigned int *rsex, unsigned int *nsex, unsigned int ex, unsigned int drec, unsigned int e2, unsigned int **breaks, unsigned int nsites, unsigned int *lrec, unsigned int nbreaks, const gsl_rng *r);
-void cchange(unsigned int **indvs, unsigned int **GType, double **CTms, unsigned int **TAnc, unsigned int *csamp, unsigned int *par, unsigned int lsamp, unsigned int Ntot, unsigned int nbreaks, double Ttot);
+void coalesce(unsigned int **indvs, unsigned int **GType, double **CTms ,unsigned int **TAnc, double Ttot, unsigned int *Nwith, unsigned int *Nbet, unsigned int Itot, unsigned int deme, unsigned int *rsex, unsigned int *nsex, unsigned int ex, unsigned int drec, unsigned int e2, unsigned int **breaks, unsigned int nsites, unsigned int *lrec, unsigned int nbreaks, const gsl_rng *r);
+void cchange(unsigned int **indvs, unsigned int **GType, double **CTms, unsigned int **TAnc, unsigned int *csamp, unsigned int *par, unsigned int lsamp, unsigned int Ntot, unsigned int nbreaks, double Ttot, unsigned int Itot);
 void ccheck(unsigned int **indvs, unsigned int **GType, unsigned int **breaks, unsigned int nsites, unsigned int *lrec, unsigned int Ntot, unsigned int nbreaks);
 unsigned int coalcalc(unsigned int **breaks, unsigned int nsites, unsigned int nbreaks);
 void sexsamp(unsigned int **indvs, unsigned int *rsex, unsigned int *nsex, unsigned int *Nwith, unsigned int Ntot, const gsl_rng *r);
@@ -500,7 +500,7 @@ void sexconv(unsigned int **Tin, unsigned int *rsex, unsigned int nsum, unsigned
 }
 
 /* Function to change status of samples following event change */
-void coalesce(unsigned int **indvs, unsigned int **GType, double **CTms ,unsigned int **TAnc, unsigned int Ttot, unsigned int *Nwith, unsigned int *Nbet, unsigned int Itot, unsigned int deme, unsigned int *rsex, unsigned int *nsex, unsigned int ex, unsigned int drec, unsigned int e2, unsigned int **breaks, unsigned int nsites, unsigned int *lrec, unsigned int nbreaks, const gsl_rng *r){
+void coalesce(unsigned int **indvs, unsigned int **GType, double **CTms ,unsigned int **TAnc, double Ttot, unsigned int *Nwith, unsigned int *Nbet, unsigned int Itot, unsigned int deme, unsigned int *rsex, unsigned int *nsex, unsigned int ex, unsigned int drec, unsigned int e2, unsigned int **breaks, unsigned int nsites, unsigned int *lrec, unsigned int nbreaks, const gsl_rng *r){
 	
 	/* unsigned int NWtot = 2*sumUI(Nwith,d); */
 	/* unsigned int NBtot = sumUI(Nbet,d);	*/
@@ -600,7 +600,7 @@ void coalesce(unsigned int **indvs, unsigned int **GType, double **CTms ,unsigne
 			}
 			
 			/* Now updating coalescent times */
-			cchange(indvs, GType, CTms, TAnc, &csamp, &par, 1, Itot, nbreaks, Ttot);
+			cchange(indvs, GType, CTms, TAnc, &csamp, &par, 1, Itot, nbreaks, Ttot, Itot);
 			
 			/* Check if tracts have coalesced */
 			ccheck(indvs,GType,breaks,nsites,&lrecN,Itot,nbreaks);
@@ -643,7 +643,7 @@ void coalesce(unsigned int **indvs, unsigned int **GType, double **CTms ,unsigne
 			}
 		
 			/* Now updating coalescent times */
-			cchange(indvs, GType, CTms, TAnc, &csamp, &par, 1, Itot, nbreaks, Ttot);
+			cchange(indvs, GType, CTms, TAnc, &csamp, &par, 1, Itot, nbreaks, Ttot, Itot);
 			
 			/* Check if tracts have coalesced */
 			ccheck(indvs,GType,breaks,nsites,&lrecN,Itot,nbreaks);
@@ -698,7 +698,7 @@ void coalesce(unsigned int **indvs, unsigned int **GType, double **CTms ,unsigne
 			}
 		
 			/* Now updating coalescent times */
-			cchange(indvs, GType, CTms, TAnc, &csamp, &par, 1, Itot, nbreaks, Ttot);
+			cchange(indvs, GType, CTms, TAnc, &csamp, &par, 1, Itot, nbreaks, Ttot, Itot);
 			
 			/* Check if tracts have coalesced */
 			ccheck(indvs,GType,breaks,nsites,&lrecN,Itot,nbreaks);
@@ -756,7 +756,7 @@ void coalesce(unsigned int **indvs, unsigned int **GType, double **CTms ,unsigne
 			}
 			
 			/* Now updating coalescent times */
-			cchange(indvs, GType, CTms, TAnc, csamp2, parT, 2, Itot, nbreaks, Ttot);
+			cchange(indvs, GType, CTms, TAnc, csamp2, parT, 2, Itot, nbreaks, Ttot, Itot);
 			
 			/* Check if tracts have coalesced */
 			ccheck(indvs,GType,breaks,nsites,&lrecN,Itot,nbreaks);
@@ -835,7 +835,7 @@ void coalesce(unsigned int **indvs, unsigned int **GType, double **CTms ,unsigne
 			}
 			
 			/* Now updating coalescent times */
-			cchange(indvs, GType, CTms, TAnc, &csamp, &par, 1, Itot, nbreaks, Ttot);
+			cchange(indvs, GType, CTms, TAnc, &csamp, &par, 1, Itot, nbreaks, Ttot, Itot);
 			
 			/* Check if tracts have coalesced */
 			ccheck(indvs,GType,breaks,nsites,&lrecN,Itot,nbreaks);
@@ -908,7 +908,7 @@ void coalesce(unsigned int **indvs, unsigned int **GType, double **CTms ,unsigne
 }	/* End of coalescent routine */
 
 /* Updating information following coalescent event */
-void cchange(unsigned int **indvs, unsigned int **GType, double **CTms, unsigned int **TAnc, unsigned int *csamp, unsigned int *par, unsigned int lsamp, unsigned int Ntot, unsigned int nbreaks, double Ttot){
+void cchange(unsigned int **indvs, unsigned int **GType, double **CTms, unsigned int **TAnc, unsigned int *csamp, unsigned int *par, unsigned int lsamp, unsigned int Ntot, unsigned int nbreaks, double Ttot, unsigned int Itot){
 	unsigned int j, i, x;
 	unsigned int crow = 0;
 	unsigned int prow = 0;
@@ -938,14 +938,14 @@ void cchange(unsigned int **indvs, unsigned int **GType, double **CTms, unsigned
 		for(x = 0; x < nbreaks; x++){
 	
 			/* Updating genotype table */
-			if( (*((*(GType + crow)) + (x+1))) != 0 || (*((*(GType + prow)) + (x+1))) == 0){
-				(*((*(GType + prow)) + (x+1))) = (*((*(GType + crow)) + (x+1)));
+			if( (*((*(GType + (*(csamp + i)))) + (x+1))) != Itot && (*((*(GType + (*(par + i)))) + (x+1))) == Itot){
+				(*((*(GType + (*(par + i)))) + (x+1))) = (*((*(GType + (*(csamp + i)))) + (x+1)));
 			}
 
 			/* Updating coalescent time and parental sample */
-			if( (*((*(GType + crow)) + (x+1))) != 0 || (*((*(GType + prow)) + (x+1))) != 0){
-				*((*(CTms + crow)) + (x+1)) = Ttot;
-				*((*(TAnc + crow)) + (x+1)) = (*((*(GType + prow)) + (x+1)));
+			if( (*((*(GType + (*(csamp + i)))) + (x+1))) != Itot || (*((*(GType + (*(par + i)))) + (x+1))) != Itot){
+				*((*(CTms + (*(csamp + i)))) + (x+1)) = Ttot;
+				*((*(TAnc + (*(csamp + i)))) + (x+1)) = (*((*(GType + (*(par + i)))) + (x+1)));
 			}
 		}
 	}
@@ -961,7 +961,7 @@ void ccheck(unsigned int **indvs, unsigned int **GType, unsigned int **breaks, u
 	
 	/* Has tract coalesced completely? Checking this */
 	
-	for(x = 0; x < nbreaks; x++){
+	for(x = 0; x < nbreaks; x++){ 
 		if( *((*(breaks + 1)) + x) != 1 ){		/* If not yet coalesced... */
 			gcount = 0;
 			for(j = 0; j < Ntot; j++){
@@ -1090,6 +1090,45 @@ void indv_sort(unsigned int **indvs, unsigned int nrow){
 	}
 }
 
+/* Function to reconstruct genealogy and to add mutation to branches */
+void treemaker(double **TFin, double theta, double mind, double maxd, char *treeout, double **MTab, unsigned int Itot){
+	unsigned int j;
+	unsigned int lct = Itot;
+	unsigned int lct2 = lct-1;
+	unsigned int nc = 1;			/* {N}umber of {c}lades in current reconstruction */
+	unsigned int nmut = 0;			/* Number of alleles dropped onto tree */
+	unsigned int birthtime = 0;		/* Coalescent time */
+	unsigned int child1 = 0;		/* Coalesced sample */
+	unsigned int parent1 = 0;		/* Parental sample */	
+	unsigned int csum = 0;			/* How many of each have been sampled, to decide action*/
+	unsigned int ischild = 0;		/* Is it a child sample? */
+		
+	/* Defining necessary tables */
+	char clades[lct][256];		/*	Vector of possible clades, assigning 255 chars to each. POSSIBLY NEED TO CHANGE IF TOO SHORT */
+	double *Cheight = calloc(lct,sizeof(double));	/* Current 'height' (time) of each clade */
+	unsigned int **samps = calloc(lct,sizeof(unsigned int *));			/* Table of samples present in each clade (row = each clade) */
+	for(j = 0; j < lct; j++){										
+		samps[j] = calloc(lct,sizeof(unsigned int));
+	}
+
+	for(j = 0; j < lct2; j++){
+		birthtime = *((*(TFin + j)) + 1);
+	    child1 = *((*(TFin + j)) + 0);
+    	parent1 = *((*(TFin + j)) + 2);
+    	ischild = 0;
+    	/*	RESTART HERE FRI AM
+    	csum <- sum((child1 %in% samps) , (parent1 %in% samps))	# Testing how many of the pair have already been sampled, to decide tree reconstruction
+    	*/
+	}
+	
+	for(j = 0; j < lct; j++){										
+		free(samps[j]);
+	}
+	free(samps);
+	free(Cheight);
+
+}	/* End of treemaker routine */
+
 /* Main program */
 int main(int argc, char *argv[]){
 	unsigned int x, i, j;		/* Assignment counter, rep counter, indv counter */
@@ -1116,6 +1155,7 @@ int main(int argc, char *argv[]){
 	unsigned int deme = 0;		/* Which deme does event happen in? */
 	unsigned int drec = 0;		/* Receiving deme for migration event */
 	unsigned int e2 = 0;		/* Outcome of mig sampling, type of deme that migrates */
+	unsigned int count = 0;		/* For creating ancestry table */
 
 	/* GSL random number definitions */
 	const gsl_rng_type * T; 
@@ -1344,11 +1384,15 @@ int main(int argc, char *argv[]){
 		double **CTms = calloc(Itot,sizeof(unsigned int *));			/* Coalescent times per sample */
 		unsigned int **TAnc = calloc(Itot,sizeof(unsigned int *));		/* Table of ancestors for each sample */
 		unsigned int **breaks = calloc(2,sizeof(unsigned int *));		/* Table of breakpoints created in the simulation */
+		double **TFin = calloc((Itot-1),sizeof(unsigned int *));		/* Final ancestry table, for tree reconstruction */
 		for(j = 0; j < Itot; j++){										/* Assigning space for each genome sample */
 			indvs[j] = calloc(4,sizeof(unsigned int));
 			GType[j] = calloc(2,sizeof(unsigned int));
 			CTms[j] = calloc(2,sizeof(double));
 			TAnc[j] = calloc(2,sizeof(unsigned int));
+			if(j != (Itot - 1)){
+				TFin[j] = calloc(3,sizeof(double));
+			}
 		}
 		breaks[0] = calloc(1,sizeof(unsigned int));
 		breaks[1] = calloc(1,sizeof(unsigned int));
@@ -1363,6 +1407,8 @@ int main(int argc, char *argv[]){
 			*((*(GType + j)) + 1) = j;
 			*((*(CTms + j)) + 0) = j;
 			*((*(TAnc + j)) + 0) = j;
+			/* Entry of "Itot" equivalent to NA in old code, i.e. it is not ancestral, reflects extant tracts */
+			*((*(TAnc + j)) + 1) = Itot;
 		}
 		if(IwithT != 0){
 			for(j = 0; j < IwithT; j++){
@@ -1607,17 +1653,74 @@ int main(int argc, char *argv[]){
 		}
 		
 		/* Then code here for assigning mutation, recreating tree, and so on */
+		printf("\n");
+		printf("Indv table :\n");
+		for(j = 0; j < Itot; j++){
+			for(x = 0; x < 4; x++){
+				printf("%d ",*((*(indvs + j)) + x));
+			}
+			printf("\n");
+		}
+		printf("\n");
+		
+		printf("Gen table :\n");
+		for(j = 0; j < Itot; j++){
+			for(x = 0; x < 2; x++){
+				printf("%d ",*((*(GType + j)) + x));
+			}
+			printf("\n");
+		}
+		printf("\n");		
+		
+		printf("CTms table :\n");
+		for(j = 0; j < Itot; j++){
+			for(x = 0; x < 2; x++){
+				printf("%lf ",*((*(CTms + j)) + x));
+			}
+			printf("\n");
+		}
+		printf("\n");			
+		
+		printf("TAnc table :\n");
+		for(j = 0; j < Itot; j++){
+			for(x = 0; x < 2; x++){
+				printf("%d ",*((*(TAnc + j)) + x));
+			}
+			printf("\n");
+		}
+		printf("\n");	
+		
+		/* Creating ancestry table for reconstruction */
+		for(x = 1; x <= nbreaks; x++){
+		
+			/* Creating ancestry table */
+			printf("TFin table :\n");
+			for(j = 0; j < Itot; j++){
+				if((*((*(CTms + j)) + x)) != 0){
+					*((*(TFin + count)) + 0) = *((*(GType + j)) + x);
+					*((*(TFin + count)) + 1) = *((*(CTms + j)) + x);
+					*((*(TFin + count)) + 2) = *((*(TAnc + j)) + x);
+					printf("%lf %lf %lf ",*((*(TFin + count)) + 0),*((*(TFin + count)) + 1),*((*(TFin + count)) + 2));
+					printf("\n");					
+					count++;
+				}
+			}
+		}
 		
 		/* Freeing memory at end of particular run */
 		free(bcoal);
 		free(breaks[1]);
 		free(breaks[0]);
 		for(j = 0; j < Itot; j++){
+			if(j != (Itot - 1)){
+				free(TFin[j]);
+			}
 			free(TAnc[j]);
 			free(CTms[j]);
 			free(GType[j]);
 			free(indvs[j]);
 		}
+		free(TFin);
 		free(breaks);
 		free(TAnc);
 		free(CTms);
