@@ -276,7 +276,7 @@ unsigned int trig(unsigned int x){
 /* Functions of each transition probability calculation */
 double P23(unsigned int y, unsigned int k, unsigned int Na){
 	/* One of the paired samples is recreated: (x,y) -> (x-k+1, y + 2(k-1)). 
-	OR A unique samples coaleses with another (either pre-existing or new): (x,y) -> (x-k, y + 2k - 1) */
+	OR A unique samples coalesces with another (either pre-existing or new): (x,y) -> (x-k, y + 2k - 1) */
 	return (k*y)/(1.0*Na) + trig(2.0*k)/(2.0*Na);
 }
 double P4(unsigned int x, unsigned int k, unsigned int Na){
@@ -349,7 +349,7 @@ void probset2(unsigned int N, double g, double *sexC, double rec, unsigned int l
 
 			/* Last entry is simply 1-(sum all other probs) */
 			if(x == 0){
-				*((*(pr + 0)) + x) = sumT_D(pr,11,d);
+				*((*(pr + 0)) + x) = (1-sumT_D(pr,11,d));
 			}
 			
 		}else if(sw == 0){
@@ -491,7 +491,7 @@ void sexconv(unsigned int **Tin, unsigned int *rsex, unsigned int nsum, unsigned
 			if( *((*(Tin + j)) + 1) == *(rsex + count) ){
 				*((*(Tin + j)) + 2) = 1;
 				*((*(Tin + j + 1)) + 2) = 1;					/* Since other paired sample also split */
-				*((*(Tin + j + 1)) + 1) = (Ntot + count);		/* Assuming first indv has index zero... */
+				/* *((*(Tin + j + 1)) + 1) = (Ntot + count);		 Assuming first indv has index zero... */
 				count++;
 				break;
 			}
@@ -547,11 +547,11 @@ void coalesce(unsigned int **indvs, unsigned int **GType, double **CTms ,unsigne
 						if(*(rsex + count) != rands2){
 							*((*(indvs + j)) + 2) = 1;
 							*((*(indvs + j + 1)) + 2) = 1;
-							*((*(indvs + j + 1)) + 1) = (Nindv + count);
+							/* *((*(indvs + j + 1)) + 1) = (Nindv + count); */
 							count++;
 						}else if(*(rsex + count) == rands2){
 							*((*(indvs + j + nos)) + 2) = 1;
-							*((*(indvs + j + nos)) + 1) = (Nindv + count);
+							/* *((*(indvs + j + nos)) + 1) = (Nindv + count); */
 							count++;						
 						}
 						break;
@@ -573,23 +573,26 @@ void coalesce(unsigned int **indvs, unsigned int **GType, double **CTms ,unsigne
 			free(singsamps);
 			break;
 		case 2:		/* Event 2: One of the unique samples coaleses with another unique one (either pre-existing or new) */
+			done = 0;
 			sexconv(indvs, rsex, nsum, Nindv, Itot);
+			
 			unsigned int *singsamps2 = calloc((*(Nbet + deme) + 2*(*(nsex + deme))),sizeof(unsigned int));			/* For storing BH samples */
 			sselect_UI(indvs, singsamps2, Itot, 2, 0, 1, 3, deme);
 			
 			while(done == 0){
-				gsl_ran_choose(r,&csamp,1,singsamps2,(*(nsex + deme) + 2*(*(nsex + deme))),sizeof(unsigned int));			/* One sample involved in coalescence (csamp) */
+				gsl_ran_choose(r,&csamp,1,singsamps2,(*(Nbet + deme) + 2*(*(nsex + deme))),sizeof(unsigned int));			/* One sample involved in coalescence (csamp) */
 				par = csamp;
 				while(par == csamp){	/* Ensuring par != csamp */
-					gsl_ran_choose(r,&par,1,singsamps2,(*(nsex + deme) + 2*(*(nsex + deme))),sizeof(unsigned int));			/* Other sample involved in coalescence (par) */
+					gsl_ran_choose(r,&par,1,singsamps2,(*(Nbet + deme) + 2*(*(nsex + deme))),sizeof(unsigned int));			/* Other sample involved in coalescence (par) */
 				}
 		
 				/* Now checking that at least one of the two is from sample split by sex */
 				for(j = 0; j < Itot; j++){
 					if( (*((*(indvs + j)) + 0) == csamp) ||  (*((*(indvs + j)) + 0) == par) ){
 						for(a = 0; a < nsum; a++){
-							if( *((*(indvs + j)) + 1) == *(rsex + a)){
+							if( (*((*(indvs + j)) + 1)) == *(rsex + a)){
 								done = 1;
+								break;
 							}
 						}
 					}
@@ -658,6 +661,7 @@ void coalesce(unsigned int **indvs, unsigned int **GType, double **CTms ,unsigne
 			
 			/* Two sample involved in pairing */
 			gsl_ran_choose(r,twosing,2,singsamps4,*(Nbet + deme),sizeof(unsigned int));
+			gsl_ran_shuffle(r, twosing, 2, sizeof(unsigned int));
 			
 			/* Now going through (twice!) and updating ancestry */
 			for(j = 0; j < Itot; j++){
@@ -720,6 +724,7 @@ void coalesce(unsigned int **indvs, unsigned int **GType, double **CTms ,unsigne
 			sselect_UI(indvs, parsamps6, Itot, 2, 1, 0, 3, deme);
 			/* Two parents involved in coalescence */
 			gsl_ran_choose(r,twopars6,2,parsamps6,(*(Nwith + deme) - *(nsex + deme)),sizeof(unsigned int));
+			gsl_ran_shuffle(r, twopars6, 2, sizeof(unsigned int));
 			
 			/* Finding parents and partitioning samples (twice) */
 			for(j = 0; j < Itot; j++){
@@ -1039,7 +1044,7 @@ void sexsamp(unsigned int **indvs, unsigned int *rsex, unsigned int *nsex, unsig
 	}
 }
 
-/* Insertion-sort individuals, to ensure paired samples are together after an action */
+/* Insertion-sort rows by individual no., to ensure paired samples are together after an action */
 void indv_sort(unsigned int **indvs, unsigned int nrow){
 	unsigned int j, i;		/* Sorting indices */
 	unsigned int temp0, temp1, temp2, temp3;	/* For swapping */
@@ -1069,7 +1074,7 @@ void indv_sort(unsigned int **indvs, unsigned int nrow){
 		}
 	}
 	
-	/* Then renumbering indvs? */
+	/* Then renumbering indvs */
 	while(count < nrow){
 		if(*((*(indvs + count)) + 2) != 0){
 			*((*(indvs + count)) + 1) = icount;
@@ -1133,6 +1138,7 @@ int main(int argc, char *argv[]){
 	pHL = strtod(argv[8],NULL);
 	mig = strtod(argv[9],NULL);
 	d = strtod(argv[10],NULL);
+	mig = mig/(2.0*N);
 	if(d == 1){
 		mig = 0;	/* Set migration to zero if only one deme, as a precaution */
 	}
@@ -1407,16 +1413,19 @@ int main(int argc, char *argv[]){
 				fprintf(stderr,"A negative probability exists, you need to double-check your algebra (or probability inputs).\n");
 				exit(1);				
 			}
-			
 			/*
+			printf("\n");
+			printf("NEXT GEN:\n");
+			printf("\n");			
+			printf("Probabilities are:\n");
 			for(j = 0; j < 11; j++){
 				for(x = 0; x < d; x++){
 					printf("%.10lf ",*((*(pr + j)) + x));
 				}
 				printf("\n");
 			}
+			printf("Psum is %lf\n",psum);
 			*/
-			
 			/* Drawing time to next event, SCALED TO 2NT GENERATIONS */
 			if(psum == 1){
 				tjump = 0.0;
@@ -1436,6 +1445,7 @@ int main(int argc, char *argv[]){
 				pST = npST;
 			}else if (NextT <= (tls + tts)){	/* If next event happens before a switch, draw an action	*/
 				Ttot = NextT;
+				/*printf("Ttot is %.10lf\n",Ttot);*/
 						
 				/* Determines if sex occurs; if so, which samples are chosen */
 				/* (deme-independent Binomial draws) */
@@ -1481,7 +1491,15 @@ int main(int argc, char *argv[]){
 					fprintf(stderr,"A negative probability exists, you need to double-check your algebra (or probability inputs).\n");
 					exit(1);				
 				}
-				
+				/*
+				printf("NEW Probabilities are:\n");
+				for(j = 0; j < 11; j++){
+					for(x = 0; x < d; x++){
+						printf("%.10lf ",*((*(pr + j)) + x));
+					}
+					printf("\n");
+				}
+				*/
 				/* Given event happens, what is that event? 
 				Weighted average based on above probabilities. 
 				Then drawing deme of event. */
@@ -1491,13 +1509,7 @@ int main(int argc, char *argv[]){
 				event = matchUI(draw,11,1);
 				gsl_ran_multinomial(r,d,1,(*(pr + event)),draw2);
 				deme = matchUI(draw2,d,1);
-				
-				printf("Event is %d, esex is %d\n",event,esex);
-				printf("Esex are : ");
-				for(x = 0; x < esex; x++){
-					printf("%d ",*(rsex+x));
-				}
-				printf("\n");
+				/*printf("Event is %d\n",event);*/
 
 				if(event == 9){		/* Choosing demes to swap NOW if there is a migration */
 					stchange2(event,deme,evsex,WCH,BCH);
@@ -1521,6 +1533,7 @@ int main(int argc, char *argv[]){
 					}
 				}
 				
+				/*
 				printf("BEFORE UPDATE, TABLE IS:\n");
 				for(j = 0; j < Itot; j++){
 					for(x = 0; x < 4; x++){
@@ -1529,6 +1542,7 @@ int main(int argc, char *argv[]){
 					printf("\n");
 				}
 				printf("\n");
+				*/
 				
 				/* Changing ancestry accordingly */
 				/* 	MOVED CODE HERE TO AVOID ERRORS WHEN NUMBER OF SAMPLES MISMATCH */
@@ -1538,7 +1552,7 @@ int main(int argc, char *argv[]){
 				
 				/* Sorting table afterwards to ensure paired samples are together */
 				indv_sort(indvs, Itot);
-				
+				/*
 				printf("AFTER UPDATE, TABLE IS:\n");
 				for(j = 0; j < Itot; j++){
 					for(x = 0; x < 4; x++){
@@ -1547,7 +1561,7 @@ int main(int argc, char *argv[]){
 					printf("\n");
 				}
 				printf("\n");
-
+				*/
 				/*
 				if(otab$orec != (nsites-coalcalc(otab$obreaks,nsites))){
 					stop('Mismatch calculating coalesced samples')
@@ -1563,7 +1577,12 @@ int main(int argc, char *argv[]){
 					*(Nsamps + 0) = *(Nwith + deme);
 					*(Nsamps + 1) = *(Nbet + deme);
 				}
-				
+				/*
+				for(x = 0; x < d; x++){
+					printf("WCH %d: BCH %d: NWITH %d: NBET %d",*(WCH+x),*(BCH+x),*(Nwith+x),*(Nbet+x));
+				}
+				printf("\n");
+				*/
 				/*
 				# Updating baseline recombinable material depending on number single samples
 				if(all(breaks[2,]==1)!=1){
@@ -1581,6 +1600,7 @@ int main(int argc, char *argv[]){
 				done = isallUI(bcoal,nbreaks,1);
 				*/
 				if(Ntot == 1){
+					printf("%.10lf\n",Ttot);
 					done = 1;
 				}
 			}
