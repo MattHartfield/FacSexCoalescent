@@ -1092,7 +1092,7 @@ void indv_sort(unsigned int **indvs, unsigned int nrow){
 
 /* Function to reconstruct genealogy and to add mutation to branches */
 void treemaker(double **TFin, double theta, double mind, double maxd, char *treeout, double **MTab, unsigned int Itot){
-	unsigned int j;
+	unsigned int i, j, k;
 	unsigned int lct = Itot;
 	unsigned int lct2 = lct-1;
 	unsigned int nc = 1;			/* {N}umber of {c}lades in current reconstruction */
@@ -1102,22 +1102,60 @@ void treemaker(double **TFin, double theta, double mind, double maxd, char *tree
 	unsigned int parent1 = 0;		/* Parental sample */	
 	unsigned int csum = 0;			/* How many of each have been sampled, to decide action*/
 	unsigned int ischild = 0;		/* Is it a child sample? */
+	char *lbr = "(";
+	char *rbr = ")";
+	char *com = ",";
+	char *cln = ":";
+	char p1char[16];
+	char c1char[16];
 		
 	/* Defining necessary tables */
-	char clades[lct][256];		/*	Vector of possible clades, assigning 255 chars to each. POSSIBLY NEED TO CHANGE IF TOO SHORT */
+	char *clades[lct];		/*	Vector of possible clades. Do I need to assign spaces for characters there? */
 	double *Cheight = calloc(lct,sizeof(double));	/* Current 'height' (time) of each clade */
 	unsigned int **samps = calloc(lct,sizeof(unsigned int *));			/* Table of samples present in each clade (row = each clade) */
 	for(j = 0; j < lct; j++){										
 		samps[j] = calloc(lct,sizeof(unsigned int));
 	}
 
-	for(j = 0; j < lct2; j++){
+	for(i = 0; i < lct2; i++){
 		birthtime = *((*(TFin + j)) + 1);
 	    child1 = *((*(TFin + j)) + 0);
     	parent1 = *((*(TFin + j)) + 2);
     	ischild = 0;
-    	/*	RESTART HERE FRI AM
-    	csum <- sum((child1 %in% samps) , (parent1 %in% samps))	# Testing how many of the pair have already been sampled, to decide tree reconstruction
+    	csum = 0;
+    	
+    	if(i == 1){
+    		/* Converting values to strings */
+	    	snprintf(p1char, 16, "%d", parent1);
+	    	snprintf(c1char, 16, "%d", child1);	    	
+    		strcat(lbr,cln);
+    		clades[0] = paste("(",parent1,":",birthtime,",",child1,":",birthtime,")",sep="");
+    		*((*(samps + 0)) + 0) = parent1;
+    		*((*(samps + 0)) + 1) = child1;
+    		*(Cheight + 0) = birthtime;
+			/*
+			rmut <- rpois(2,lambda=(0.5*theta*birthtime))	# New mutations present in first and second sample respectively
+			twos <- c(parent1,child1)
+			for(a in 1:2){
+				if(rmut[a] != 0){
+					for(b in 1:rmut[a]){	# Adding mutations to table
+			   			MTab <- rbind(MTab,rep(0,lct + 1))
+    					MTab[nmut+b,1] <- runif(1,mind,maxd)
+	   					MTab[nmut+b,twos[a] + 1] <- 1		# Indicating location of mutants
+ 					}
+ 					nmut <- nmut + rmut[a]
+				}
+			}
+			*/
+    	}/* else if i > 1...*/
+    	/* Testing how many of the pair have already been sampled, to decide tree reconstruction
+    	for(j = 0; j < lct; j++){
+    		for(k = 0; k < lct; k++){
+    			if( *((*(samps + j)) + k) == child1 ||  *((*(samps + j)) + k) == parent1 ){
+    				csum++;
+    			}
+    		}
+    	}
     	*/
 	}
 	
@@ -1168,16 +1206,16 @@ int main(int argc, char *argv[]){
 		exit(1);
 	}
 	*/
-	N = strtod(argv[1],NULL);
+	N = atoi(argv[1]);
 	rec = strtod(argv[2],NULL);
-	nsites = strtod(argv[3],NULL);
+	nsites = atoi(argv[3]);
 	g = strtod(argv[4],NULL);
 	theta = strtod(argv[5],NULL);
-	pSTIN = strtod(argv[6],NULL);
+	pSTIN = atoi(argv[6]);
 	pLH = strtod(argv[7],NULL);
 	pHL = strtod(argv[8],NULL);
 	mig = strtod(argv[9],NULL);
-	d = strtod(argv[10],NULL);
+	d = atoi(argv[10]);
 	mig = mig/(2.0*N);
 	if(d == 1){
 		mig = 0;	/* Set migration to zero if only one deme, as a precaution */
@@ -1265,8 +1303,8 @@ int main(int argc, char *argv[]){
 	double *sexH = calloc(d,sizeof(double));		/* High-sex rates */
 	
 	for(x = 0; x < d; x++){
-		*(Iwith + x) = strtod(argv[11 + (4*x + 0)],NULL);
-		*(Ibet + x) = strtod(argv[11 + (4*x + 1)],NULL);
+		*(Iwith + x) = atoi(argv[11 + (4*x + 0)]);
+		*(Ibet + x) = atoi(argv[11 + (4*x + 1)]);
 		*(sexL + x) = strtod(argv[11 + (4*x + 2)],NULL);
 		*(sexH + x) = strtod(argv[11 + (4*x + 3)],NULL);
 		*(zeros + x) = 0;
@@ -1298,7 +1336,7 @@ int main(int argc, char *argv[]){
 	}
 	
 	/* Number of samples/reps to take */
-	Nreps = strtod(argv[4*d + 11],NULL);
+	Nreps = atoi(argv[4*d + 11]);
 	
 	/* Final Error Checking */
 	if(Itot <= 1){
