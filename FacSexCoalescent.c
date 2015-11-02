@@ -16,6 +16,7 @@ separately from this file.
 #include <time.h>
 #include <math.h>
 #include <stddef.h>
+#include <string.h>
 #include <gsl/gsl_rng.h>
 #include <gsl/gsl_randist.h>
 
@@ -1091,72 +1092,248 @@ void indv_sort(unsigned int **indvs, unsigned int nrow){
 }
 
 /* Function to reconstruct genealogy and to add mutation to branches */
-void treemaker(double **TFin, double theta, double mind, double maxd, char *treeout, double **MTab, unsigned int Itot){
-	unsigned int i, j, k;
+void treemaker(double **TFin, double theta, double mind, double maxd, char *treeout, double **MTab, unsigned int Itot, const gsl_rng *r){
+	unsigned int i, j, k, a;
 	unsigned int lct = Itot;
 	unsigned int lct2 = lct-1;
-	unsigned int nc = 1;			/* {N}umber of {c}lades in current reconstruction */
+	unsigned int nc = 0;			/* {N}umber of {c}lades in current reconstruction */
 	unsigned int nmut = 0;			/* Number of alleles dropped onto tree */
-	unsigned int birthtime = 0;		/* Coalescent time */
+	double birthtime = 0;			/* Coalescent time */
 	unsigned int child1 = 0;		/* Coalesced sample */
 	unsigned int parent1 = 0;		/* Parental sample */	
 	unsigned int csum = 0;			/* How many of each have been sampled, to decide action*/
 	unsigned int ischild = 0;		/* Is it a child sample? */
-	char *lbr = "(";
-	char *rbr = ")";
-	char *com = ",";
-	char *cln = ":";
-	char p1char[16];
-	char c1char[16];
+	double rmut1 = 0;				/* Mutations along first branch */
+	double rmut2 = 0;				/* Mutations along second branch */	
+	unsigned int cc = 0;			/* Child clade */
+	unsigned int pc = 0;			/* Parental clade */
+	unsigned int exsamps = 0;		/* Extra samples */
+	unsigned int cs = 0;			/* 'Clade' samps */
+	
+	static const char lbr[] = "(";
+	static const char rbr[] = ")";
+	static const char com[] = ",";
+	static const char cln[] = ":";									
+	char p1char[10];
+	char c1char[10];
+	char btchar1[32];
+	char btchar2[32];	
+	char tc[4096];					/* Temp clade for editing */
 		
 	/* Defining necessary tables */
-	char *clades[lct];		/*	Vector of possible clades. Do I need to assign spaces for characters there? */
+	char clades[lct][4096];							/*	Vector of possible clades. Do I need to assign spaces for characters there? */
 	double *Cheight = calloc(lct,sizeof(double));	/* Current 'height' (time) of each clade */
 	unsigned int **samps = calloc(lct,sizeof(unsigned int *));			/* Table of samples present in each clade (row = each clade) */
 	for(j = 0; j < lct; j++){										
 		samps[j] = calloc(lct,sizeof(unsigned int));
 	}
+	for(j = 0; j < lct; j++){
+    	for(k = 0; k < lct; k++){
+			*((*(samps + j)) + k) = Itot;
+		}
+   	}
 
 	for(i = 0; i < lct2; i++){
-		birthtime = *((*(TFin + j)) + 1);
-	    child1 = *((*(TFin + j)) + 0);
-    	parent1 = *((*(TFin + j)) + 2);
+	
+		birthtime = *((*(TFin + i)) + 1);
+	    child1 = *((*(TFin + i)) + 0);
+    	parent1 = *((*(TFin + i)) + 2);
     	ischild = 0;
     	csum = 0;
     	
-    	if(i == 1){
-    		/* Converting values to strings */
-	    	snprintf(p1char, 16, "%d", parent1);
-	    	snprintf(c1char, 16, "%d", child1);	    	
-    		strcat(lbr,cln);
-    		clades[0] = paste("(",parent1,":",birthtime,",",child1,":",birthtime,")",sep="");
-    		*((*(samps + 0)) + 0) = parent1;
+    	if(i == 0){
+    	
+	    	*((*(samps + 0)) + 0) = parent1;
     		*((*(samps + 0)) + 1) = child1;
     		*(Cheight + 0) = birthtime;
-			/*
-			rmut <- rpois(2,lambda=(0.5*theta*birthtime))	# New mutations present in first and second sample respectively
-			twos <- c(parent1,child1)
-			for(a in 1:2){
-				if(rmut[a] != 0){
-					for(b in 1:rmut[a]){	# Adding mutations to table
-			   			MTab <- rbind(MTab,rep(0,lct + 1))
-    					MTab[nmut+b,1] <- runif(1,mind,maxd)
-	   					MTab[nmut+b,twos[a] + 1] <- 1		# Indicating location of mutants
- 					}
- 					nmut <- nmut + rmut[a]
+    		
+    		/* Converting values to strings */
+    		sprintf(p1char, "%d", parent1);
+	    	sprintf(c1char, "%d", child1);
+	    	sprintf(btchar1,"%0.10lf",birthtime);    	
+
+	    	strcpy(clades[0],lbr);
+	    	strcat(clades[0],p1char);
+	    	strcat(clades[0],cln);
+	    	strcat(clades[0],btchar1);
+	    	strcat(clades[0],com);
+	    	strcat(clades[0],c1char);
+	    	strcat(clades[0],cln);
+	    	strcat(clades[0],btchar1);
+	    	strcat(clades[0],rbr);
+    		
+			/* Assigning mutations */
+			rmut1 = gsl_ran_poisson(r,(0.5*theta*birthtime));
+			rmut2 = gsl_ran_poisson(r,(0.5*theta*birthtime));
+			if(rmut1 != 0){
+				for(a = 0; a < rmut1; a++){
+					/* Indicating location of mutants */
+					*((*(MTab + (nmut+a))) + 0) = gsl_ran_flat(r, mind, maxd);
+					*((*(MTab + (nmut+a))) + (parent1+1)) = 1;
 				}
+				nmut += rmut1;
 			}
-			*/
-    	}/* else if i > 1...*/
-    	/* Testing how many of the pair have already been sampled, to decide tree reconstruction
-    	for(j = 0; j < lct; j++){
-    		for(k = 0; k < lct; k++){
-    			if( *((*(samps + j)) + k) == child1 ||  *((*(samps + j)) + k) == parent1 ){
-    				csum++;
+			
+			if(rmut2 != 0){
+				for(a = 0; a < rmut2; a++){
+					/* Indicating location of mutants */
+					*((*(MTab + (nmut+a))) + 0) = gsl_ran_flat(r, mind, maxd);
+					*((*(MTab + (nmut+a))) + (child1+1)) = 1;
+				}
+				nmut += rmut2;
+			}
+			
+    	}else if(i > 1){
+    		/* There can be three cases: Merge clades if child already listed; 
+    		Add to clade if child new but parent already listed; 
+    		Create new clade otherwise.
+    		
+    	  	Testing how many of the pair have already been sampled, to decide tree reconstruction */
+    	  	cc = Itot;
+    	  	pc = Itot;
+	    	for(j = 0; j < lct; j++){
+    			for(k = 0; k < lct; k++){
+    				/* if( *((*(samps + j)) + k) == child1 ||  *((*(samps + j)) + k) == parent1 ){ */
+    				if( *((*(samps + j)) + k) == child1 ){
+    					cc = j;
+    					csum++;
+    				}
+    				if( *((*(samps + j)) + k) == parent1 ){
+    					pc = j;
+    					csum++;
+    				}
     			}
+	    	}
+	    	
+	    	if(csum==0){	/* Create a new clade */
+    			nc++;
+    			
+	   			*((*(samps + nc)) + 0) = parent1;
+    			*((*(samps + nc)) + 1) = child1;
+    			*(Cheight + nc) = birthtime;
+
+    			/* Converting values to strings */
+	    		sprintf(p1char, "%d", parent1);
+		    	sprintf(c1char, "%d", child1);
+	    		sprintf(btchar1,"%0.10lf",birthtime);    	
+
+	    		strcpy(clades[nc],lbr);
+		    	strcat(clades[nc],p1char);
+		    	strcat(clades[nc],cln);
+	    		strcat(clades[nc],btchar1);
+	    		strcat(clades[nc],com);
+		    	strcat(clades[nc],c1char);
+		    	strcat(clades[nc],cln);
+	    		strcat(clades[nc],btchar1);
+		    	strcat(clades[nc],rbr);
+	    
+	    		/* Assigning mutations */
+				rmut1 = gsl_ran_poisson(r,(0.5*theta*birthtime));
+				rmut2 = gsl_ran_poisson(r,(0.5*theta*birthtime));
+				if(rmut1 != 0){
+					for(a = 0; a < rmut1; a++){
+						/* Indicating location of mutants */
+						*((*(MTab + (nmut+a))) + 0) = gsl_ran_flat(r, mind, maxd);
+						*((*(MTab + (nmut+a))) + (parent1+1)) = 1;
+					}
+					nmut += rmut1;
+				}
+		
+				if(rmut2 != 0){
+					for(a = 0; a < rmut2; a++){
+						/* Indicating location of mutants */
+						*((*(MTab + (nmut+a))) + 0) = gsl_ran_flat(r, mind, maxd);
+						*((*(MTab + (nmut+a))) + (child1+1)) = 1;
+					}
+					nmut += rmut2;
+				}		
+				
+    		}else if(csum == 1){	/* Add to existing clade */
+				/* Choosing row (and therefore clade) containing existing parent (or child) */
+				if(pc==Itot){
+   					ischild = 1;
+   					pc = cc;
+   				}
+   				
+   				/* Converting values to strings */
+				sprintf(c1char, "%d", child1);
+				sprintf(p1char, "%d", parent1);				
+				sprintf(btchar1,"%0.10lf",birthtime);
+				sprintf(btchar2,"%0.10lf",(birthtime - (*(Cheight+pc))));
+				memset(tc,0,sizeof(tc));
+    			
+    			if(ischild == 0){
+    			
+					/* Concatenating new clade */
+					strcpy(tc,lbr);
+					strcat(tc,c1char);
+					strcat(tc,cln);
+					strcat(tc,btchar1);
+					strcat(tc,com);
+					strcat(tc,clades[pc]);
+					strcat(tc,cln);
+					strcat(tc,btchar2);
+					strcat(tc,rbr);
+					
+					for(k = 0; k < lct; k++){
+    					if( *((*(samps + pc)) + k) == Itot ){
+    						*((*(samps + pc)) + k) = child1;
+    						break;
+	    				}
+    				}
+    				exsamps = child1;
+    			}else if(ischild==1){
+    			
+					strcpy(tc,lbr);
+					strcat(tc,p1char);
+					strcat(tc,cln);
+					strcat(tc,btchar1);
+					strcat(tc,com);
+					strcat(tc,clades[pc]);
+					strcat(tc,cln);
+					strcat(tc,btchar2);
+					strcat(tc,rbr);
+					
+					for(k = 0; k < lct; k++){
+    					if( *((*(samps + pc)) + k) == Itot ){
+    						*((*(samps + pc)) + k) = parent1;
+    						break;
+	    				}
+    				}
+    				exsamps = parent1;
+    			}
+   				
+			   	/* Assigning mutations */
+				rmut1 = gsl_ran_poisson(r,(0.5*theta*(birthtime - (*(Cheight+pc)))));
+				rmut2 = gsl_ran_poisson(r,(0.5*theta*birthtime));
+				if(rmut1 != 0){
+					for(a = 0; a < rmut1; a++){
+						/* Indicating location of mutants */
+						*((*(MTab + (nmut+a))) + 0) = gsl_ran_flat(r, mind, maxd);
+						for(k = 0; k < lct; k++){
+							if( (*((*(samps + pc)) + k) != Itot) && (*((*(samps + pc)) + k) != exsamps) ){
+								cs = *((*(samps + pc)) + k);
+								*((*(MTab + (nmut+a))) + (cs + 1)) = 1;
+							}
+						}
+					}
+					nmut += rmut1;
+				}
+		
+				if(rmut2 != 0){
+					for(a = 0; a < rmut2; a++){
+						/* Indicating location of mutants */
+						*((*(MTab + (nmut+a))) + 0) = gsl_ran_flat(r, mind, maxd);
+						*((*(MTab + (nmut+a))) + (exsamps + 1)) = 1;
+					}
+					nmut += rmut2;
+				}	
+				
+				memset(clades[pc],0,sizeof(clades[pc]));
+				strcpy(clades[pc],tc);
+   				*(Cheight + pc) = birthtime;
     		}
     	}
-    	*/
 	}
 	
 	for(j = 0; j < lct; j++){										
@@ -1742,7 +1919,7 @@ int main(int argc, char *argv[]){
 					printf("\n");					
 					count++;
 				}
-			}
+			}			
 		}
 		
 		/* Freeing memory at end of particular run */
