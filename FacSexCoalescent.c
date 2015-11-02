@@ -38,6 +38,8 @@ void smultI_UI(int *Vout, unsigned int *Vin, unsigned int size_t, int scale);
 void vsum_UI_I(unsigned int *Vbase, int *Vadd, unsigned int size_t);
 void sselect_UI(unsigned int **Tin, unsigned int *Vout, unsigned int nrow, unsigned int matchcol, unsigned int datcol, unsigned int match, unsigned int dcol, unsigned int deme);
 void sselect_UIV(unsigned int **Tin, unsigned int *Vout, unsigned int nrow, unsigned int matchcol, unsigned int datcol, unsigned int *match, unsigned int mlength, unsigned int dcol, unsigned int deme);
+double sumrep(unsigned int n);
+double sumrepsq(unsigned int n);
 
 unsigned int trig(unsigned int x);
 double P23(unsigned int y, unsigned int k, unsigned int Na);
@@ -58,6 +60,7 @@ void ccheck(unsigned int **indvs, unsigned int **GType, unsigned int **breaks, u
 unsigned int coalcalc(unsigned int **breaks, unsigned int nsites, unsigned int nbreaks);
 void sexsamp(unsigned int **indvs, unsigned int *rsex, unsigned int *nsex, unsigned int *Nwith, unsigned int Ntot, const gsl_rng *r);
 void indv_sort(unsigned int **indvs, unsigned int nrow);
+char * treemaker(double **TFin, double theta, double mind, double maxd, double **MTab, unsigned int Itot, const gsl_rng *r);
 
 /* Global variable declaration */
 unsigned int N = 0;			/* Population Size */
@@ -267,6 +270,26 @@ void sselect_UIV(unsigned int **Tin, unsigned int *Vout, unsigned int nrow, unsi
 			}
 		}
 	}
+}
+
+/* Sum of 1/i */
+double sumrep(unsigned int n){
+	unsigned int count = 0;
+	unsigned int i;
+	for(i = 1; i < n; i++){
+		count += 1/(1.0*i);
+	}
+	return(count);
+}
+
+/* Sum of 1/i^2 */
+double sumrepsq(unsigned int n){
+	unsigned int count = 0;
+	unsigned int i;
+	for(i = 1; i < n; i++){
+		count += 1/(1.0*i*i);
+	}
+	return(count);
 }
 
 /* 'Triangle function' calculation */
@@ -1092,7 +1115,7 @@ void indv_sort(unsigned int **indvs, unsigned int nrow){
 }
 
 /* Function to reconstruct genealogy and to add mutation to branches */
-void treemaker(double **TFin, double theta, double mind, double maxd, char *treeout, double **MTab, unsigned int Itot, const gsl_rng *r){
+char * treemaker(double **TFin, double theta, double mind, double maxd, double **MTab, unsigned int Itot, const gsl_rng *r){
 	unsigned int i, j, k, a;
 	unsigned int lct = Itot;
 	unsigned int lct2 = lct-1;
@@ -1109,11 +1132,16 @@ void treemaker(double **TFin, double theta, double mind, double maxd, char *tree
 	unsigned int pc = 0;			/* Parental clade */
 	unsigned int exsamps = 0;		/* Extra samples */
 	unsigned int cs = 0;			/* 'Clade' samps */
+	unsigned int minc = 0;			/* Min, max clade (for resorting) */
+	unsigned int maxc = 0;
+	unsigned int ccM = 0;
+	unsigned int rowT = 0;			/* What row to track in temp samps array */
 	
 	static const char lbr[] = "(";
 	static const char rbr[] = ")";
 	static const char com[] = ",";
-	static const char cln[] = ":";									
+	static const char cln[] = ":";
+	static const char scln[] = ";";
 	char p1char[10];
 	char c1char[10];
 	char btchar1[32];
@@ -1121,17 +1149,16 @@ void treemaker(double **TFin, double theta, double mind, double maxd, char *tree
 	char tc[4096];					/* Temp clade for editing */
 		
 	/* Defining necessary tables */
-	char clades[lct][4096];							/*	Vector of possible clades. Do I need to assign spaces for characters there? */
+	char clades[lct][4096];							/*	Vector of possible clades */
+	char cladT[lct][4096];							/*	*Temp* vector for copying */	
 	double *Cheight = calloc(lct,sizeof(double));	/* Current 'height' (time) of each clade */
 	unsigned int **samps = calloc(lct,sizeof(unsigned int *));			/* Table of samples present in each clade (row = each clade) */
 	for(j = 0; j < lct; j++){										
 		samps[j] = calloc(lct,sizeof(unsigned int));
-	}
-	for(j = 0; j < lct; j++){
-    	for(k = 0; k < lct; k++){
+		for(k = 0; k < lct; k++){
 			*((*(samps + j)) + k) = Itot;
 		}
-   	}
+	}
 
 	for(i = 0; i < lct2; i++){
 	
@@ -1193,7 +1220,6 @@ void treemaker(double **TFin, double theta, double mind, double maxd, char *tree
     	  	pc = Itot;
 	    	for(j = 0; j < lct; j++){
     			for(k = 0; k < lct; k++){
-    				/* if( *((*(samps + j)) + k) == child1 ||  *((*(samps + j)) + k) == parent1 ){ */
     				if( *((*(samps + j)) + k) == child1 ){
     					cc = j;
     					csum++;
@@ -1260,7 +1286,7 @@ void treemaker(double **TFin, double theta, double mind, double maxd, char *tree
 				sprintf(p1char, "%d", parent1);				
 				sprintf(btchar1,"%0.10lf",birthtime);
 				sprintf(btchar2,"%0.10lf",(birthtime - (*(Cheight+pc))));
-				memset(tc,0,sizeof(tc));
+				memset(tc,'\0',sizeof(tc));
     			
     			if(ischild == 0){
     			
@@ -1327,20 +1353,149 @@ void treemaker(double **TFin, double theta, double mind, double maxd, char *tree
 						*((*(MTab + (nmut+a))) + (exsamps + 1)) = 1;
 					}
 					nmut += rmut2;
-				}	
+				}
 				
-				memset(clades[pc],0,sizeof(clades[pc]));
+				memset(clades[pc],'\0',sizeof(clades[pc]));
 				strcpy(clades[pc],tc);
    				*(Cheight + pc) = birthtime;
+   				
+    		}else if((csum == 2) && (nc > 0)){		/* Add to existing clade */
+    		
+    			/* Converting values to strings */
+				sprintf(c1char, "%d", child1);
+				sprintf(p1char, "%d", parent1);				
+				sprintf(btchar1,"%0.10lf",(birthtime - (*(Cheight + pc))));
+				sprintf(btchar2,"%0.10lf",(birthtime - (*(Cheight + cc))));
+				memset(tc,'\0',sizeof(tc));
+				
+				strcpy(tc,lbr);
+				strcat(tc,clades[pc]);
+				strcat(tc,cln);
+				strcat(tc,btchar1);
+				strcat(tc,com);
+				strcat(tc,clades[cc]);
+				strcat(tc,cln);
+				strcat(tc,btchar2);
+				strcat(tc,rbr);
+				
+				/* Assigning mutations */
+				rmut1 = gsl_ran_poisson(r,(0.5*theta*(birthtime - (*(Cheight+pc)))));
+				rmut2 = gsl_ran_poisson(r,(0.5*theta*(birthtime - (*(Cheight+cc)))));
+				if(rmut1 != 0){
+					for(a = 0; a < rmut1; a++){
+						/* Indicating location of mutants */
+						*((*(MTab + (nmut+a))) + 0) = gsl_ran_flat(r, mind, maxd);
+						for(k = 0; k < lct; k++){
+							if( *((*(samps + pc)) + k) != Itot ){
+								cs = *((*(samps + pc)) + k);
+								*((*(MTab + (nmut+a))) + (cs + 1)) = 1;
+							}
+						}
+					}
+					nmut += rmut1;
+				}
+				
+				if(rmut2 != 0){
+					for(a = 0; a < rmut2; a++){
+						/* Indicating location of mutants */
+						*((*(MTab + (nmut+a))) + 0) = gsl_ran_flat(r, mind, maxd);
+						for(k = 0; k < lct; k++){
+							if( *((*(samps + cc)) + k) != Itot ){
+								cs = *((*(samps + cc)) + k);
+								*((*(MTab + (nmut+a))) + (cs + 1)) = 1;
+							}
+						}
+					}
+					nmut += rmut2;
+				}
+				
+				/* Deleting old clade data */
+				if(cc < pc){
+					minc = cc;
+					maxc = pc;
+				}else if (cc > pc){
+					minc = pc;
+					maxc = cc;
+				}
+				
+				memset(clades[minc],'\0',sizeof(clades[minc]));
+				memset(clades[maxc],'\0',sizeof(clades[maxc]));				
+				strcpy(clades[minc],tc);
+   				*(Cheight + minc) = birthtime;
+   				*(Cheight + maxc) = 0;
+   				
+   				for(k = 0; k < lct; k++){
+   					if(*((*(samps + cc)) + k) == Itot){
+   						ccM = k;
+   						break;
+   					}
+   				}
+   				for(k = 0; k < lct; k++){
+   					if(*((*(samps + pc)) + k) == Itot){
+   						break;
+   					}
+   					*((*(samps + cc)) + (k + ccM)) = *((*(samps + pc)) + k);
+					*((*(samps + pc)) + k) = Itot;
+   				}
+   				
+   				/* Now to reorder (to prevent overflow/going out of array length) */
+   				/* Creating temp table, then ordering data into it */
+    			
+    			unsigned int **sampsT = calloc(lct,sizeof(unsigned int *));			/* Table of samples present in each clade (row = each clade) */
+    			double *CHT = calloc(lct,sizeof(double));							/* Temp height array */
+				for(j = 0; j < lct; j++){										
+					sampsT[j] = calloc(lct,sizeof(unsigned int));
+					for(k = 0; k < lct; k++){
+						*((*(sampsT + j)) + k) = Itot;
+					}
+				}
+    			
+    			for(j = 0; j < nc; j++){
+    				rowT = 0;
+   					if(isallUI(*(samps + j),lct,Itot) == 1){
+   						for(k = 0; k < lct; k++){
+   							*((*(sampsT + rowT)) + k) = *((*(samps + j)) + k);
+   						}
+   						strcpy(cladT[rowT],clades[j]);
+   						*(CHT + rowT) = *(Cheight + j);
+						rowT++;
+   					}
+    			}
+    			
+    			/* Then re-writing over original arrays */
+    			for(j = 0; j < lct; j++){
+					for(k = 0; k < lct; k++){
+						*((*(samps + j)) + k) = *((*(sampsT + j)) + k);
+   					}
+					memset(clades[j],'\0',sizeof(clades[j]));
+					strcpy(clades[j],cladT[j]);
+					memset(cladT[j],'\0',sizeof(cladT[j]));
+					*(Cheight + j) = *(CHT + j);
+    			}   			
+    			
+    			for(j = 0; j < lct; j++){										
+					free(sampsT[j]);
+				}
+				free(CHT);
+				free(sampsT);
+    			nc--;
+    			
     		}
     	}
 	}
+	
+	strcat(clades[0],scln);
+    char *str = malloc(4096 * sizeof(char));
+    if(str == NULL) return NULL;
+    strcpy(str,clades[0]);
 	
 	for(j = 0; j < lct; j++){										
 		free(samps[j]);
 	}
 	free(samps);
 	free(Cheight);
+	
+	return(str);
 
 }	/* End of treemaker routine */
 
@@ -1362,6 +1517,8 @@ int main(int argc, char *argv[]){
 	double nosex = 0;			/* Probability of no sexual reproduction over all demes */
 	double psum = 0;			/* Sum of transition probs (first go) */
 	double tjump = 0;			/* Time until next event */
+	double mind = 0;			/* Min tract dist */
+	double maxd = 0;			/* Max tract dist */
 	unsigned int esex = 0;		/* Total sex events (segregation of paired samples) */
 	unsigned int CsexS = 0;		/* Switch once sex samples chosen */
 	unsigned int done = 0;		/* Is simulation complete? */
@@ -1903,10 +2060,17 @@ int main(int argc, char *argv[]){
 			}
 			printf("\n");
 		}
-		printf("\n");	
+		printf("\n");
 		
 		/* Creating ancestry table for reconstruction */
 		for(x = 1; x <= nbreaks; x++){
+		
+			/* Allocating space for mutation table */
+			unsigned int MTRows = (theta*sumrep(Itot) + 3*theta*sumrepsq(Itot));
+			double **MTab = calloc(MTRows,sizeof(double *));			/* Mutation table */
+			for(j = 0; j < MTRows; j++){
+				MTab[j] = calloc(Itot+1,sizeof(double));
+			}
 		
 			/* Creating ancestry table */
 			printf("TFin table :\n");
@@ -1919,7 +2083,18 @@ int main(int argc, char *argv[]){
 					printf("\n");					
 					count++;
 				}
-			}			
+			}
+			
+			/* Using ancestry table to build tree and mutation table */
+			mind = (*((*(breaks + 0)) + x))/(1.0*nsites);
+			maxd = (*((*(breaks + 0)) + (x-1)))/(1.0*nsites);
+			char *ret_tree = treemaker(TFin, theta*(maxd-mind), mind, maxd, MTab, Itot, r);
+			/* NEED DYNAMIC ALLOCATION WITH MTAB ETC ETC */
+			
+			for(j = 0; j < MTRows; j++){
+				free(MTab[j]);
+			}
+			free(MTab);
 		}
 		
 		/* Freeing memory at end of particular run */
