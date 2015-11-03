@@ -546,6 +546,7 @@ void coalesce(unsigned int **indvs, unsigned int **GType, double **CTms ,unsigne
 	unsigned int WHsel = 0;		/* WH sample involved in event (ev 7) */
 	unsigned int isWH = 0;		/* Is the sample from WH? (ev 7) */
 	unsigned int lrecN = 0;		/* New lrec output */
+	unsigned int parNo = 0;		/* Parent where coalescent occurs (event 6) */
 	
 	/* Then further actions based on other event */
 	switch(ex)
@@ -792,6 +793,20 @@ void coalesce(unsigned int **indvs, unsigned int **GType, double **CTms ,unsigne
 			parT[1] = csamp2[1];
 			while(parT[1] == csamp2[1]){
 				gsl_ran_choose(r,&parT[1],1,lhs,2,sizeof(unsigned int));
+			}
+			
+			/* Making sure parent samples are in same individual */
+			for(j = 0; j < Itot; j++){
+				if(*((*(indvs + j)) + 0) == parT[0]){
+					parNo = *((*(indvs + j)) + 1);
+					break;
+				}
+			}
+			for(j = 0; j < Itot; j++){
+				if(*((*(indvs + j)) + 0) == parT[1]){
+					*((*(indvs + j)) + 1) = parNo;
+					break;
+				}
 			}
 			
 			/* Now updating coalescent times */
