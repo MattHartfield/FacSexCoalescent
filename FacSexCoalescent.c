@@ -19,6 +19,8 @@ separately from this file.
 #include <string.h>
 #include <gsl/gsl_rng.h>
 #include <gsl/gsl_randist.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 
 /* Function prototypes */
 unsigned int isanyUI(unsigned int *vin, unsigned int size_t, unsigned int match);
@@ -60,8 +62,9 @@ void ccheck(unsigned int **indvs, unsigned int **GType, unsigned int **breaks, u
 unsigned int coalcalc(unsigned int **breaks, unsigned int nsites, unsigned int nbreaks);
 void sexsamp(unsigned int **indvs, unsigned int *rsex, unsigned int *nsex, unsigned int *Nwith, unsigned int Ntot, const gsl_rng *r);
 void indv_sort(unsigned int **indvs, unsigned int nrow);
+void indv_sortD(double **Tin, unsigned int nrow, unsigned int ncol, unsigned int tcol);
 char * treemaker(double **TFin, double thetain, double mind, double maxd, double **MTab, unsigned int MTRows, unsigned int Itot, unsigned int *nmutin, const gsl_rng *r);
-void MTabRA(double **MTab, unsigned int *MTRows, unsigned int Itot);
+void ErrorMut();
 
 /* Global variable declaration */
 unsigned int N = 0;			/* Population Size */
@@ -531,7 +534,7 @@ void coalesce(unsigned int **indvs, unsigned int **GType, double **CTms ,unsigne
 	/* unsigned int NBtot = sumUI(Nbet,d);	*/
 	unsigned int Nindv = sumUI(Nwith,d) + sumUI(Nbet,d);
 	unsigned int nsum = sumUI(nsex,d);
-	unsigned int j, a;
+	unsigned int j, a, k;
 	unsigned int count = 0;		/* For converting WH to BH samples */
 	unsigned int done = 0;		/* For sampling right individual */
 	unsigned int rands2 = 0;	/* Sample that does not split fully (event 1) */
@@ -735,8 +738,11 @@ void coalesce(unsigned int **indvs, unsigned int **GType, double **CTms ,unsigne
 			free(singsamps5);
 			break;
 		case 6:			/* Event 6: Two remaining paired samples doubly coalesce asexually. */
-		
 			/* Converting WH to BH samples */
+			for(k = 0; k < nsum; k++){
+				printf("%d ",*(rsex + k));
+			}
+			printf("\n");
 			sexconv(indvs, rsex, nsum, Nindv, Itot);
 			
 			unsigned int *parsamps6 = calloc((*(Nwith + deme) - *(nsex + deme)),sizeof(unsigned int));			/* For storing WH indvs */
@@ -745,6 +751,14 @@ void coalesce(unsigned int **indvs, unsigned int **GType, double **CTms ,unsigne
 			unsigned int *rhs = calloc(2,sizeof(unsigned int));			
 			unsigned int *csamp2 = calloc(2,sizeof(unsigned int));
 			unsigned int *parT = calloc(2,sizeof(unsigned int));			
+			
+			for(j = 0; j < Itot; j++){
+				for(k = 0; k < 4; k++){
+					printf("%d ",*((*(indvs + j)) + k));
+				}
+				printf("\n");
+			}
+			printf("\n");
 			
 			sselect_UI(indvs, parsamps6, Itot, 2, 1, 0, 3, deme);
 			/* Two parents involved in coalescence */
@@ -805,6 +819,14 @@ void coalesce(unsigned int **indvs, unsigned int **GType, double **CTms ,unsigne
 			unsigned int *parsamps7 = calloc((*(Nwith + deme) - *(nsex + deme)),sizeof(unsigned int));
 			unsigned int *singsamps7 = calloc((*(Nbet + deme) + 2*(*(nsex + deme))),sizeof(unsigned int));			/* For storing BH samples */
 			unsigned int *twosamps7 = calloc(2,sizeof(unsigned int));
+			
+			for(j = 0; j < Itot; j++){
+				for(int k = 0; k < 4; k++){
+					printf("%d ",*((*(indvs + j)) + k));
+				}
+				printf("\n");
+			}
+			printf("\n");
 			
 			sselect_UI(indvs, parsamps7, Itot, 2, 1, 0, 3, deme);
 			sselect_UI(indvs, singsamps7, Itot, 2, 0, 1, 3, deme);
@@ -1115,6 +1137,27 @@ void indv_sort(unsigned int **indvs, unsigned int nrow){
 	}
 }
 
+/* Insertion-sort for double-type tables */
+void indv_sortD(double **Tin, unsigned int nrow, unsigned int ncol, unsigned int tcol){
+	unsigned int j, i, k;		/* Sorting indices */
+	
+	double *tempcol = calloc(ncol,sizeof(double));		/* temp entries for swapping */
+	
+	for(j = 1; j < nrow; j++){
+		i = j;
+		while( (i > 0) &&  ( *((*(Tin + (i - 1) )) + tcol) > *((*(Tin + i)) + tcol) )){
+			/* Swapping entries */
+			for(k = 0; k < ncol; k++){
+				*(tempcol + k) = *((*(Tin + (i - 1) )) + k);
+				*((*(Tin + (i - 1) )) + k) =  *((*(Tin + (i) )) + k);
+				*((*(Tin + (i) )) + k) = *(tempcol + k);
+			}			
+			i--;
+		}
+	}
+	free(tempcol);
+}
+
 /* Function to reconstruct genealogy and to add mutation to branches */
 char * treemaker(double **TFin, double thetain, double mind, double maxd, double **MTab, unsigned int MTRows, unsigned int Itot, unsigned int *nmutin, const gsl_rng *r){
 	unsigned int i, j, k, a;
@@ -1126,8 +1169,8 @@ char * treemaker(double **TFin, double thetain, double mind, double maxd, double
 	unsigned int parent1 = 0;		/* Parental sample */	
 	unsigned int csum = 0;			/* How many of each have been sampled, to decide action*/
 	unsigned int ischild = 0;		/* Is it a child sample? */
-	unsigned int rmut1 = 0;				/* Mutations along first branch */
-	unsigned int rmut2 = 0;				/* Mutations along second branch */	
+	unsigned int rmut1 = 0;			/* Mutations along first branch */
+	unsigned int rmut2 = 0;			/* Mutations along second branch */	
 	unsigned int cc = 0;			/* Child clade */
 	unsigned int pc = 0;			/* Parental clade */
 	unsigned int exsamps = 0;		/* Extra samples */
@@ -1136,16 +1179,20 @@ char * treemaker(double **TFin, double thetain, double mind, double maxd, double
 	unsigned int maxc = 0;
 	unsigned int ccM = 0;
 	unsigned int rowT = 0;			/* What row to track in temp samps array */
+	unsigned int brk = 0;			/* Breakpoint where tract starts */
 	
 	static const char lbr[] = "(";
 	static const char rbr[] = ")";
 	static const char com[] = ",";
 	static const char cln[] = ":";
 	static const char scln[] = ";";
-	char p1char[10];
-	char c1char[10];
+	static const char lsq[] = "[";
+	static const char rsq[] = "]";
+	char p1char[16];
+	char c1char[16];
 	char btchar1[32];
 	char btchar2[32];	
+	char brkchar[16];
 	char tc[4096];					/* Temp clade for editing */
 		
 	/* Defining necessary tables */
@@ -1194,7 +1241,7 @@ char * treemaker(double **TFin, double thetain, double mind, double maxd, double
 			rmut2 = gsl_ran_poisson(r,(0.5*thetain*birthtime));
 			if(rmut1 != 0){
 				if((*nmutin + rmut1) > MTRows){
-					MTabRA(MTab,&MTRows,Itot);
+					ErrorMut();
 				}
 				for(a = 0; a < rmut1; a++){
 					/* Indicating location of mutants */
@@ -1206,7 +1253,7 @@ char * treemaker(double **TFin, double thetain, double mind, double maxd, double
 			
 			if(rmut2 != 0){
 				if((*nmutin + rmut2) > MTRows){
-					MTabRA(MTab,&MTRows,Itot);
+					ErrorMut();
 				}
 				for(a = 0; a < rmut2; a++){
 					/* Indicating location of mutants */
@@ -1216,7 +1263,7 @@ char * treemaker(double **TFin, double thetain, double mind, double maxd, double
 				*nmutin += rmut2;
 			}
 			
-    	}else if(i > 1){
+    	}else if(i > 0){
     		/* There can be three cases: Merge clades if child already listed; 
     		Add to clade if child new but parent already listed; 
     		Create new clade otherwise.
@@ -1224,6 +1271,7 @@ char * treemaker(double **TFin, double thetain, double mind, double maxd, double
     	  	Testing how many of the pair have already been sampled, to decide tree reconstruction */
     	  	cc = Itot;
     	  	pc = Itot;
+    	  	csum = 0;
 	    	for(j = 0; j < lct; j++){
     			for(k = 0; k < lct; k++){
     				if( *((*(samps + j)) + k) == child1 ){
@@ -1264,7 +1312,7 @@ char * treemaker(double **TFin, double thetain, double mind, double maxd, double
 				rmut2 = gsl_ran_poisson(r,(0.5*thetain*birthtime));
 				if(rmut1 != 0){
 					if((*nmutin + rmut1) > MTRows){
-						MTabRA(MTab,&MTRows,Itot);
+						ErrorMut();
 					}
 					for(a = 0; a < rmut1; a++){
 						/* Indicating location of mutants */
@@ -1276,7 +1324,7 @@ char * treemaker(double **TFin, double thetain, double mind, double maxd, double
 		
 				if(rmut2 != 0){
 					if((*nmutin + rmut2) > MTRows){
-						MTabRA(MTab,&MTRows,Itot);
+						ErrorMut();
 					}
 					for(a = 0; a < rmut2; a++){
 						/* Indicating location of mutants */
@@ -1346,7 +1394,7 @@ char * treemaker(double **TFin, double thetain, double mind, double maxd, double
 				rmut2 = gsl_ran_poisson(r,(0.5*thetain*birthtime));
 				if(rmut1 != 0){
 					if((*nmutin + rmut1) > MTRows){
-						MTabRA(MTab,&MTRows,Itot);
+						ErrorMut();
 					}
 					for(a = 0; a < rmut1; a++){
 						/* Indicating location of mutants */
@@ -1363,7 +1411,7 @@ char * treemaker(double **TFin, double thetain, double mind, double maxd, double
 		
 				if(rmut2 != 0){
 					if((*nmutin + rmut2) > MTRows){
-						MTabRA(MTab,&MTRows,Itot);
+						ErrorMut();
 					}
 					for(a = 0; a < rmut2; a++){
 						/* Indicating location of mutants */
@@ -1394,14 +1442,14 @@ char * treemaker(double **TFin, double thetain, double mind, double maxd, double
 				strcat(tc,clades[cc]);
 				strcat(tc,cln);
 				strcat(tc,btchar2);
-				strcat(tc,rbr);
+				strcat(tc,rbr);			
 				
 				/* Assigning mutations */
 				rmut1 = gsl_ran_poisson(r,(0.5*thetain*(birthtime - (*(Cheight+pc)))));
 				rmut2 = gsl_ran_poisson(r,(0.5*thetain*(birthtime - (*(Cheight+cc)))));
 				if(rmut1 != 0){
 					if((*nmutin + rmut1) > MTRows){
-						MTabRA(MTab,&MTRows,Itot);
+						ErrorMut();
 					}
 					for(a = 0; a < rmut1; a++){
 						/* Indicating location of mutants */
@@ -1418,7 +1466,7 @@ char * treemaker(double **TFin, double thetain, double mind, double maxd, double
 				
 				if(rmut2 != 0){
 					if((*nmutin + rmut2) > MTRows){
-						MTabRA(MTab,&MTRows,Itot);
+						ErrorMut();
 					}
 					for(a = 0; a < rmut2; a++){
 						/* Indicating location of mutants */
@@ -1449,24 +1497,25 @@ char * treemaker(double **TFin, double thetain, double mind, double maxd, double
    				*(Cheight + maxc) = 0;
    				
    				for(k = 0; k < lct; k++){
-   					if(*((*(samps + cc)) + k) == Itot){
+   					if(*((*(samps + minc)) + k) == Itot){
    						ccM = k;
    						break;
    					}
    				}
    				for(k = 0; k < lct; k++){
-   					if(*((*(samps + pc)) + k) == Itot){
+   					if(*((*(samps + maxc)) + k) == Itot){
    						break;
    					}
-   					*((*(samps + cc)) + (k + ccM)) = *((*(samps + pc)) + k);
-					*((*(samps + pc)) + k) = Itot;
+   					*((*(samps + minc)) + (k + ccM)) = *((*(samps + maxc)) + k);
+/*					*((*(samps + maxc)) + k) = Itot; */
    				}
    				
    				/* Now to reorder (to prevent overflow/going out of array length) */
+   				
    				/* Creating temp table, then ordering data into it */
-    			
-    			unsigned int **sampsT = calloc(lct,sizeof(unsigned int *));			/* Table of samples present in each clade (row = each clade) */
-    			double *CHT = calloc(lct,sizeof(double));							/* Temp height array */
+    			/*
+    			unsigned int **sampsT = calloc(lct,sizeof(unsigned int *));			
+    			double *CHT = calloc(lct,sizeof(double));							
 				for(j = 0; j < lct; j++){										
 					sampsT[j] = calloc(lct,sizeof(unsigned int));
 					for(k = 0; k < lct; k++){
@@ -1485,23 +1534,33 @@ char * treemaker(double **TFin, double thetain, double mind, double maxd, double
 						rowT++;
    					}
     			}
+    			*/
     			
-    			/* Then re-writing over original arrays */
-    			for(j = 0; j < lct; j++){
-					for(k = 0; k < lct; k++){
-						*((*(samps + j)) + k) = *((*(sampsT + j)) + k);
+    			/* Then re-writing over original arrays */  			
+    			for(j = maxc; j < nc; j++){
+					for(k = 0; k < lct; k++){					
+						*((*(samps + j)) + k) = *((*(samps + j + 1)) + k);
    					}
+   					printf("\n");
 					memset(clades[j],'\0',sizeof(clades[j]));
-					strcpy(clades[j],cladT[j]);
-					memset(cladT[j],'\0',sizeof(cladT[j]));
-					*(Cheight + j) = *(CHT + j);
-    			}   			
+					strcpy(clades[j],clades[j + 1]);
+/*					memset(cladT[j],'\0',sizeof(cladT[j])); */
+					*(Cheight + j) = *(Cheight + j + 1);
+    			}
     			
+    			for(k = 0; k < lct; k++){
+					*((*(samps + nc)) + k) = Itot;
+				}
+				memset(clades[nc],'\0',sizeof(clades[nc]));
+				*(Cheight + nc) = 0;
+				
+    			/*
     			for(j = 0; j < lct; j++){										
 					free(sampsT[j]);
 				}
 				free(CHT);
 				free(sampsT);
+				*/
     			nc--;
     			
     		}
@@ -1511,7 +1570,16 @@ char * treemaker(double **TFin, double thetain, double mind, double maxd, double
 	strcat(clades[0],scln);
     char *str = malloc(4096 * sizeof(char));
     if(str == NULL) return NULL;
-    strcpy(str,clades[0]);
+    if(rec == 0){
+    	strcpy(str,clades[0]);
+    }else if(rec > 0){
+    	brk = mind*nsites;
+    	sprintf(brkchar, "%d", brk);
+    	strcpy(str,lsq);
+    	strcat(str,brkchar);
+    	strcat(str,rsq);
+    	strcat(str,clades[0]);
+    }
 	
 	for(j = 0; j < lct; j++){										
 		free(samps[j]);
@@ -1520,26 +1588,15 @@ char * treemaker(double **TFin, double thetain, double mind, double maxd, double
 	free(Cheight);
 	
 	return(str);
+	printf("Treemaker complete\n");
+	free(str);
 
 }	/* End of treemaker routine */
 
-/* Re-allocating space to MTab table if too big */
-void MTabRA(double **MTab, unsigned int *MTRows, unsigned int Itot){
-
-	unsigned int j;
-	
-	*MTRows += (theta*sumrepsq(Itot));
-	
-	MTab = (double**)realloc(MTab,(*MTRows)*sizeof(double *));
-	
-	for (j = ((*MTRows)-(theta*sumrepsq(Itot))); j < *MTRows; j++){
-		MTab[j] = NULL;
-	}
-	
-	for (j = 0; j < *MTRows; j++){
-		MTab[j] = (double*)realloc(MTab[j], (Itot+1)*sizeof(int));
-	}
-	
+/* Error message if mutation overflow */
+void ErrorMut(){
+	fprintf(stderr,"Too many mutations - out of memory.\n");
+	exit(1);
 }
 
 /* Main program */
@@ -1571,7 +1628,13 @@ int main(int argc, char *argv[]){
 	unsigned int drec = 0;		/* Receiving deme for migration event */
 	unsigned int e2 = 0;		/* Outcome of mig sampling, type of deme that migrates */
 	unsigned int count = 0;		/* For creating ancestry table */
-
+	
+	unsigned int n;				 /* sprintf counter */
+	char Tout[10];				 /* String to hold filename in (trees) */
+	char Mout[32];				 /* String to hold filename in (Mutations) */
+	FILE *ofp_tr;				 /* Pointers for data writing */
+	FILE *ofp_mut;	
+	
 	/* GSL random number definitions */
 	const gsl_rng_type * T; 
 	gsl_rng * r;
@@ -1726,12 +1789,13 @@ int main(int argc, char *argv[]){
 	}
 	
 	/* Arrays definition and memory assignment */
+	char trees[Nreps][4096];										/* Vector of NEWICK trees */
 	unsigned int *nlrec = calloc(d,sizeof(unsigned int));			/* Non-recombinable samples 1 */
 	unsigned int *nlrec2 = calloc(d,sizeof(unsigned int));			/* Non-recombinable samples 2 */
 	unsigned int *evsex = calloc(d,sizeof(unsigned int));			/* Number of sex events per deme */
 	unsigned int *csex = calloc(2,sizeof(unsigned int));			/* Does sex occur or not? */
-	unsigned int *draw = calloc(d,sizeof(unsigned int));			/* Event that happens */
-	unsigned int *draw2 = calloc(11,sizeof(unsigned int));			/* Deme in which event happens */
+	unsigned int *draw = calloc(11,sizeof(unsigned int));			/* Event that happens */
+	unsigned int *draw2 = calloc(d,sizeof(unsigned int));			/* Deme in which event happens */
 	unsigned int *draw3 = calloc(2,sizeof(unsigned int));			/* Which type of sample migrates */	
 	double *Nsamps = calloc(2,sizeof(double));						/* Within and between-indv samples in deme */
 	int *WCH = calloc(d,sizeof(int));								/* How within-indv samples change */
@@ -1763,6 +1827,10 @@ int main(int argc, char *argv[]){
 	(If I need to create such an object, probably need to create a 'struct' - need
 	to relearn how to do such things!)
 	*/
+	
+	/* Creating necessary directories */
+	/*mkdir("Trees/", 0777);*/
+	/* mkdir("Mutations/", 0777);*/
 	
 	/* Running the simulation Nreps times */
 	for(i = 0; i < Nreps; i++){
@@ -1966,7 +2034,7 @@ int main(int argc, char *argv[]){
 				Then drawing deme of event. */
 				
 				rowsumD(pr,11,d,pr_rsums);
-				gsl_ran_multinomial(r,11,1,pr_rsums,draw);
+				gsl_ran_multinomial(r,11,1,pr_rsums,draw);			
 				event = matchUI(draw,11,1);
 				gsl_ran_multinomial(r,d,1,(*(pr + event)),draw2);
 				deme = matchUI(draw2,d,1);
@@ -2105,29 +2173,34 @@ int main(int argc, char *argv[]){
 		}
 		printf("\n");
 		
+
+		
 		/* Creating ancestry table for reconstruction */
 		unsigned int nmut = 0;
+		/* Allocating space for mutation table */
+		unsigned int MTRows = (theta*sumrep(Itot) + 30*theta*sumrepsq(Itot));
+		double **MTab = calloc(MTRows,sizeof(double *));			/* Mutation table */
+		for(j = 0; j < MTRows; j++){
+			MTab[j] = calloc((Itot+1),sizeof(double));
+		}
 		for(x = 1; x <= nbreaks; x++){
-		
-			/* Allocating space for mutation table */
-			unsigned int MTRows = (theta*sumrep(Itot) + 3*theta*sumrepsq(Itot));
-			double **MTab = calloc(MTRows,sizeof(double *));			/* Mutation table */
-			for(j = 0; j < MTRows; j++){
-				MTab[j] = calloc((Itot+1),sizeof(double));
-			}
 			
 			/* Creating ancestry table */
-			printf("TFin table :\n");
+			count = 0;
 			for(j = 0; j < Itot; j++){
 				if((*((*(CTms + j)) + x)) != 0){
 					*((*(TFin + count)) + 0) = *((*(GType + j)) + x);
 					*((*(TFin + count)) + 1) = *((*(CTms + j)) + x);
 					*((*(TFin + count)) + 2) = *((*(TAnc + j)) + x);
-					printf("%lf %lf %lf ",*((*(TFin + count)) + 0),*((*(TFin + count)) + 1),*((*(TFin + count)) + 2));
-					printf("\n");					
 					count++;
 				}
 			}
+			indv_sortD(TFin,(Itot-1),3,1);
+			printf("TFin table :\n");
+			for(j = 0; j < (Itot-1); j++){
+				printf("%lf %lf %lf \n",*((*(TFin + j)) + 0),*((*(TFin + j)) + 1),*((*(TFin + j)) + 2));
+			}
+			printf("\n");
 			
 			/* Using ancestry table to build tree and mutation table */
 			if(x < nbreaks){
@@ -2135,12 +2208,14 @@ int main(int argc, char *argv[]){
 				mind = (*((*(breaks + 0)) + (x-1)))/(1.0*nsites);
 			}else if(x == nbreaks){
 				maxd = 1;
-				mind = (*((*(breaks + 0)) + x))/(1.0*nsites);
+				mind = (*((*(breaks + 0)) + (x-1)))/(1.0*nsites);
 			}
 			char *ret_tree = treemaker(TFin, theta*(maxd-mind), mind, maxd, MTab, MTRows, Itot, &nmut, r);
-			printf("%s\n",ret_tree);
+			strcpy(trees[i],ret_tree);
+			printf("%s\n",trees[i]);			
 			
 			/* Printing MTab to screen */
+			indv_sortD(MTab,nmut,(Itot+1),0);
 			printf("nmut is %d\n",nmut);
 			printf("MTab table :\n");
 			for(j = 0; j < nmut; j++){
@@ -2150,11 +2225,29 @@ int main(int argc, char *argv[]){
 				printf("\n");
 			}
 			
-			for(j = 0; j < MTRows; j++){
-				free(MTab[j]);
-			}
-			free(MTab);
+			free(ret_tree);
 		}
+		
+		/* Printing out Mutations to file */
+		/*
+		indv_sortD(MTab,nmut,(Itot+1),0);		
+		memset(Mout,'\0',sizeof(Mout));
+		n = sprintf(Mout,"Mutations/Muts_%d.dat",i);
+		ofp_mut = fopen(Mout,"a+");
+		for(j = 0; j < nmut; j++){
+			fprintf(ofp_mut,"%lf ",*((*(MTab + j)) + 0));
+			for(a = 1; a < (Itot + 1); a++){
+				fprintf(ofp_mut,"%d ",(unsigned int)(*((*(MTab + j)) + a)));
+			}
+			fprintf(ofp_mut,"\n");
+		}
+		fclose(ofp_mut);
+		*/
+		
+		for(j = 0; j < MTRows; j++){
+			free(MTab[j]);
+		}
+		free(MTab);
 		
 		/* Freeing memory at end of particular run */
 		free(bcoal);
@@ -2175,7 +2268,18 @@ int main(int argc, char *argv[]){
 		free(CTms);
 		free(GType);		
 		free(indvs);
+		printf("Run %d complete\n",i);
 	}
+	
+	/* Printing out Trees to file */
+	/*
+	n = sprintf(Tout,"Trees.dat");
+	ofp_tr = fopen(Tout,"a+");
+	for(i = 0; i < Nreps; i++){
+		fprintf(ofp_tr,"%s\n",trees[i]);
+	}
+	fclose(ofp_tr);
+	*/
 	
 	/* Freeing memory and wrapping up */
  	gsl_rng_free(r);
