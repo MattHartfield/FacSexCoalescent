@@ -581,11 +581,11 @@ void coalesce(unsigned int **indvs, unsigned int **GType, double **CTms ,unsigne
 						if(*(rsex + count) != rands2){
 							*((*(indvs + j)) + 2) = 1;
 							*((*(indvs + j + 1)) + 2) = 1;
-							/* *((*(indvs + j + 1)) + 1) = (Nindv + count); */
+							*((*(indvs + j + 1)) + 1) = (Nindv + count);
 							count++;
 						}else if(*(rsex + count) == rands2){
 							*((*(indvs + j + nos)) + 2) = 1;
-							/* *((*(indvs + j + nos)) + 1) = (Nindv + count); */
+							*((*(indvs + j + nos)) + 1) = (Nindv + count);
 							count++;						
 						}
 						break;
@@ -604,6 +604,7 @@ void coalesce(unsigned int **indvs, unsigned int **GType, double **CTms ,unsigne
 					break;
 				}
 			}
+			
 			free(singsamps);
 			break;
 		case 2:		/* Event 2: One of the unique samples coaleses with another unique one (either pre-existing or new) */
@@ -1068,6 +1069,7 @@ unsigned int coalcalc(unsigned int **breaks, unsigned int nsites, unsigned int n
 void sexsamp(unsigned int **indvs, unsigned int *rsex, unsigned int *nsex, unsigned int *Nwith, unsigned int Ntot, const gsl_rng *r){
 	unsigned int count = 0;
 	unsigned int x, a;
+	unsigned int j, k;
 	
 	for(x = 0; x < d; x++){
 		if(*(Nwith + x) != 0 && *(nsex + x) != 0){		/* Avoiding errors if no WH in deme */
@@ -1276,10 +1278,16 @@ char * treemaker(double **TFin, double thetain, double mind, double maxd, double
     		Create new clade otherwise.
     		
     	  	Testing how many of the pair have already been sampled, to decide tree reconstruction */
+    	  	/*
+	   		printf("Child1, Par1 are %d %d\n",child1,parent1);
+    	  	*/
     	  	cc = Itot;
     	  	pc = Itot;
     	  	csum = 0;
 	    	for(j = 0; j < lct; j++){
+	    		if( *((*(samps + j)) + 0) == Itot ){
+					break;
+    			}
     			for(k = 0; k < lct; k++){
     				if( *((*(samps + j)) + k) == child1 ){
     					cc = j;
@@ -1289,8 +1297,13 @@ char * treemaker(double **TFin, double thetain, double mind, double maxd, double
     					pc = j;
     					csum++;
     				}
+    				if( *((*(samps + j)) + k) == Itot ){
+						break;
+    				}
     			}
 	    	}
+	    	
+	    	/*printf("Csum is %d; pc, cc are %d %d\n",csum,pc,cc);*/
 	    	
 	    	if(csum==0){	/* Create a new clade */
     			nc++;
@@ -1606,7 +1619,7 @@ void ErrorMut(){
 
 /* Main program */
 int main(int argc, char *argv[]){
-	unsigned int x, i, j, a;	/* Assignment counter, rep counter, indv counter, mut counter */
+	unsigned int x, i, j;	/* Assignment counter, rep counter, indv counter, mut counter */
 	unsigned int pST, npST = 0;	/* State of reproduction heterogeneity */	
 	double Ttot = 0;			/* Time in past, initiate at zero */
 	double NextT = 0;			/* Next time, after drawing event */
@@ -1894,6 +1907,7 @@ int main(int argc, char *argv[]){
 			*((*(GType + j)) + 0) = j;
 			*((*(GType + j)) + 1) = j;
 			*((*(CTms + j)) + 0) = j;
+			*((*(CTms + j)) + 1) = -1;			
 			*((*(TAnc + j)) + 0) = j;
 			/* Entry of "Itot" equivalent to NA in old code, i.e. it is not ancestral, reflects extant tracts */
 			*((*(TAnc + j)) + 1) = Itot;
@@ -2023,7 +2037,7 @@ int main(int argc, char *argv[]){
 				event = matchUI(draw,11,1);
 				gsl_ran_multinomial(r,d,1,(*(pr + event)),draw2);
 				deme = matchUI(draw2,d,1);
-				/*printf("Event is %d\n",event);*/
+				/* printf("Event is %d\n",event);*/
 
 				if(event == 9){		/* Choosing demes to swap NOW if there is a migration */
 					stchange2(event,deme,evsex,WCH,BCH);
@@ -2048,7 +2062,7 @@ int main(int argc, char *argv[]){
 				}
 							
 				/* Changing ancestry accordingly */
-				/* 	MOVED CODE HERE TO AVOID ERRORS WHEN NUMBER OF SAMPLES MISMATCH */
+				/* MOVED CODE HERE TO AVOID ERRORS WHEN NUMBER OF SAMPLES MISMATCH */
 				coalesce(indvs, GType, CTms, TAnc, Ttot, Nwith, Nbet, Itot, deme, rsex, evsex, event, drec, e2, breaks, nsites, &lrec, nbreaks, r);
 
 				free(rsex);		/* Can be discarded once used to change ancestry */
@@ -2090,6 +2104,7 @@ int main(int argc, char *argv[]){
 		}
 		
 		/* Then code here for assigning mutation, recreating tree, and so on */
+		
 		/*
 		printf("\n");
 		printf("Indv table :\n");
@@ -2128,7 +2143,6 @@ int main(int argc, char *argv[]){
 		}
 		printf("\n");
 		*/
-
 		
 		/* Creating ancestry table for reconstruction */
 		unsigned int nmut = 0;
@@ -2143,7 +2157,7 @@ int main(int argc, char *argv[]){
 			/* Creating ancestry table */
 			count = 0;
 			for(j = 0; j < Itot; j++){
-				if((*((*(CTms + j)) + x)) != 0){
+				if((*((*(CTms + j)) + x)) != (-1.0)){
 					*((*(TFin + count)) + 0) = *((*(GType + j)) + x);
 					*((*(TFin + count)) + 1) = *((*(CTms + j)) + x);
 					*((*(TFin + count)) + 2) = *((*(TAnc + j)) + x);
@@ -2158,7 +2172,6 @@ int main(int argc, char *argv[]){
 			}
 			printf("\n");
 			*/
-			
 			/* Using ancestry table to build tree and mutation table */
 			if(x < nbreaks){
 				maxd = (*((*(breaks + 0)) + x))/(1.0*nsites);
