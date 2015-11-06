@@ -39,7 +39,7 @@ unsigned int matchUI(unsigned int *Vin, unsigned int size_t, unsigned int match)
 void smultI_UI(int *Vout, unsigned int *Vin, unsigned int size_t, int scale);
 void vsum_UI_I(unsigned int *Vbase, int *Vadd, unsigned int size_t);
 void sselect_UI(unsigned int **Tin, unsigned int *Vout, unsigned int nrow, unsigned int matchcol, unsigned int datcol, unsigned int match, unsigned int dcol, unsigned int deme);
-void sselect_UIV(unsigned int **Tin, unsigned int *Vout, unsigned int nrow, unsigned int matchcol, unsigned int datcol, unsigned int *match, unsigned int mlength, unsigned int dcol, unsigned int deme);
+void sselect_UIV(unsigned int **Tin, unsigned int *Vout, unsigned int nrow, unsigned int matchcol, unsigned int datcol, unsigned int *match, unsigned int mlength, unsigned int mlength2, unsigned int dcol, unsigned int deme);
 double sumrep(unsigned int n);
 double sumrepsq(unsigned int n);
 
@@ -261,15 +261,20 @@ void sselect_UI(unsigned int **Tin, unsigned int *Vout, unsigned int nrow, unsig
 }
 
 /* Choosing elements from array that match certain vector (UI) */
-void sselect_UIV(unsigned int **Tin, unsigned int *Vout, unsigned int nrow, unsigned int matchcol, unsigned int datcol, unsigned int *match, unsigned int mlength, unsigned int dcol, unsigned int deme){
+void sselect_UIV(unsigned int **Tin, unsigned int *Vout, unsigned int nrow, unsigned int matchcol, unsigned int datcol, unsigned int *match, unsigned int mlength, unsigned int mlength2, unsigned int dcol, unsigned int deme){
 	unsigned int j = 0;
 	unsigned int count = 0;
-	while(count < mlength){
+	unsigned int count2 = 0;	
+	while(count < mlength && count2 < mlength2){
 		for(j = 0; j < nrow; j++){
-			if((*((*(Tin + j)) + matchcol) == *(match + count)) && (*((*(Tin + j)) + dcol) == deme) ){
+			if((*((*(Tin + j)) + matchcol) == (*(match + count2))) && (*((*(Tin + j)) + dcol) == deme) ){
 				*(Vout + 2*count) = *((*(Tin + j)) + datcol);
 				*(Vout + 2*count+1) = *((*(Tin + j + 1)) + datcol);
 				count++;
+				count2++;
+				break;
+			}else if((*((*(Tin + j)) + matchcol) == *(match + count2)) && (*((*(Tin + j)) + dcol) != deme) ){
+				count2++;
 				break;
 			}
 		}
@@ -534,7 +539,7 @@ void coalesce(unsigned int **indvs, unsigned int **GType, double **CTms ,unsigne
 	/* unsigned int NBtot = sumUI(Nbet,d);	*/
 	unsigned int Nindv = sumUI(Nwith,d) + sumUI(Nbet,d);
 	unsigned int nsum = sumUI(nsex,d);
-	unsigned int j, a, k;
+	unsigned int j, a;
 	unsigned int count = 0;		/* For converting WH to BH samples */
 	unsigned int done = 0;		/* For sampling right individual */
 	unsigned int rands2 = 0;	/* Sample that does not split fully (event 1) */
@@ -642,9 +647,9 @@ void coalesce(unsigned int **indvs, unsigned int **GType, double **CTms ,unsigne
 			unsigned int *singsamps3N = calloc(2*(*(nsex + deme)),sizeof(unsigned int));			/* For storing new BH samples */
 			unsigned int *singsamps3B = calloc( 2*((*(Nwith + deme) - (*(nsex + deme)))) ,sizeof(unsigned int));			/* For storing WH samples */
 			unsigned int *twosamps = calloc(2,sizeof(unsigned int));		/* Two samples in coalescence */
-			
+				
 			/* Creating vector of new unique samples created */
-			sselect_UIV(indvs, singsamps3N, Itot, 2, 1, rsex, nsum, 3, deme);
+			sselect_UIV(indvs, singsamps3N, Itot, 1, 0, rsex, 2*(*(nsex + deme)), nsum, 3, deme);
 			/* Creating vector of existing paired samples */			
 			sselect_UI(indvs, singsamps3B, Itot, 2, 0, 0, 3, deme);
 			
