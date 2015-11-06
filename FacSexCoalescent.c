@@ -1069,7 +1069,6 @@ unsigned int coalcalc(unsigned int **breaks, unsigned int nsites, unsigned int n
 void sexsamp(unsigned int **indvs, unsigned int *rsex, unsigned int *nsex, unsigned int *Nwith, unsigned int Ntot, const gsl_rng *r){
 	unsigned int count = 0;
 	unsigned int x, a;
-	unsigned int j, k;
 	
 	for(x = 0; x < d; x++){
 		if(*(Nwith + x) != 0 && *(nsex + x) != 0){		/* Avoiding errors if no WH in deme */
@@ -1187,7 +1186,6 @@ char * treemaker(double **TFin, double thetain, double mind, double maxd, double
 	unsigned int minc = 0;			/* Min, max clade (for resorting) */
 	unsigned int maxc = 0;
 	unsigned int ccM = 0;
-	unsigned int rowT = 0;			/* What row to track in temp samps array */
 	unsigned int brk = 0;			/* Breakpoint where tract starts */
 	
 	static const char lbr[] = "(";
@@ -1206,7 +1204,6 @@ char * treemaker(double **TFin, double thetain, double mind, double maxd, double
 		
 	/* Defining necessary tables */
 	char clades[lct][4096];							/*	Vector of possible clades */
-	char cladT[lct][4096];							/*	*Temp* vector for copying */	
 	double *Cheight = calloc(lct,sizeof(double));	/* Current 'height' (time) of each clade */
 	unsigned int **samps = calloc(lct,sizeof(unsigned int *));			/* Table of samples present in each clade (row = each clade) */
 	for(j = 0; j < lct; j++){										
@@ -1619,7 +1616,7 @@ void ErrorMut(){
 
 /* Main program */
 int main(int argc, char *argv[]){
-	unsigned int x, i, j;	/* Assignment counter, rep counter, indv counter, mut counter */
+	unsigned int x, i, j, a;	/* Assignment counter, rep counter, indv counter, mut counter */
 	unsigned int pST, npST = 0;	/* State of reproduction heterogeneity */	
 	double Ttot = 0;			/* Time in past, initiate at zero */
 	double NextT = 0;			/* Next time, after drawing event */
@@ -1807,7 +1804,7 @@ int main(int argc, char *argv[]){
 	}
 	
 	/* Arrays definition and memory assignment */
-	char trees[Nreps][4096];										/* Vector of NEWICK trees */
+	char trees[Nreps][512];										/* Vector of NEWICK trees */
 	unsigned int *nlrec = calloc(d,sizeof(unsigned int));			/* Non-recombinable samples 1 */
 	unsigned int *nlrec2 = calloc(d,sizeof(unsigned int));			/* Non-recombinable samples 2 */
 	unsigned int *evsex = calloc(d,sizeof(unsigned int));			/* Number of sex events per deme */
@@ -1848,7 +1845,7 @@ int main(int argc, char *argv[]){
 	
 	/* Creating necessary directories */
 	/*mkdir("Trees/", 0777);*/
-	/* mkdir("Mutations/", 0777);*/
+	mkdir("Mutations/", 0777);
 	
 	/* Running the simulation Nreps times */
 	for(i = 0; i < Nreps; i++){
@@ -2037,7 +2034,7 @@ int main(int argc, char *argv[]){
 				event = matchUI(draw,11,1);
 				gsl_ran_multinomial(r,d,1,(*(pr + event)),draw2);
 				deme = matchUI(draw2,d,1);
-				/* printf("Event is %d\n",event);*/
+				printf("Event is %d\n",event);
 
 				if(event == 9){		/* Choosing demes to swap NOW if there is a migration */
 					stchange2(event,deme,evsex,WCH,BCH);
@@ -2147,7 +2144,7 @@ int main(int argc, char *argv[]){
 		/* Creating ancestry table for reconstruction */
 		unsigned int nmut = 0;
 		/* Allocating space for mutation table */
-		unsigned int MTRows = (theta*sumrep(Itot) + 30*theta*sumrepsq(Itot));
+		unsigned int MTRows = (theta*sumrep(Itot) + 1000*theta*sumrepsq(Itot));
 		double **MTab = calloc(MTRows,sizeof(double *));			/* Mutation table */
 		for(j = 0; j < MTRows; j++){
 			MTab[j] = calloc((Itot+1),sizeof(double));
@@ -2182,7 +2179,6 @@ int main(int argc, char *argv[]){
 			}
 			char *ret_tree = treemaker(TFin, theta*(maxd-mind), mind, maxd, MTab, MTRows, Itot, &nmut, r);
 			strcpy(trees[i],ret_tree);
-			printf("%s\n",trees[i]);			
 			
 			/* Printing MTab to screen */
 			indv_sortD(MTab,nmut,(Itot+1),0);
@@ -2201,7 +2197,6 @@ int main(int argc, char *argv[]){
 		}
 		
 		/* Printing out Mutations to file */
-		/*
 		indv_sortD(MTab,nmut,(Itot+1),0);		
 		memset(Mout,'\0',sizeof(Mout));
 		n = sprintf(Mout,"Mutations/Muts_%d.dat",i);
@@ -2214,7 +2209,6 @@ int main(int argc, char *argv[]){
 			fprintf(ofp_mut,"\n");
 		}
 		fclose(ofp_mut);
-		*/
 		
 		for(j = 0; j < MTRows; j++){
 			free(MTab[j]);
@@ -2240,18 +2234,15 @@ int main(int argc, char *argv[]){
 		free(CTms);
 		free(GType);		
 		free(indvs);
-		printf("Run %d complete\n",i);
 	}
 	
 	/* Printing out Trees to file */
-	/*
 	n = sprintf(Tout,"Trees.dat");
 	ofp_tr = fopen(Tout,"a+");
 	for(i = 0; i < Nreps; i++){
 		fprintf(ofp_tr,"%s\n",trees[i]);
 	}
 	fclose(ofp_tr);
-	*/
 	
 	/* Freeing memory and wrapping up */
  	gsl_rng_free(r);
