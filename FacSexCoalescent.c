@@ -1655,7 +1655,7 @@ void moremut(double ***MTin, unsigned int *nrow, unsigned int comp, unsigned int
 	}
 	*MTin = (double **)realloc(*MTin, newnr*sizeof(double *));			/* Mutation table */
 	for(j = 0; j < (*nrow); j++){
-		*MTin[j] = (double *)realloc(*(*(MTin + j)),(Itot+1)*sizeof(double));
+		*MTin[j] = (double *)realloc(*MTin[j],(Itot+1)*sizeof(double));
 	}
 	for(j = (*nrow); j < newnr; j++){
 		*MTin[j] = (double *)calloc((Itot + 1),sizeof(double));
