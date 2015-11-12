@@ -63,8 +63,9 @@ unsigned int coalcalc(unsigned int **breaks, unsigned int nsites, unsigned int n
 void sexsamp(unsigned int **indvs, unsigned int *rsex, unsigned int *nsex, unsigned int *Nwith, unsigned int Ntot, const gsl_rng *r);
 void indv_sort(unsigned int **indvs, unsigned int nrow);
 void indv_sortD(double **Tin, unsigned int nrow, unsigned int ncol, unsigned int tcol);
-char * treemaker(double **TFin, double thetain, double mind, double maxd, double **MTab, unsigned int MTRows, unsigned int Itot, unsigned int *nmutin, const gsl_rng *r);
+char * treemaker(double **TFin, double thetain, double mind, double maxd, double **MTab, unsigned int *MTRows, unsigned int Itot, unsigned int *nmutin, const gsl_rng *r);
 void ErrorMut();
+void moremut(double ***MTin, unsigned int *nrow, unsigned int comp, unsigned int Itot);
 
 /* Global variable declaration */
 unsigned int N = 0;			/* Population Size */
@@ -1167,7 +1168,7 @@ void indv_sortD(double **Tin, unsigned int nrow, unsigned int ncol, unsigned int
 }
 
 /* Function to reconstruct genealogy and to add mutation to branches */
-char * treemaker(double **TFin, double thetain, double mind, double maxd, double **MTab, unsigned int MTRows, unsigned int Itot, unsigned int *nmutin, const gsl_rng *r){
+char * treemaker(double **TFin, double thetain, double mind, double maxd, double **MTab, unsigned int *MTRows, unsigned int Itot, unsigned int *nmutin, const gsl_rng *r){
 	unsigned int i, j, k, a;
 	unsigned int lct = Itot;
 	unsigned int lct2 = lct-1;
@@ -1187,6 +1188,7 @@ char * treemaker(double **TFin, double thetain, double mind, double maxd, double
 	unsigned int maxc = 0;
 	unsigned int ccM = 0;
 	unsigned int brk = 0;			/* Breakpoint where tract starts */
+	unsigned int clen = 256;		/* Space allocated to clades array */
 	
 	static const char lbr[] = "(";
 	static const char rbr[] = ")";
@@ -1195,18 +1197,18 @@ char * treemaker(double **TFin, double thetain, double mind, double maxd, double
 	static const char scln[] = ";";
 	static const char lsq[] = "[";
 	static const char rsq[] = "]";
-	char p1char[16];
-	char c1char[16];
-	char btchar1[32];
-	char btchar2[32];	
+	char p1char[10];
+	char c1char[10];
+	char btchar1[16];
+	char btchar2[16];	
 	char brkchar[16];
-	char tc[4096];					/* Temp clade for editing */
 		
 	/* Defining necessary tables */
-	char clades[lct][4096];							/*	Vector of possible clades */
 	double *Cheight = calloc(lct,sizeof(double));	/* Current 'height' (time) of each clade */
-	unsigned int **samps = calloc(lct,sizeof(unsigned int *));			/* Table of samples present in each clade (row = each clade) */
-	for(j = 0; j < lct; j++){										
+	char **clades = calloc(lct, sizeof(char *));					/*	Vector of possible clades */
+	unsigned int **samps = calloc(lct,sizeof(unsigned int *));		/* Table of samples present in each clade (row = each clade) */
+	for(j = 0; j < lct; j++){
+		clades[j] = calloc(clen,sizeof(char));
 		samps[j] = calloc(lct,sizeof(unsigned int));
 		for(k = 0; k < lct; k++){
 			*((*(samps + j)) + k) = Itot;
@@ -1232,22 +1234,22 @@ char * treemaker(double **TFin, double thetain, double mind, double maxd, double
 	    	sprintf(c1char, "%d", child1);
 	    	sprintf(btchar1,"%0.10lf",birthtime);    	
 
-	    	strcpy(clades[0],lbr);
-	    	strcat(clades[0],p1char);
-	    	strcat(clades[0],cln);
-	    	strcat(clades[0],btchar1);
-	    	strcat(clades[0],com);
-	    	strcat(clades[0],c1char);
-	    	strcat(clades[0],cln);
-	    	strcat(clades[0],btchar1);
-	    	strcat(clades[0],rbr);
+	    	strcpy(*(clades + 0),lbr);
+	    	strcat(*(clades + 0),p1char);
+	    	strcat(*(clades + 0),cln);
+	    	strcat(*(clades + 0),btchar1);
+	    	strcat(*(clades + 0),com);
+	    	strcat(*(clades + 0),c1char);
+	    	strcat(*(clades + 0),cln);
+	    	strcat(*(clades + 0),btchar1);
+	    	strcat(*(clades + 0),rbr);
     		
 			/* Assigning mutations */
 			rmut1 = gsl_ran_poisson(r,(0.5*thetain*birthtime));
 			rmut2 = gsl_ran_poisson(r,(0.5*thetain*birthtime));
 			if(rmut1 != 0){
-				if((*nmutin + rmut1) > MTRows){
-					ErrorMut();
+				if((*nmutin + rmut1) > *MTRows){
+					moremut(&MTab, MTRows, (*nmutin + rmut1), Itot);
 				}
 				for(a = 0; a < rmut1; a++){
 					/* Indicating location of mutants */
@@ -1258,8 +1260,8 @@ char * treemaker(double **TFin, double thetain, double mind, double maxd, double
 			}
 			
 			if(rmut2 != 0){
-				if((*nmutin + rmut2) > MTRows){
-					ErrorMut();
+				if((*nmutin + rmut2) > *MTRows){
+					moremut(&MTab, MTRows, (*nmutin + rmut2), Itot);
 				}
 				for(a = 0; a < rmut2; a++){
 					/* Indicating location of mutants */
@@ -1314,22 +1316,22 @@ char * treemaker(double **TFin, double thetain, double mind, double maxd, double
 		    	sprintf(c1char, "%d", child1);
 	    		sprintf(btchar1,"%0.10lf",birthtime);    	
 
-	    		strcpy(clades[nc],lbr);
-		    	strcat(clades[nc],p1char);
-		    	strcat(clades[nc],cln);
-	    		strcat(clades[nc],btchar1);
-	    		strcat(clades[nc],com);
-		    	strcat(clades[nc],c1char);
-		    	strcat(clades[nc],cln);
-	    		strcat(clades[nc],btchar1);
-		    	strcat(clades[nc],rbr);
+	    		strcpy(*(clades + nc),lbr);
+		    	strcat(*(clades + nc),p1char);
+		    	strcat(*(clades + nc),cln);
+	    		strcat(*(clades + nc),btchar1);
+	    		strcat(*(clades + nc),com);
+		    	strcat(*(clades + nc),c1char);
+		    	strcat(*(clades + nc),cln);
+	    		strcat(*(clades + nc),btchar1);
+		    	strcat(*(clades + nc),rbr);
 	    
 	    		/* Assigning mutations */
 				rmut1 = gsl_ran_poisson(r,(0.5*thetain*birthtime));
 				rmut2 = gsl_ran_poisson(r,(0.5*thetain*birthtime));
 				if(rmut1 != 0){
-					if((*nmutin + rmut1) > MTRows){
-						ErrorMut();
+					if((*nmutin + rmut1) > *MTRows){
+						moremut(&MTab, MTRows, (*nmutin + rmut1), Itot);
 					}
 					for(a = 0; a < rmut1; a++){
 						/* Indicating location of mutants */
@@ -1340,8 +1342,8 @@ char * treemaker(double **TFin, double thetain, double mind, double maxd, double
 				}
 		
 				if(rmut2 != 0){
-					if((*nmutin + rmut2) > MTRows){
-						ErrorMut();
+					if((*nmutin + rmut2) > *MTRows){
+						moremut(&MTab, MTRows, (*nmutin + rmut2), Itot);
 					}
 					for(a = 0; a < rmut2; a++){
 						/* Indicating location of mutants */
@@ -1363,7 +1365,11 @@ char * treemaker(double **TFin, double thetain, double mind, double maxd, double
 				sprintf(p1char, "%d", parent1);				
 				sprintf(btchar1,"%0.10lf",birthtime);
 				sprintf(btchar2,"%0.10lf",(birthtime - (*(Cheight+pc))));
-				memset(tc,'\0',sizeof(tc));
+				/* memset(tc,'\0',sizeof(tc)); */
+				char *tc = malloc( (strlen((*(clades + pc))) + 40) * sizeof(char) );
+				if( tc == NULL ) {
+    				fprintf(stderr, "Error - unable to allocate required memory\n");
+				}
     			
     			if(ischild == 0){
     			
@@ -1373,7 +1379,7 @@ char * treemaker(double **TFin, double thetain, double mind, double maxd, double
 					strcat(tc,cln);
 					strcat(tc,btchar1);
 					strcat(tc,com);
-					strcat(tc,clades[pc]);
+					strcat(tc,(*(clades + pc)));
 					strcat(tc,cln);
 					strcat(tc,btchar2);
 					strcat(tc,rbr);
@@ -1392,7 +1398,7 @@ char * treemaker(double **TFin, double thetain, double mind, double maxd, double
 					strcat(tc,cln);
 					strcat(tc,btchar1);
 					strcat(tc,com);
-					strcat(tc,clades[pc]);
+					strcat(tc,(*(clades + pc)));
 					strcat(tc,cln);
 					strcat(tc,btchar2);
 					strcat(tc,rbr);
@@ -1410,8 +1416,8 @@ char * treemaker(double **TFin, double thetain, double mind, double maxd, double
 				rmut1 = gsl_ran_poisson(r,(0.5*thetain*(birthtime - (*(Cheight+pc)))));
 				rmut2 = gsl_ran_poisson(r,(0.5*thetain*birthtime));
 				if(rmut1 != 0){
-					if((*nmutin + rmut1) > MTRows){
-						ErrorMut();
+					if((*nmutin + rmut1) > *MTRows){
+						moremut(&MTab, MTRows, (*nmutin + rmut1), Itot);
 					}
 					for(a = 0; a < rmut1; a++){
 						/* Indicating location of mutants */
@@ -1427,8 +1433,8 @@ char * treemaker(double **TFin, double thetain, double mind, double maxd, double
 				}
 		
 				if(rmut2 != 0){
-					if((*nmutin + rmut2) > MTRows){
-						ErrorMut();
+					if((*nmutin + rmut2) > *MTRows){
+						moremut(&MTab, MTRows, (*nmutin + rmut2), Itot);
 					}
 					for(a = 0; a < rmut2; a++){
 						/* Indicating location of mutants */
@@ -1438,9 +1444,18 @@ char * treemaker(double **TFin, double thetain, double mind, double maxd, double
 					*nmutin += rmut2;
 				}
 				
-				memset(clades[pc],'\0',sizeof(clades[pc]));
-				strcpy(clades[pc],tc);
+				memset((*(clades + pc)),'\0',clen);
+				if(strlen(tc) > clen){
+					while(strlen(tc) > clen){
+						clen = 2*clen;
+					}						
+					for(j = 0; j < lct; j++){
+						clades[j] = realloc((*(clades + j)), clen * sizeof(char) );
+					}
+				}				
+				strcpy((*(clades + pc)),tc);
    				*(Cheight + pc) = birthtime;
+				free(tc);   				
    				
     		}else if((csum == 2) && (nc > 0)){		/* Add to existing clade */
     		
@@ -1449,24 +1464,28 @@ char * treemaker(double **TFin, double thetain, double mind, double maxd, double
 				sprintf(p1char, "%d", parent1);				
 				sprintf(btchar1,"%0.10lf",(birthtime - (*(Cheight + pc))));
 				sprintf(btchar2,"%0.10lf",(birthtime - (*(Cheight + cc))));
-				memset(tc,'\0',sizeof(tc));
+				/* memset(tc,'\0',sizeof(tc)); */
+				char *tc2 = malloc((strlen((*(clades + pc))) + strlen((*(clades + cc))) + 40) * sizeof(char));
+				if( tc2 == NULL ) {
+    				fprintf(stderr, "Error - unable to allocate required memory\n");
+				}
 				
-				strcpy(tc,lbr);
-				strcat(tc,clades[pc]);
-				strcat(tc,cln);
-				strcat(tc,btchar1);
-				strcat(tc,com);
-				strcat(tc,clades[cc]);
-				strcat(tc,cln);
-				strcat(tc,btchar2);
-				strcat(tc,rbr);			
+				strcpy(tc2,lbr);
+				strcat(tc2,(*(clades + pc)));
+				strcat(tc2,cln);
+				strcat(tc2,btchar1);
+				strcat(tc2,com);
+				strcat(tc2,(*(clades + cc)));
+				strcat(tc2,cln);
+				strcat(tc2,btchar2);
+				strcat(tc2,rbr);			
 				
 				/* Assigning mutations */
 				rmut1 = gsl_ran_poisson(r,(0.5*thetain*(birthtime - (*(Cheight+pc)))));
 				rmut2 = gsl_ran_poisson(r,(0.5*thetain*(birthtime - (*(Cheight+cc)))));
 				if(rmut1 != 0){
-					if((*nmutin + rmut1) > MTRows){
-						ErrorMut();
+					if((*nmutin + rmut1) > *MTRows){
+						moremut(&MTab, MTRows, (*nmutin + rmut1), Itot);
 					}
 					for(a = 0; a < rmut1; a++){
 						/* Indicating location of mutants */
@@ -1482,8 +1501,8 @@ char * treemaker(double **TFin, double thetain, double mind, double maxd, double
 				}
 				
 				if(rmut2 != 0){
-					if((*nmutin + rmut2) > MTRows){
-						ErrorMut();
+					if((*nmutin + rmut2) > *MTRows){
+						moremut(&MTab, MTRows, (*nmutin + rmut2), Itot);
 					}
 					for(a = 0; a < rmut2; a++){
 						/* Indicating location of mutants */
@@ -1507,11 +1526,20 @@ char * treemaker(double **TFin, double thetain, double mind, double maxd, double
 					maxc = cc;
 				}
 				
-				memset(clades[minc],'\0',sizeof(clades[minc]));
-				memset(clades[maxc],'\0',sizeof(clades[maxc]));				
-				strcpy(clades[minc],tc);
+				memset((*(clades + minc)),'\0',clen);
+				memset((*(clades + maxc)),'\0',clen);
+				if(strlen(tc2) > clen){
+					while(strlen(tc2) > clen){
+						clen = 2*clen;
+					}	
+					for(j = 0; j < lct; j++){
+						clades[j] = realloc((*(clades + j)), clen * sizeof(char) );
+					}
+				}
+				strcpy((*(clades + minc)),tc2);
    				*(Cheight + minc) = birthtime;
    				*(Cheight + maxc) = 0;
+   				free(tc2);
    				
    				for(k = 0; k < lct; k++){
    					if(*((*(samps + minc)) + k) == Itot){
@@ -1558,8 +1586,8 @@ char * treemaker(double **TFin, double thetain, double mind, double maxd, double
 					for(k = 0; k < lct; k++){					
 						*((*(samps + j)) + k) = *((*(samps + j + 1)) + k);
    					}
-					memset(clades[j],'\0',sizeof(clades[j]));
-					strcpy(clades[j],clades[j + 1]);
+					memset((*(clades + j)),'\0',clen);
+					strcpy((*(clades + j)),(*(clades + j + 1)));
 /*					memset(cladT[j],'\0',sizeof(cladT[j])); */
 					*(Cheight + j) = *(Cheight + j + 1);
     			}
@@ -1567,7 +1595,7 @@ char * treemaker(double **TFin, double thetain, double mind, double maxd, double
     			for(k = 0; k < lct; k++){
 					*((*(samps + nc)) + k) = Itot;
 				}
-				memset(clades[nc],'\0',sizeof(clades[nc]));
+				memset((*(clades + nc)),'\0',clen);
 				*(Cheight + nc) = 0;
 				
     			/*
@@ -1583,26 +1611,29 @@ char * treemaker(double **TFin, double thetain, double mind, double maxd, double
     	}
 	}
 	
-	strcat(clades[0],scln);
-    char *str = malloc(4096 * sizeof(char));
-    if(str == NULL) return NULL;
+	strcat((*(clades + 0)),scln);
+    char *str = malloc(clen * sizeof(char));
+    if(str == NULL) {
+    	fprintf(stderr, "Error - unable to allocate required memory\n");
+	}
     if(rec == 0){
-    	strcpy(str,clades[0]);
+    	strcpy(str,(*(clades + 0)));
     }else if(rec > 0){
     	brk = mind*nsites;
     	sprintf(brkchar, "%d", brk);
     	strcpy(str,lsq);
     	strcat(str,brkchar);
     	strcat(str,rsq);
-    	strcat(str,clades[0]);
+    	strcat(str,(*(clades + 0)));
     }
 	
 	for(j = 0; j < lct; j++){										
 		free(samps[j]);
+		free(clades[j]);
 	}
 	free(samps);
+	free(clades);
 	free(Cheight);
-	
 	return(str);
 	free(str);
 
@@ -1613,6 +1644,26 @@ void ErrorMut(){
 	fprintf(stderr,"Too many mutations - out of memory.\n");
 	exit(1);
 }
+
+/* Increasing space for mutants if run out of space */
+void moremut(double ***MTin, unsigned int *nrow, unsigned int comp, unsigned int Itot){
+	unsigned int newnr = (*nrow);
+	unsigned int j = 0;
+	
+	while(newnr < comp){
+		newnr = 2*newnr;
+	}
+	*MTin = (double **)realloc(*MTin, newnr*sizeof(double *));			/* Mutation table */
+	for(j = 0; j < (*nrow); j++){
+		*MTin[j] = (double *)realloc(*(*(MTin + j)),(Itot+1)*sizeof(double));
+	}
+	for(j = (*nrow); j < newnr; j++){
+		*MTin[j] = (double *)calloc((Itot + 1),sizeof(double));
+	}
+	
+	*nrow = newnr;
+}
+
 
 /* Main program */
 int main(int argc, char *argv[]){
@@ -1645,8 +1696,8 @@ int main(int argc, char *argv[]){
 	unsigned int count = 0;		/* For creating ancestry table */
 	
 	unsigned int n;				 /* sprintf counter */
-	char Tout[10];				 /* String to hold filename in (trees) */
-	char Mout[32];				 /* String to hold filename in (Mutations) */
+	/*char Tout[10];				 String to hold filename in (trees) */
+	char Mout[24];				 /* String to hold filename in (Mutations) */
 	FILE *ofp_tr;				 /* Pointers for data writing */
 	FILE *ofp_mut;	
 	
@@ -1804,7 +1855,7 @@ int main(int argc, char *argv[]){
 	}
 	
 	/* Arrays definition and memory assignment */
-	char trees[Nreps][512];										/* Vector of NEWICK trees */
+	/*char trees[Nreps][512];											Vector of NEWICK trees */
 	unsigned int *nlrec = calloc(d,sizeof(unsigned int));			/* Non-recombinable samples 1 */
 	unsigned int *nlrec2 = calloc(d,sizeof(unsigned int));			/* Non-recombinable samples 2 */
 	unsigned int *evsex = calloc(d,sizeof(unsigned int));			/* Number of sex events per deme */
@@ -2034,7 +2085,7 @@ int main(int argc, char *argv[]){
 				event = matchUI(draw,11,1);
 				gsl_ran_multinomial(r,d,1,(*(pr + event)),draw2);
 				deme = matchUI(draw2,d,1);
-				printf("Event is %d\n",event);
+				/* printf("Event is %d\n",event); */
 
 				if(event == 9){		/* Choosing demes to swap NOW if there is a migration */
 					stchange2(event,deme,evsex,WCH,BCH);
@@ -2144,7 +2195,7 @@ int main(int argc, char *argv[]){
 		/* Creating ancestry table for reconstruction */
 		unsigned int nmut = 0;
 		/* Allocating space for mutation table */
-		unsigned int MTRows = (theta*sumrep(Itot) + 1000*theta*sumrepsq(Itot));
+		unsigned int MTRows = (theta*sumrep(Itot) + 1*theta*sumrepsq(Itot));
 		double **MTab = calloc(MTRows,sizeof(double *));			/* Mutation table */
 		for(j = 0; j < MTRows; j++){
 			MTab[j] = calloc((Itot+1),sizeof(double));
@@ -2177,8 +2228,12 @@ int main(int argc, char *argv[]){
 				maxd = 1;
 				mind = (*((*(breaks + 0)) + (x-1)))/(1.0*nsites);
 			}
-			char *ret_tree = treemaker(TFin, theta*(maxd-mind), mind, maxd, MTab, MTRows, Itot, &nmut, r);
-			strcpy(trees[i],ret_tree);
+			char *ret_tree = treemaker(TFin, theta*(maxd-mind), mind, maxd, MTab, &MTRows, Itot, &nmut, r);
+			ofp_tr = fopen("Trees.dat","a+");
+			fprintf(ofp_tr,"%s\n",ret_tree);
+			fclose(ofp_tr);			
+			/*strcpy(trees[i],ret_tree);*/
+			free(ret_tree);
 			
 			/* Printing MTab to screen */
 			indv_sortD(MTab,nmut,(Itot+1),0);
@@ -2192,8 +2247,6 @@ int main(int argc, char *argv[]){
 				printf("\n");
 			}
 			*/
-			
-			free(ret_tree);
 		}
 		
 		/* Printing out Mutations to file */
@@ -2237,12 +2290,14 @@ int main(int argc, char *argv[]){
 	}
 	
 	/* Printing out Trees to file */
+	/*
 	n = sprintf(Tout,"Trees.dat");
 	ofp_tr = fopen(Tout,"a+");
 	for(i = 0; i < Nreps; i++){
 		fprintf(ofp_tr,"%s\n",trees[i]);
 	}
 	fclose(ofp_tr);
+	*/
 	
 	/* Freeing memory and wrapping up */
  	gsl_rng_free(r);
