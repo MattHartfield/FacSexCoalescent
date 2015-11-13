@@ -1212,7 +1212,7 @@ char * treemaker(double **TFin, double thetain, double mind, double maxd, unsign
 	char btchar1[16];
 	char btchar2[16];	
 	char brkchar[16];
-	char Mout[24];				 /* String to hold filename in (Mutations) */
+	char Mout[32];				 /* String to hold filename in (Mutations) */
 	FILE *ofp_mut;				 /* Pointer for data output */
 		
 	/* Defining necessary tables */
@@ -2030,7 +2030,6 @@ int main(int argc, char *argv[]){
 	
 	/* Running the simulation Nreps times */
 	for(i = 0; i < Nreps; i++){
-		printf("Run number %d.\n",i);
 
 		/* Setting up type of sex heterogeneity */
 		if(pSTIN == 0){
@@ -2275,7 +2274,6 @@ int main(int argc, char *argv[]){
 				done = isallUI(bcoal,nbreaks,1);
 				*/
 				if(Ntot == 1){
-					printf("%.10lf\n",Ttot);
 					done = 1;
 				}
 			}
