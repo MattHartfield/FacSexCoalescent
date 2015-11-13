@@ -837,17 +837,6 @@ void coalesce(unsigned int **indvs, unsigned int **GType, double **CTms ,unsigne
 			unsigned int *singsamps7 = calloc((*(Nbet + deme) + 2*(*(nsex + deme))),sizeof(unsigned int));			/* For storing BH samples */
 			unsigned int *twosamps7 = calloc(2,sizeof(unsigned int));
 			
-			printf("NS is %d, NW is %d, NB is %d, deme is %d\n",(*(nsex + deme)),*(Nwith + deme),*(Nbet + deme),deme);
-			for(j = 0; j < Itot; j++){
-				if(*((*(indvs + j)) + 3) == deme){
-					for(a = 0; a < 4; a++){
-						printf("%d ",*((*(indvs + j)) + a));
-					}
-					printf("\n");
-				}
-			}
-			printf("\n");
-			
 			sselect_UI(indvs, parsamps7, Itot, 2, 1, 0, 3, deme);
 			sselect_UI(indvs, singsamps7, Itot, 2, 0, 1, 3, deme);
 						
