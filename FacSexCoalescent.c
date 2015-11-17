@@ -46,6 +46,12 @@ void sselect_UIV(unsigned int **Tin, unsigned int *Vout, unsigned int nrow, unsi
 double sumrep(unsigned int n);
 double sumrepsq(unsigned int n);
 unsigned int maxUI(unsigned int *vin, unsigned int size_t);
+unsigned int minUI(unsigned int *vin, unsigned int size_t, unsigned int offset);
+int minI(int *vin, unsigned int size_t, unsigned int offset);
+int first_neI(int *vin, unsigned int size_t, int target, unsigned int offset);
+unsigned int first_neUI(unsigned int *vin, unsigned int size_t, unsigned int target, unsigned int offset);
+int last_neI(int *vin, unsigned int size_t, int target, unsigned int offset);
+unsigned int last_neUI(unsigned int *vin, unsigned int size_t, unsigned int target, unsigned int offset);
 
 unsigned int trig(unsigned int x);
 double P23(unsigned int y, unsigned int k, unsigned int Na);
@@ -63,13 +69,14 @@ void sexconv(unsigned int **Tin, unsigned int *rsex, unsigned int nsum, unsigned
 void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, double Ttot, unsigned int *Nwith, unsigned int *Nbet, unsigned int Itot, unsigned int deme, unsigned int *rsex, unsigned int *nsex, unsigned int ex, unsigned int drec, unsigned int e2, unsigned int **breaks, unsigned int nsites, unsigned int *lrec, unsigned int nbreaks, const gsl_rng *r);
 void cchange(unsigned int **indvs, int **GType, double **CTms, int **TAnc, unsigned int *csamp, unsigned int *par, unsigned int lsamp, unsigned int Ntot, unsigned int nbreaks, double Ttot, unsigned int Itot);
 void ccheck(unsigned int **indvs, int **GType, unsigned int **breaks, unsigned int nsites, unsigned int *lrec, unsigned int Ntot, unsigned int nbreaks);
-unsigned int coalcalc(unsigned int **breaks, unsigned int nsites, unsigned int nbreaks);
+unsigned int coalcalc(unsigned int **breaks, unsigned int nsites, unsigned int nbreaks, unsigned int start);
 void sexsamp(unsigned int **indvs, unsigned int *rsex, unsigned int *nsex, unsigned int *Nwith, unsigned int Ntot, const gsl_rng *r);
 void indv_sort(unsigned int **indvs, unsigned int nrow);
 void indv_sortD(double **Tin, unsigned int nrow, unsigned int ncol, unsigned int tcol);
 char * treemaker(double **TFin, double thetain, double mind, double maxd, unsigned int Itot, unsigned int run, const gsl_rng *r);
 void ErrorMut();
 void moremut(double ***MTin, unsigned int *nrow, unsigned int comp, unsigned int Itot);
+void reccal(unsigned int **indvs, int **GType, unsigned int **breaks, unsigned int *Nbet, unsigned int *Nwith, unsigned int *rsex, unsigned int esex, unsigned int *lnrec, unsigned int lrec, unsigned int nbreaks, unsigned int sw);
 
 /* Global variable declaration */
 unsigned int N = 0;			/* Population Size */
@@ -318,13 +325,87 @@ double sumrepsq(unsigned int n){
 	return(count);
 }
 
-/* Finding max of sample */
+/* Finding max of samples (UI) */
 unsigned int maxUI(unsigned int *vin, unsigned int size_t){
 	unsigned int ret = 0;
 	unsigned int i = 0;
 	for(i = 0; i < size_t; i++){
 		if(*(vin + i) > ret){
 			ret = *(vin + i);
+		}
+	}
+	return ret;
+}
+
+/* Finding min of samples (UI) */
+unsigned int minUI(unsigned int *vin, unsigned int size_t, unsigned int offset){
+	unsigned int ret = 0;
+	unsigned int i = 0;
+	for(i = 0; i < size_t; i++){
+		if(*(vin + i + offset) < ret){
+			ret = *(vin + i + offset);
+		}
+	}
+	return ret;
+}
+
+/* Finding min of samples (I) */
+int minI(int *vin, unsigned int size_t, unsigned int offset){
+	int ret = 0;
+	unsigned int i = 0;
+	for(i = 0; i < size_t; i++){
+		if(*(vin + i + offset) < ret){
+			ret = *(vin + i + offset);
+		}
+	}
+	return ret;
+}
+
+/* First element not of type (I) */
+int first_neI(int *vin, unsigned int size_t, int target, unsigned int offset){
+	int ret = 0;
+	unsigned int i = 0;
+	for(i = 0; i < size_t; i++){
+		if(*(vin + i + offset) != target){
+			ret = (i + offset);
+			break;
+		}
+	}
+	return ret;
+}
+
+/* First element not of type (UI) */
+unsigned int first_neUI(unsigned int *vin, unsigned int size_t, unsigned int target, unsigned int offset){
+	unsigned int ret = 0;
+	unsigned int i = 0;
+	for(i = 0; i < size_t; i++){
+		if(*(vin + i + offset) != target){
+			ret = (i + offset);
+			break;
+		}
+	}
+	return ret;
+}
+
+/* Last element not of type (I) */
+int last_neI(int *vin, unsigned int size_t, int target, unsigned int offset){
+	int ret = 0;
+	unsigned int i = 0;
+	for(i = 0; i < size_t; i++){
+		if(*(vin + i + offset) != target){
+			ret = (i + offset);
+		}
+	}
+	return ret;
+}
+
+/* Last element not of type (UI) */
+unsigned int last_neUI(unsigned int *vin, unsigned int size_t, unsigned int target, unsigned int offset){
+	unsigned int ret = 0;
+	unsigned int i = 0;
+	for(i = 0; i < size_t; i++){
+		if(*(vin + i + offset) != target){
+			ret = (i + offset);
 		}
 	}
 	return ret;
@@ -587,8 +668,8 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 	unsigned int parNo = 0;		/* Parent where coalescent occurs (event 6) */
 	unsigned int yesrec = 0;	/* Has a suitable recombination site been chosen? */
 	unsigned int rsite = 0;		/* Position of recombination breakpoint (event 10) */
-	unsigned int isyetbp = 0;	/* Is breakpoint already present? */
-	unsigned int isbpend = 0;	/* Is bp at end of table? */
+	unsigned int isyetbp = 0;	/* Is breakpoint already present? (event 10) */
+	unsigned int isbpend = 0;	/* Is bp at end of table? (event 10) */
 	unsigned int maxtr = 0;		/* Max site in bp table before breakpoint (event 10) */
 	
 	/* Then further actions based on other event */
@@ -1153,7 +1234,7 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 			}
 			
 			free(singsamps10);
-			
+			break;			
 		default:	/* If none of these cases chosen, exit with error message */
 			fprintf(stderr,"Error: Non-standard coalescent case selected ('coalesce').\n");
 			exit(1);
@@ -1235,14 +1316,14 @@ void ccheck(unsigned int **indvs, int **GType, unsigned int **breaks, unsigned i
 	/* If there has been a coalescence: update number of recombinable sites */
 	if(achange == 1){
 		lcoal = 0;
-		lcoal = coalcalc(breaks,nsites,nbreaks);
+		lcoal = coalcalc(breaks,nsites,nbreaks,0);
 		*lrec = (nsites - lcoal);
 	}
 	
 }	/* End of 'ccheck' function */
 
 /* Routine to calculate length of coalesced tracts */
-unsigned int coalcalc(unsigned int **breaks, unsigned int nsites, unsigned int nbreaks){
+unsigned int coalcalc(unsigned int **breaks, unsigned int nsites, unsigned int nbreaks, unsigned int start){
 	
 	/* Calculating length of coalesced samples: 
 	deducting 1 to account for edge effects; 
@@ -1252,7 +1333,7 @@ unsigned int coalcalc(unsigned int **breaks, unsigned int nsites, unsigned int n
 	unsigned int val1, val2;
 	unsigned int lcoal = 0;
 	
-	for(x = 0; x < (nbreaks - 1); x++){
+	for(x = start; x < (nbreaks - 1); x++){
 		if(*((*(breaks + 1)) + x) == 1){
 			val1 = *((*(breaks + 0)) + x);
 			val2 = *((*(breaks + 0)) + x + 1);
@@ -1469,17 +1550,17 @@ char * treemaker(double **TFin, double thetain, double mind, double maxd, unsign
 			if(rmut1 != 0){
 				if((nmut + rmut1) > MTRows){
 					newr = MTRows;
-						while(newr < (nmut + rmut1)){
-							newr = 2*newr;
-						}
-						MTab = (double **)realloc(MTab, newr*sizeof(double *));
-						for(j = 0; j < MTRows; j++){
-							MTab[j] = (double *)realloc( *(MTab + j) ,(Itot+1)*sizeof(double));
-						}
-						for(j = MTRows; j < newr; j++){
-							MTab[j] = (double *)calloc((Itot + 1),sizeof(double));
-						}
-						MTRows = newr;
+					while(newr < (nmut + rmut1)){
+						newr = 2*newr;
+					}
+					MTab = (double **)realloc(MTab, newr*sizeof(double *));
+					for(j = 0; j < MTRows; j++){
+						MTab[j] = (double *)realloc( *(MTab + j) ,(Itot+1)*sizeof(double));
+					}
+					for(j = MTRows; j < newr; j++){
+						MTab[j] = (double *)calloc((Itot + 1),sizeof(double));
+					}
+					MTRows = newr;
 				}
 				for(a = 0; a < rmut1; a++){
 					/* Indicating location of mutants */
@@ -1492,17 +1573,17 @@ char * treemaker(double **TFin, double thetain, double mind, double maxd, unsign
 			if(rmut2 != 0){
 				if((nmut + rmut2) > MTRows){
 					newr = MTRows;
-						while(newr < (nmut + rmut2)){
-							newr = 2*newr;
-						}
-						MTab = (double **)realloc(MTab, newr*sizeof(double *));
-						for(j = 0; j < MTRows; j++){
-							MTab[j] = (double *)realloc( *(MTab + j) ,(Itot+1)*sizeof(double));
-						}
-						for(j = MTRows; j < newr; j++){
-							MTab[j] = (double *)calloc((Itot + 1),sizeof(double));
-						}
-						MTRows = newr;
+					while(newr < (nmut + rmut2)){
+						newr = 2*newr;
+					}
+					MTab = (double **)realloc(MTab, newr*sizeof(double *));
+					for(j = 0; j < MTRows; j++){
+						MTab[j] = (double *)realloc( *(MTab + j) ,(Itot+1)*sizeof(double));
+					}
+					for(j = MTRows; j < newr; j++){
+						MTab[j] = (double *)calloc((Itot + 1),sizeof(double));
+					}
+					MTRows = newr;
 				}
 				for(a = 0; a < rmut2; a++){
 					/* Indicating location of mutants */
@@ -1959,6 +2040,124 @@ void moremut(double ***MTin, unsigned int *nrow, unsigned int comp, unsigned int
 	*nrow = newnr;
 }
 
+/* Reccal: calculating effective recombination rate over potential sites */
+void reccal(unsigned int **indvs, int **GType, unsigned int **breaks, unsigned int *Nbet, unsigned int *Nwith, unsigned int *rsex, unsigned int esex, unsigned int *lnrec, unsigned int lrec, unsigned int nbreaks, unsigned int sw){
+	unsigned int j, i;
+	unsigned int count = 0;
+	unsigned int vl = 0;
+	unsigned int mintr = 0;
+	unsigned int minbr = 0;
+	unsigned int maxtr = 0;
+	unsigned int maxbr = 0;
+	unsigned int Ntot = sumUI(Nbet,d) + 2*sumUI(Nwith,d);
+	unsigned int is0l = 0;
+	unsigned int is0r = 0;	
+	unsigned int ridx = 0;
+	unsigned int brec = 0; 		/* Accounted breakpoints */
+	unsigned int crec = 0; 		/* Coalesced breakpoints */	
+	
+	if(sw == 0){
+		vl = sumUI(Nbet,d);
+	}else if(sw == 1){
+		vl = esex;
+	}
+	unsigned int *BHi = calloc(vl,sizeof(unsigned int));
+	unsigned int *BHid = calloc(vl,sizeof(unsigned int));
+	
+	/* Vector of samples */
+	count = 0;
+	if(sw == 0){
+		while(count < vl){
+			for(j = 0; j < Ntot; j++){
+				if( *((*(indvs + j)) + 2) == 1){
+					*(BHi + count) = *((*(GType + j)) + 0);
+					*(BHid + count) = *((*(GType + j)) + 3);
+					count++;
+					break;
+				}
+			}
+		}
+	}else if(sw == 1){
+		while(count < vl){
+			for(j = 0; j < Ntot; j++){
+				if( *((*(GType + j)) + 0) == *(rsex + count)){
+					*(BHi + count) = *((*(GType + j)) + 0);
+					*(BHid + count) = *((*(GType + j)) + 3);
+					count++;
+					break;
+				}
+			}
+		}
+	}
+	
+	for(i = 0; i < d; i++){
+		*(lnrec + i) = 0;
+	}
+	
+	if(vl > 0 && lrec > 1){
+		for(i = 0; i < vl; i++){
+			mintr = 0;
+			minbr = 0;
+			maxtr = 0;
+			maxbr = 0;
+			is0l = 0;
+			is0r = 0;			
+			ridx = 0;
+			/* Determining case to run */
+			for(j = 0; j < Ntot; j++){
+				if( *((*(GType + j)) + 0) == *(BHi + i) ){
+					ridx = j;
+					if( *((*(GType + j)) + 1) == -1 ){
+						is0l = 1;
+					}
+					if( *((*(GType + j)) + nbreaks) == -1 ){
+						is0r = 1;
+					}
+					break;
+				}
+			}
+		
+			if( is0l == 1 || *((*(breaks + 1)) + 0) == 1 ){
+				mintr = first_neI(*(GType + ridx), nbreaks+1, (-1), 1);
+				mintr--;	/* So concordant with 'breaks' table */
+				minbr = first_neUI(*(breaks + 1), nbreaks, 1, 0);
+				if(mintr > minbr){
+					brec = *((*(breaks + 0)) + mintr);
+					crec = coalcalc(breaks, brec, mintr,0);
+				}else if(mintr <= minbr){
+					brec = 1;
+					crec = 0;
+				}
+			}else if( (is0r == 1 || *((*(breaks + 1)) + nbreaks-1) == 1) && (minbr != (nbreaks-1)) ){
+				maxtr = last_neI(*(GType + ridx), nbreaks+1, (-1), 1);
+				maxtr--;	/* So concordant with 'breaks' table */
+				maxbr = last_neUI(*(breaks + 1), nbreaks, 1, 0);
+				if(maxtr < maxbr){
+					/* If non-sampled tract extend into coalesced samples on LHS, 
+					only examine run of zeros after that (prevent double counting) */
+					if(maxtr < minbr){
+						maxtr = minbr;
+					}
+					brec = nsites - *((*(breaks + 0)) + maxtr + 1);
+					crec = coalcalc(breaks, nsites, nbreaks, maxtr + 1);
+				}else if(maxtr >= maxbr){
+					if(maxbr < mintr){
+						brec = 0;
+						crec = 0;
+					}else if(maxbr >= mintr){
+						brec = 1;
+						crec = 0;						
+					}
+				}
+			}
+			*(lnrec + (*(BHid + i))) += (brec-crec);
+		}
+	}
+	
+	free(BHid);
+	free(BHi);
+}
+
 
 /* Main program */
 int main(int argc, char *argv[]){
@@ -1968,7 +2167,6 @@ int main(int argc, char *argv[]){
 	double NextT = 0;			/* Next time, after drawing event */
 	unsigned int Ntot = 0;		/* Total number of samples at time */
 	unsigned int Nindv = 0;		/* Total number of individuals */
-	unsigned int lrec = 0;		/* Length of recombinable genome */
 	unsigned int IwithT = 0;	/* Total within individual samples */
 	unsigned int IbetT = 0;		/* Total between individual samples */	
 	unsigned int IwithC = 0;	/* Cumulative Iwith sum */
@@ -1990,6 +2188,7 @@ int main(int argc, char *argv[]){
 	unsigned int e2 = 0;		/* Outcome of mig sampling, type of deme that migrates */
 	unsigned int count = 0;		/* For creating ancestry table */	
 	unsigned int ts = INITBR;	/* Initial size of tables */
+	unsigned int lrec = 0;		/* Length of non-coalesced genome */
 	FILE *ofp_tr;				/* Pointer for tree output */
 	
 	/* GSL random number definitions */
@@ -2208,6 +2407,7 @@ int main(int argc, char *argv[]){
 			*(Nwith + x) = *(Iwith + x);	/* Resetting number of within-host samples */
 			*(Nbet + x) = *(Ibet + x);		/* Resetting number of between-host samples */
 			*(nlrec + x) = 0;				/* Genome not affected by recombination */
+			*(nlrec2 + x) = 0;				/* Genome not affected by recombination */
 		}
 		
 		/* Setting up temporal heterogeneity */
@@ -2233,9 +2433,8 @@ int main(int argc, char *argv[]){
 				TFin[j] = calloc(3,sizeof(double));
 			}
 		}
-		breaks[0] = calloc(1,sizeof(unsigned int));
-		breaks[1] = calloc(1,sizeof(unsigned int));
-		unsigned int *bcoal = calloc(1,sizeof(unsigned int));
+		breaks[0] = calloc(ts,sizeof(unsigned int));
+		breaks[1] = calloc(ts,sizeof(unsigned int));
 		nbreaks = 1;
 		
 		IwithC = 0;
@@ -2348,16 +2547,10 @@ int main(int argc, char *argv[]){
 					already determining which samples have split 
 					(so can calculate recombination prob accurately) */
 					
-					/* UNCOMMENT ONCE 'RECCAL' CODE PUT IN AND TESTED */
-					/*
-					recinfo <- reccal(indvs,GType,breaks,evsex,nsites,lrec,1)
-					nlrec2 <- recinfo$lnrec
-					ssex <- recinfo$ssex
-					nsex <- < SOMETHING >	***Number of sexual events per deme - NEW PARAMETER: this is an ARRAY ***
-					*/
-					
-					/* For now, just choosing samples to split by sex */
+					/* First, choosing samples to split by sex */
 					sexsamp(indvs, rsex, evsex, Nwith, Itot, r);
+					/* (Add reccal code here? Pipe in sex event info?) */
+					reccal(indvs, GType, breaks, Nbet, Nwith, rsex, esex, nlrec2, lrec, nbreaks, 1);
 					/* Then recalculating probability of events */
 					probset2(N, g, sexC, rec, lrec, nlrec, nlrec2, mig, Nwith, Nbet, evsex, 1, pr);
 				}
@@ -2402,8 +2595,6 @@ int main(int argc, char *argv[]){
 				/* Changing ancestry accordingly */
 				/* MOVED CODE HERE TO AVOID ERRORS WHEN NUMBER OF SAMPLES MISMATCH */
 				coalesce(indvs, GType, CTms, TAnc, Ttot, Nwith, Nbet, Itot, deme, rsex, evsex, event, drec, e2, breaks, nsites, &lrec, nbreaks, r);
-
-				free(rsex);		/* Can be discarded once used to change ancestry */
 				
 				/* Sorting table afterwards to ensure paired samples are together */
 				indv_sort(indvs, Itot);
@@ -2416,26 +2607,41 @@ int main(int argc, char *argv[]){
 					*(Nsamps + 0) = *(Nwith + deme);
 					*(Nsamps + 1) = *(Nbet + deme);
 				}
-				
-				/*
-				# Updating baseline recombinable material depending on number single samples
-				if(all(breaks[2,]==1)!=1){
-					recinfo <- reccal(indvs,GType,breaks,rep(0,d),nsites,lrec,0)
-					nlrec <- recinfo$lnrec
-					nlrec;
+				if(event == 10){
+					nbreaks++;
 				}
-				*/
+				
+				/* Updating baseline recombinable material depending on number single samples */
+				if(isallUI(*(breaks+1),nbreaks,1,0) == 0){
+					reccal(indvs, GType, breaks, Nbet, Nwith, rsex, esex, nlrec, lrec, nbreaks, 0);
+				}
+				free(rsex);		/* Can be discarded once used to change ancestry */
+				
+				/* Checking if need to expand tables */
+				if(nbreaks == ts){
+					ts += INITBR;
+					GType = (int **)realloc(GType, (Itot+ts)*sizeof(int *));
+					CTms = (double **)realloc(GType, (Itot+ts)*sizeof(double *));
+					TAnc = (int **)realloc(GType, (Itot+ts)*sizeof(int *));												
+					for(j = 0; j < (Itot+ts-INITBR); j++){
+						GType[j] = (int *)realloc( *(GType + j) ,(ts + 1)*sizeof(int));
+						CTms[j] = (double *)realloc( *(CTms + j) ,(ts + 1)*sizeof(double));
+						TAnc[j] = (int *)realloc( *(TAnc + j) ,(ts + 1)*sizeof(int));
+					}
+					for(j = (Itot+ts-INITBR); j < (Itot+ts); j++){
+						GType[j] = (int *)calloc((ts + 1),sizeof(int));
+						CTms[j] = (double *)calloc((ts + 1),sizeof(double));
+						TAnc[j] = (int *)calloc((ts + 1),sizeof(int));												
+					}
+				}
 				
 				/* Testing if all sites coalesced or not */
+				done = isallUI(*(breaks + 1),nbreaks,1,0);
 				/*
-				for(x = 0; x < nbreaks; x++){
-					*(bcoal + x) = *((*(breaks + 1)) + x);
-				}
-				done = isallUI(bcoal,nbreaks,1);
-				*/
 				if(Ntot == 1){
 					done = 1;
 				}
+				*/
 			}
 		}
 		
@@ -2470,7 +2676,6 @@ int main(int argc, char *argv[]){
 		}
 		
 		/* Freeing memory at end of particular run */
-		free(bcoal);
 		free(breaks[1]);
 		free(breaks[0]);
 		for(j = 0; j < (Itot + ts); j++){
