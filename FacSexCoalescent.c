@@ -1981,7 +1981,7 @@ char * treemaker(double **TFin, double thetain, double mind, double maxd, unsign
     if(rec == 0){
     	strcpy(str,(*(clades + 0)));
     }else if(rec > 0){
-    	brk = mind*nsites;
+    	brk = (unsigned int)(mind*nsites);
     	sprintf(brkchar, "%d", brk);
     	strcpy(str,lsq);
     	strcat(str,brkchar);
@@ -2189,6 +2189,7 @@ int main(int argc, char *argv[]){
 	unsigned int count = 0;		/* For creating ancestry table */	
 	unsigned int ts = INITBR;	/* Initial size of tables */
 	unsigned int lrec = 0;		/* Length of non-coalesced genome */
+	char Tout[32];				/* String to hold filename in (Trees) */
 	FILE *ofp_tr;				/* Pointer for tree output */
 	
 	/* GSL random number definitions */
@@ -2669,8 +2670,16 @@ int main(int argc, char *argv[]){
 				mind = (*((*(breaks + 0)) + (x-1)))/(1.0*nsites);
 			}
 			char *ret_tree = treemaker(TFin, theta*(maxd-mind), mind, maxd, Itot,i, r);
-			ofp_tr = fopen("Trees.dat","a+");
-			fprintf(ofp_tr,"%s\n",ret_tree);
+			if(rec == 0){
+				ofp_tr = fopen("Trees.dat","a+");
+				fprintf(ofp_tr,"%s\n",ret_tree);
+			}else if(rec > 0){
+				sprintf(Tout,"Trees_%d.dat",i);
+				ofp_tr = fopen(Tout,"a+");
+				for(i = 0; i < Nreps; i++){
+					fprintf(ofp_tr,"%s\n",ret_tree);
+				}
+			}
 			fclose(ofp_tr);
 			free(ret_tree);
 		}
