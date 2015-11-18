@@ -23,6 +23,7 @@ separately from this file.
 #include <sys/types.h>
 
 #define INITBR 10
+#define HUGEVAL 1000000
 
 /* Function prototypes */
 unsigned int isanyUI(unsigned int *vin, unsigned int size_t, unsigned int match);
@@ -48,9 +49,9 @@ double sumrepsq(unsigned int n);
 unsigned int maxUI(unsigned int *vin, unsigned int size_t);
 unsigned int minUI(unsigned int *vin, unsigned int size_t, unsigned int offset);
 int minI(int *vin, unsigned int size_t, unsigned int offset);
-int first_neI(int *vin, unsigned int size_t, int target, unsigned int offset);
+unsigned int first_neI(int *vin, unsigned int size_t, int target, unsigned int offset);
 unsigned int first_neUI(unsigned int *vin, unsigned int size_t, unsigned int target, unsigned int offset);
-int last_neI(int *vin, unsigned int size_t, int target, unsigned int offset);
+unsigned int last_neI(int *vin, unsigned int size_t, int target, unsigned int offset);
 unsigned int last_neUI(unsigned int *vin, unsigned int size_t, unsigned int target, unsigned int offset);
 
 unsigned int trig(unsigned int x);
@@ -63,35 +64,23 @@ double P9(unsigned int x, unsigned int k, double gee);
 double P10(unsigned int x, unsigned int y, unsigned int k, double mee);
 double P11(unsigned int y, unsigned int k, double sexC, double ree, unsigned int lrec, unsigned int nlrec, unsigned int nlrec2);
 void probset2(unsigned int N, double g, double *sexC, double rec, unsigned int lrec, unsigned int *nlrec, unsigned int *nlrec2, double mig, unsigned int *Nwith, unsigned int *Nbet, unsigned int *kin, unsigned int sw, double **pr);
-void rate_change(unsigned int pST,double pLH, double pHL, double *sexH, double *sexL, unsigned int switch1, double *sexCN, double *sexCNInv, double *tts, unsigned int *npST,const gsl_rng *r);
+void rate_change(unsigned int N, unsigned int pST,double pLH, double pHL, double *sexH, double *sexL, unsigned int switch1, double *sexCN, double *sexCNInv, double *tts, unsigned int *npST,const gsl_rng *r);
 void stchange2(unsigned int ev, unsigned int deme, unsigned int *kin, int *WCH, int *BCH);
-void sexconv(unsigned int **Tin, unsigned int *rsex, unsigned int nsum, unsigned int Ntot, unsigned int Itot);
-void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, double Ttot, unsigned int *Nwith, unsigned int *Nbet, unsigned int Itot, unsigned int deme, unsigned int *rsex, unsigned int *nsex, unsigned int ex, unsigned int drec, unsigned int e2, unsigned int **breaks, unsigned int nsites, unsigned int *lrec, unsigned int nbreaks, const gsl_rng *r);
-void cchange(unsigned int **indvs, int **GType, double **CTms, int **TAnc, unsigned int *csamp, unsigned int *par, unsigned int lsamp, unsigned int Ntot, unsigned int nbreaks, double Ttot, unsigned int Itot);
+void sexconv(unsigned int **Tin, unsigned int *rsex, unsigned int nsum, unsigned int Ntot);
+void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, double Ttot, unsigned int *Nwith, unsigned int *Nbet, unsigned int deme, unsigned int *rsex, unsigned int *nsex, unsigned int ex, unsigned int drec, unsigned int e2, unsigned int **breaks, unsigned int nsites, unsigned int *lrec, unsigned int nbreaks, unsigned int Nmax, const gsl_rng *r);
+void cchange(unsigned int **indvs, int **GType, double **CTms, int **TAnc, unsigned int *csamp, unsigned int *par, unsigned int lsamp, unsigned int Ntot, unsigned int nbreaks, double Ttot);
 void ccheck(unsigned int **indvs, int **GType, unsigned int **breaks, unsigned int nsites, unsigned int *lrec, unsigned int Ntot, unsigned int nbreaks);
 unsigned int coalcalc(unsigned int **breaks, unsigned int nsites, unsigned int nbreaks, unsigned int start);
 void sexsamp(unsigned int **indvs, unsigned int *rsex, unsigned int *nsex, unsigned int *Nwith, unsigned int Ntot, const gsl_rng *r);
 void indv_sort(unsigned int **indvs, unsigned int nrow);
 void indv_sortD(double **Tin, unsigned int nrow, unsigned int ncol, unsigned int tcol);
 char * treemaker(double **TFin, double thetain, double mind, double maxd, unsigned int Itot, unsigned int run, const gsl_rng *r);
-void ErrorMut();
-void moremut(double ***MTin, unsigned int *nrow, unsigned int comp, unsigned int Itot);
-void reccal(unsigned int **indvs, int **GType, unsigned int **breaks, unsigned int *Nbet, unsigned int *Nwith, unsigned int *rsex, unsigned int esex, unsigned int *lnrec, unsigned int lrec, unsigned int nbreaks, unsigned int sw);
+void reccal(unsigned int **indvs, int **GType, unsigned int **breaks, unsigned int *Nbet, unsigned int *Nwith, unsigned int *rsex, unsigned int esex, unsigned int *lnrec, unsigned int lrec, unsigned int nbreaks, unsigned int NMax, unsigned int sw);
 
 /* Global variable declaration */
-unsigned int N = 0;			/* Population Size */
 double rec = 0;				/* Per-site recombination rate */
 unsigned int nsites = 0;	/* Number of sites (for recombination) */
-double g = 0;				/* Broad-scale gene conversion */
-double theta = 0;			/* Scaled mutation rate, 4Nmu */
-unsigned int pSTIN = 0;		/* Determine type of heterogeneity (0=fluctuating sex, 1=stepwise change, 2 = constant sex) */
-double pLH = 0;				/* Prob of low-sex to high-sex transition, OR time of transition if stepwise change */
-double pHL = 0;				/* Prob of high-sex to low-sex transition */
-double mig = 0;				/* Migration rate between demes */
 unsigned int d = 0;			/* Number of demes */
-unsigned int Itot = 0;		/* Number of initial samples */
-unsigned int Iindv = 0;		/* Number of initial individuals */
-unsigned int Nreps = 0;		/* Number of simulation replicates */
 
 /* Function to replicate the 'any' func in R (unsigned int) */
 unsigned int isanyUI(unsigned int *vin, unsigned int size_t, unsigned int match){
@@ -362,7 +351,7 @@ int minI(int *vin, unsigned int size_t, unsigned int offset){
 }
 
 /* First element not of type (I) */
-int first_neI(int *vin, unsigned int size_t, int target, unsigned int offset){
+unsigned int first_neI(int *vin, unsigned int size_t, int target, unsigned int offset){
 	int ret = 0;
 	unsigned int i = 0;
 	for(i = 0; i < size_t; i++){
@@ -388,7 +377,7 @@ unsigned int first_neUI(unsigned int *vin, unsigned int size_t, unsigned int tar
 }
 
 /* Last element not of type (I) */
-int last_neI(int *vin, unsigned int size_t, int target, unsigned int offset){
+unsigned int last_neI(int *vin, unsigned int size_t, int target, unsigned int offset){
 	int ret = 0;
 	unsigned int i = 0;
 	for(i = 0; i < size_t; i++){
@@ -505,7 +494,7 @@ void probset2(unsigned int N, double g, double *sexC, double rec, unsigned int l
 }	/* End of 'probset2' function */
 
 /* Function to change rates of sex given a state change */
-void rate_change(unsigned int pST,double pLH, double pHL, double *sexH, double *sexL, unsigned int switch1, double *sexCN, double *sexCNInv, double *tts, unsigned int *npST, const gsl_rng *r){
+void rate_change(unsigned int N, unsigned int pST,double pLH, double pHL, double *sexH, double *sexL, unsigned int switch1, double *sexCN, double *sexCNInv, double *tts, unsigned int *npST, const gsl_rng *r){
 	unsigned int x = 0;			/* Deme counter */
 	
 	/* Setting up transition time (tts, or 'time to switch') */
@@ -630,11 +619,11 @@ void stchange2(unsigned int ev, unsigned int deme, unsigned int *kin, int *WCH, 
 }	/* End of 'stchange' function */
 
 /* For converting WH to BH */
-void sexconv(unsigned int **Tin, unsigned int *rsex, unsigned int nsum, unsigned int Ntot, unsigned int Itot){
+void sexconv(unsigned int **Tin, unsigned int *rsex, unsigned int nsum, unsigned int Ntot){
 	unsigned int j;
 	unsigned int count = 0;
 	while(count < nsum){
-		for(j = 0; j < Itot; j++){
+		for(j = 0; j < Ntot; j++){
 			if( *((*(Tin + j)) + 1) == *(rsex + count) ){
 				*((*(Tin + j)) + 2) = 1;
 				*((*(Tin + j + 1)) + 2) = 1;					/* Since other paired sample also split */
@@ -646,10 +635,11 @@ void sexconv(unsigned int **Tin, unsigned int *rsex, unsigned int nsum, unsigned
 }
 
 /* Function to change status of samples following event change */
-void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, double Ttot, unsigned int *Nwith, unsigned int *Nbet, unsigned int Itot, unsigned int deme, unsigned int *rsex, unsigned int *nsex, unsigned int ex, unsigned int drec, unsigned int e2, unsigned int **breaks, unsigned int nsites, unsigned int *lrec, unsigned int nbreaks, const gsl_rng *r){
+void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, double Ttot, unsigned int *Nwith, unsigned int *Nbet, unsigned int deme, unsigned int *rsex, unsigned int *nsex, unsigned int ex, unsigned int drec, unsigned int e2, unsigned int **breaks, unsigned int nsites, unsigned int *lrec, unsigned int nbreaks, unsigned int NMax, const gsl_rng *r){
 	
 	unsigned int NWtot = 2*sumUI(Nwith,d);
 	unsigned int NBtot = sumUI(Nbet,d);
+	unsigned int Ntot = NWtot + NBtot;
 	unsigned int Nindv = sumUI(Nwith,d) + sumUI(Nbet,d);
 	unsigned int nsum = sumUI(nsex,d);
 	unsigned int j, a, x;
@@ -676,14 +666,14 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 	switch(ex)
 	{
 		case 0:		/* Event 0: 2k new samples created from paired samples. Nothing else to be done */
-			sexconv(indvs, rsex, nsum, Nindv, Itot);
+			sexconv(indvs, rsex, nsum, Ntot);
 			break;
 		case 1:		/* Event 1: One of the paired samples is recreated, no coalescence */
 			/* First choose sample that does not split fully */
 			while(done == 0){
 				gsl_ran_choose(r,&rands2,1,rsex,nsum,sizeof(unsigned int));
 				/* Then checking it is in the same deme as the action */
-				for(j = 0; j < Itot; j++){
+				for(j = 0; j < Ntot; j++){
 					if( *((*(indvs + j)) + 1) == rands2 ){
 						if(*((*(indvs + j)) + 3) == deme){
 							done = 1;
@@ -695,7 +685,7 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 			/* Then setting BH samples */
 			nos = gsl_ran_bernoulli(r,0.5);	/* Only sample that splits fully */
 			while(count < nsum){
-				for(j = 0; j < Itot; j++){
+				for(j = 0; j < Ntot; j++){
 					if( *((*(indvs + j)) + 1) == *(rsex + count) ){
 						if(*(rsex + count) != rands2){
 							*((*(indvs + j)) + 2) = 1;
@@ -714,9 +704,9 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 			
 			/* Now; out of all single samples, choose one to rebind with the single sample */
 			unsigned int *singsamps = calloc((*(Nbet + deme) + 2*(*(nsex + deme)) - 1),sizeof(unsigned int));			/* For storing BH samples */
-			sselect_UI(indvs, singsamps, Itot, 2, 0, 1, 3, deme);
+			sselect_UI(indvs, singsamps, Ntot, 2, 0, 1, 3, deme);
 			gsl_ran_choose(r,&bhc,1,singsamps,(*(Nbet + deme) + 2*(*(nsex + deme)) - 1),sizeof(unsigned int));
-			for(j = 0; j < Itot; j++){
+			for(j = 0; j < Ntot; j++){
 				if( *((*(indvs + j)) + 0) == bhc ){
 					*((*(indvs + j)) + 2) = 0;
 					*((*(indvs + j)) + 1) = rands2;	/* Ensuring paired samples have same parents*/
@@ -728,10 +718,10 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 			break;
 		case 2:		/* Event 2: One of the unique samples coaleses with another unique one (either pre-existing or new) */
 			done = 0;
-			sexconv(indvs, rsex, nsum, Nindv, Itot);
+			sexconv(indvs, rsex, nsum, Ntot);
 			
 			unsigned int *singsamps2 = calloc((*(Nbet + deme) + 2*(*(nsex + deme))),sizeof(unsigned int));			/* For storing BH samples */
-			sselect_UI(indvs, singsamps2, Itot, 2, 0, 1, 3, deme);
+			sselect_UI(indvs, singsamps2, Ntot, 2, 0, 1, 3, deme);
 			
 			while(done == 0){
 				gsl_ran_choose(r,&csamp,1,singsamps2,(*(Nbet + deme) + 2*(*(nsex + deme))),sizeof(unsigned int));			/* One sample involved in coalescence (csamp) */
@@ -741,7 +731,7 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 				}
 		
 				/* Now checking that at least one of the two is from sample split by sex */
-				for(j = 0; j < Itot; j++){
+				for(j = 0; j < Ntot; j++){
 					if( (*((*(indvs + j)) + 0) == csamp) ||  (*((*(indvs + j)) + 0) == par) ){
 						for(a = 0; a < nsum; a++){
 							if( (*((*(indvs + j)) + 1)) == *(rsex + a)){
@@ -754,25 +744,25 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 			}
 			
 			/* Now updating coalescent times */
-			cchange(indvs, GType, CTms, TAnc, &csamp, &par, 1, Itot, nbreaks, Ttot, Itot);
+			cchange(indvs, GType, CTms, TAnc, &csamp, &par, 1, Ntot, nbreaks, Ttot);
 			
 			/* Check if tracts have coalesced */
-			ccheck(indvs,GType,breaks,nsites,&lrecN,Itot,nbreaks);
+			ccheck(indvs,GType,breaks,nsites,&lrecN,Ntot,nbreaks);
 			*lrec = lrecN;
 			
 			free(singsamps2);
 			break;
 		case 3:		/* Event 3: A paired sample coaleses with new unique sample */
 			
-			sexconv(indvs, rsex, nsum, Nindv, Itot);
+			sexconv(indvs, rsex, nsum, Ntot);
 			unsigned int *singsamps3N = calloc(2*(*(nsex + deme)),sizeof(unsigned int));			/* For storing new BH samples */
 			unsigned int *singsamps3B = calloc( 2*((*(Nwith + deme) - (*(nsex + deme)))) ,sizeof(unsigned int));			/* For storing WH samples */
 			unsigned int *twosamps = calloc(2,sizeof(unsigned int));		/* Two samples in coalescence */
 				
 			/* Creating vector of new unique samples created */
-			sselect_UIV(indvs, singsamps3N, Itot, 1, 0, rsex, 2*(*(nsex + deme)), nsum, 3, deme);
-			/* Creating vector of existing paired samples */			
-			sselect_UI(indvs, singsamps3B, Itot, 2, 0, 0, 3, deme);
+			sselect_UIV(indvs, singsamps3N, Ntot, 1, 0, rsex, 2*(*(nsex + deme)), nsum, 3, deme);
+			/* Creating vector of existing paired samples */
+			sselect_UI(indvs, singsamps3B, Ntot, 2, 0, 0, 3, deme);
 			
 			gsl_ran_choose(r,&twosamps[0],1,singsamps3N,(2*(*(nsex + deme))),sizeof(unsigned int));			/* Unique sample involved in coalescence */
 			gsl_ran_choose(r,&twosamps[1],1,singsamps3B,(2*((*(Nwith + deme) - (*(nsex + deme))))),sizeof(unsigned int));			/* Paired sample involved in coalescence */
@@ -784,7 +774,7 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 		
 			/* Correction if parential sample is unique sample */
 			unsigned int pcorr = 0;
-			for(j = 0; j < Itot; j++){
+			for(j = 0; j < Ntot; j++){
 				if( (*((*(indvs + j)) + 0) == par) && (*((*(indvs + j)) + 2) == 1) ){
 					pcorr = 1;
 					par2 = j;
@@ -793,7 +783,7 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 				}
 			}
 			if(pcorr == 1){
-				for(j = 0; j < Itot; j++){
+				for(j = 0; j < Ntot; j++){
 					if(*((*(indvs + j)) + 0) == csamp){
 						*((*(indvs + par2)) + 1) = *((*(indvs + j)) + 1);
 						break;
@@ -802,10 +792,10 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 			}
 		
 			/* Now updating coalescent times */
-			cchange(indvs, GType, CTms, TAnc, &csamp, &par, 1, Itot, nbreaks, Ttot, Itot);
+			cchange(indvs, GType, CTms, TAnc, &csamp, &par, 1, Ntot, nbreaks, Ttot);
 			
 			/* Check if tracts have coalesced */
-			ccheck(indvs,GType,breaks,nsites,&lrecN,Itot,nbreaks);
+			ccheck(indvs,GType,breaks,nsites,&lrecN,Ntot,nbreaks);
 			*lrec = lrecN;
 			
 			free(twosamps);
@@ -817,15 +807,15 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 			done = 0;
 			unsigned int *singsamps4 = calloc(*(Nbet + deme),sizeof(unsigned int));			/* For storing BH samples */
 			unsigned int *twosing = calloc(2,sizeof(unsigned int));
-							
-			sselect_UI(indvs, singsamps4, Itot, 2, 0, 1, 3, deme);
-			
+
+			sselect_UI(indvs, singsamps4, Ntot, 2, 0, 1, 3, deme);
+
 			/* Two sample involved in pairing */
 			gsl_ran_choose(r,twosing,2,singsamps4,*(Nbet + deme),sizeof(unsigned int));
 			gsl_ran_shuffle(r, twosing, 2, sizeof(unsigned int));
 			
 			/* Now going through (twice!) and updating ancestry */
-			for(j = 0; j < Itot; j++){
+			for(j = 0; j < Ntot; j++){
 				if(*((*(indvs + j)) + 0) == *(twosing + 0)){
 					par2 = j;
 					*((*(indvs + j)) + 2) = 0;
@@ -833,7 +823,7 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 				}
 			}
 			
-			for(j = 0; j < Itot; j++){
+			for(j = 0; j < Ntot; j++){
 				if(*((*(indvs + j)) + 0) == *(twosing + 1)){
 					*((*(indvs + j)) + 2) = 0;
 					*((*(indvs + j)) + 1) = *((*(indvs + par2)) + 1);
@@ -842,7 +832,7 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 			}
 			
 			/* THEN convert WH to BH samples */
-			sexconv(indvs, rsex, nsum, Nindv, Itot);
+			sexconv(indvs, rsex, nsum, Ntot);
 			
 			free(twosing);
 			free(singsamps4);
@@ -850,7 +840,7 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 		case 5:			/* Event 5: Two pre-existing unique samples coalesce */	
 			csamp = 0;
 			unsigned int *singsamps5 = calloc(*(Nbet + deme),sizeof(unsigned int));			/* For storing BH samples */
-			sselect_UI(indvs, singsamps5, Itot, 2, 0, 1, 3, deme);
+			sselect_UI(indvs, singsamps5, Ntot, 2, 0, 1, 3, deme);
 			
 			gsl_ran_choose(r,&csamp,1,singsamps5,(*(Nbet + deme)),sizeof(unsigned int));			/* One sample involved in coalescence (csamp) */
 			par = csamp;
@@ -859,20 +849,20 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 			}
 		
 			/* Now updating coalescent times */
-			cchange(indvs, GType, CTms, TAnc, &csamp, &par, 1, Itot, nbreaks, Ttot, Itot);
+			cchange(indvs, GType, CTms, TAnc, &csamp, &par, 1, Ntot, nbreaks, Ttot);
 			
 			/* Check if tracts have coalesced */
-			ccheck(indvs,GType,breaks,nsites,&lrecN,Itot,nbreaks);
+			ccheck(indvs,GType,breaks,nsites,&lrecN,Ntot,nbreaks);
 			*lrec = lrecN;
 		
 			/* THEN convert WH to BH samples */
-			sexconv(indvs, rsex, nsum, Nindv, Itot);
+			sexconv(indvs, rsex, nsum, Ntot);
 			
 			free(singsamps5);
 			break;
 		case 6:			/* Event 6: Two remaining paired samples doubly coalesce asexually. */
 			/* Converting WH to BH samples */
-			sexconv(indvs, rsex, nsum, Nindv, Itot);
+			sexconv(indvs, rsex, nsum, Ntot);
 			
 			unsigned int *parsamps6 = calloc((*(Nwith + deme) - *(nsex + deme)),sizeof(unsigned int));			/* For storing WH indvs */
 			unsigned int *twopars6 = calloc(2,sizeof(unsigned int));
@@ -881,21 +871,21 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 			unsigned int *csamp2 = calloc(2,sizeof(unsigned int));
 			unsigned int *parT = calloc(2,sizeof(unsigned int));
 				
-			sselect_UI(indvs, parsamps6, Itot, 2, 1, 0, 3, deme);
+			sselect_UI(indvs, parsamps6, Ntot, 2, 1, 0, 3, deme);
 			
 			/* Two parents involved in coalescence */
 			gsl_ran_choose(r,twopars6,2,parsamps6,(*(Nwith + deme) - *(nsex + deme)),sizeof(unsigned int));
 			gsl_ran_shuffle(r,twopars6, 2, sizeof(unsigned int));
 			
 			/* Finding parents and partitioning samples (twice) */
-			for(j = 0; j < Itot; j++){
+			for(j = 0; j < Ntot; j++){
 				if(*((*(indvs + j)) + 1) == *(twopars6 + 0)){
 					*(lhs + 0) = *((*(indvs + j)) + 0);
 					*(rhs + 0) = *((*(indvs + j + 1)) + 0);
 					break;
 				}
 			}
-			for(j = 0; j < Itot; j++){
+			for(j = 0; j < Ntot; j++){
 				if(*((*(indvs + j)) + 1) == *(twopars6 + 1)){
 					*(lhs + 1) = *((*(indvs + j)) + 0);
 					*(rhs + 1) = *((*(indvs + j + 1)) + 0);
@@ -917,20 +907,20 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 			}
 			
 			/* Now updating coalescent times */
-			cchange(indvs, GType, CTms, TAnc, csamp2, parT, 2, Itot, nbreaks, Ttot, Itot);
+			cchange(indvs, GType, CTms, TAnc, csamp2, parT, 2, Ntot, nbreaks, Ttot);
 			
 			/* Check if tracts have coalesced */
-			ccheck(indvs,GType,breaks,nsites,&lrecN,Itot,nbreaks);
+			ccheck(indvs,GType,breaks,nsites,&lrecN,Ntot,nbreaks);
 			*lrec = lrecN;
 			
 			/* Making sure parent samples are in same individual */
-			for(j = 0; j < Itot; j++){
+			for(j = 0; j < Ntot; j++){
 				if(*((*(indvs + j)) + 0) == parT[0]){
 					parNo = *((*(indvs + j)) + 1);
 					break;
 				}
 			}
-			for(j = 0; j < Itot; j++){
+			for(j = 0; j < Ntot; j++){
 				if(*((*(indvs + j)) + 0) == parT[1]){
 					*((*(indvs + j)) + 1) = parNo;
 					break;
@@ -949,21 +939,21 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 			/* Converting WH to BH samples 
 			(idea being that I later check if chosen BH originated from WH 
 			- discard if so) */
-			sexconv(indvs, rsex, nsum, Nindv, Itot);
+			sexconv(indvs, rsex, nsum, Ntot);
 
 			/* For storing WH indvs */
 			unsigned int *parsamps7 = calloc((*(Nwith + deme) - *(nsex + deme)),sizeof(unsigned int));
 			unsigned int *singsamps7 = calloc((*(Nbet + deme) + 2*(*(nsex + deme))),sizeof(unsigned int));			/* For storing BH samples */
 			unsigned int *twosamps7 = calloc(2,sizeof(unsigned int));
 			
-			sselect_UI(indvs, parsamps7, Itot, 2, 1, 0, 3, deme);
-			sselect_UI(indvs, singsamps7, Itot, 2, 0, 1, 3, deme);
+			sselect_UI(indvs, parsamps7, Ntot, 2, 1, 0, 3, deme);
+			sselect_UI(indvs, singsamps7, Ntot, 2, 0, 1, 3, deme);
 						
 			/* A paired sample involved in coalescence */
 			gsl_ran_choose(r,&WHsel,1,parsamps7,(*(Nwith + deme) - *(nsex + deme)),sizeof(unsigned int));
 			nos = gsl_ran_bernoulli(r,0.5);		/* Which side involved in event */
 			/* Finding sample */
-			for(j = 0; j < Itot; j++){
+			for(j = 0; j < Ntot; j++){
 				if(*((*(indvs + j)) + 1) == WHsel){
 					*(twosamps7 + 0) = *((*(indvs + j + nos)) + 0);
 					break;
@@ -974,7 +964,7 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 			while(done == 0){
 				gsl_ran_choose(r,&twosamps7[1],1,singsamps7,(*(Nbet + deme) + 2*(*(nsex + deme))),sizeof(unsigned int));
 				/* Checking that it didn't originate from WH */
-				for(j = 0; j < Itot; j++){
+				for(j = 0; j < Ntot; j++){
 					if(*((*(indvs + j)) + 0) == *(twosamps7 + 1)){
 						/* ACTIONS */
 						isWH = 1;
@@ -1000,7 +990,7 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 			
 			/* Correction if parental sample is BH */
 			if(par == *(twosamps7 + 1)){
-				for(j = 0; j < Itot; j++){
+				for(j = 0; j < Ntot; j++){
 					if(*((*(indvs + j)) + 0) == par){
 						*((*(indvs + j)) + 2) = 0;
 						*((*(indvs + j)) + 1) = WHsel;		/* Same parent as WH sample */
@@ -1010,10 +1000,10 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 			}
 			
 			/* Now updating coalescent times */
-			cchange(indvs, GType, CTms, TAnc, &csamp, &par, 1, Itot, nbreaks, Ttot, Itot);
+			cchange(indvs, GType, CTms, TAnc, &csamp, &par, 1, Ntot, nbreaks, Ttot);
 			
 			/* Check if tracts have coalesced */
-			ccheck(indvs,GType,breaks,nsites,&lrecN,Itot,nbreaks);
+			ccheck(indvs,GType,breaks,nsites,&lrecN,Ntot,nbreaks);
 			*lrec = lrecN;
 		
 			free(twosamps7);
@@ -1027,19 +1017,19 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 		case 9:		/* Event 9: Migration of a sample */
 		
 			/* Converting WH to BH samples  */
-			sexconv(indvs, rsex, nsum, Nindv, Itot);
+			sexconv(indvs, rsex, nsum, Ntot);
 			
 			if(e2 == 0){		/* WH sample migrates */
 				/* For storing WH indvs */
 				unsigned int *parsamps9 = calloc((*(Nwith + deme) + 1),sizeof(unsigned int));
 				
 				/* Obtaining list of samples to choose from */
-				sselect_UI(indvs, parsamps9, Itot, 2, 1, 0, 3, deme);
+				sselect_UI(indvs, parsamps9, Ntot, 2, 1, 0, 3, deme);
 				
 				/* Sample that migrates */
 				gsl_ran_choose(r,&bhc,1,parsamps9,(*(Nwith + deme) + 1),sizeof(unsigned int));
 				
-				for(j = 0; j < Itot; j++){
+				for(j = 0; j < Ntot; j++){
 					if(*((*(indvs + j)) + 1) == bhc){
 						*((*(indvs + j)) + 3) = drec;
 						*((*(indvs + j + 1)) + 3) = drec;		/* Altering deme accordingly */
@@ -1054,12 +1044,12 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 				unsigned int *singsamps9 = calloc((*(Nbet + deme) + 1),sizeof(unsigned int));
 
 				/* Obtaining list of samples to choose from */
-				sselect_UI(indvs, singsamps9, Itot, 2, 0, 1, 3, deme);
+				sselect_UI(indvs, singsamps9, Ntot, 2, 0, 1, 3, deme);
 				
 				/* Sample that migrates */
 				gsl_ran_choose(r,&bhc,1,singsamps9,(*(Nbet + deme) + 1),sizeof(unsigned int));
 
-				for(j = 0; j < Itot; j++){
+				for(j = 0; j < Ntot; j++){
 					if(*((*(indvs + j)) + 0) == bhc){
 						*((*(indvs + j)) + 3) = drec;			/* Altering deme accordingly */
 						break;
@@ -1079,7 +1069,7 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 			*/
 			
 			/* Converting WH to BH samples  */
-			sexconv(indvs, rsex, nsum, Nindv, Itot);
+			sexconv(indvs, rsex, nsum, Ntot);
 			
 			/* Choosing individual for splitting by recombination
 			Only proceed with actual recombination algorithm if BOTH new samples 
@@ -1092,7 +1082,7 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 			while(yesrec != 1){
 
 				/* Obtaining list of samples to choose from */
-				sselect_UI(indvs, singsamps10, Itot, 2, 0, 1, 3, deme);
+				sselect_UI(indvs, singsamps10, Ntot, 2, 0, 1, 3, deme);
 				/* Choosing single sample to be split in recombination */
 				gsl_ran_choose(r,&rands,1,singsamps10,(*(Nbet + deme) + 2*(*(nsex + deme))),sizeof(unsigned int));
 				rsite = (unsigned int)gsl_ran_flat(r, 0, nsites);
@@ -1119,7 +1109,7 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 					
 					/* Next, checking if valid breakpoint depending on location */
 					if( (isbpend == 1) && (isyetbp == 0) ){
-						for(j = 0; j < Itot; j++){
+						for(j = 0; j < NMax; j++){
 							if( *((*(GType + j)) + 0) == rands){
 								if((*((*(GType + j)) + nbreaks) != 0) && (*((*(breaks + 1)) + nbreaks) == 0)){
 									yesrec = 1;
@@ -1129,7 +1119,7 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 						}
 					}
 					else if( (isbpend == 1) && (isyetbp == 1) ){
-						for(j = 0; j < Itot; j++){
+						for(j = 0; j < NMax; j++){
 							if( *((*(GType + j)) + 0) == rands){
 								if((*((*(GType + j)) + nbreaks) != 0) && (*((*(breaks + 1)) + nbreaks) == 0) && (isallI((*(GType + j)), nbreaks, 0, 1) != 1) ){
 									yesrec = 1;
@@ -1139,7 +1129,7 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 						}
 					}
 					else if( (isbpend == 0) && (isyetbp == 0) ){
-						for(j = 0; j < Itot; j++){
+						for(j = 0; j < NMax; j++){
 							if( *((*(GType + j)) + 0) == rands){
 								if( (isallI((*(GType + j)), (maxtr+1), (-1), 1) != 1) && (isallI((*(GType + j)), (nbreaks+1), (-1), (maxtr)) != 1) && (isallUI((*(breaks + 1)), maxtr, 1, 0) != 1) ){
 									yesrec = 1;
@@ -1149,7 +1139,7 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 						}
 					}
 					else if( (isbpend == 0) && (isyetbp == 1) ){
-						for(j = 0; j < Itot; j++){
+						for(j = 0; j < NMax; j++){
 							if( *((*(GType + j)) + 0) == rands){
 								if(isallI((*(GType + j)), (maxtr+1), (-1), 1) != 1 && isallI((*(GType + j)), (nbreaks+1), (-1), (maxtr+1)) && (isallUI((*(breaks + 1)), maxtr, 1, 0) != 1) && (isallUI((*(breaks + 1)), nbreaks, 1, (maxtr+1)) != 1) ){
 									yesrec = 1;
@@ -1162,16 +1152,10 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 				}	/* End of BP verification step */
 				
 				/* Adding new sample to indv table */
-				unsigned int *exst_sp = calloc(Itot,sizeof(unsigned int));
-				for(j = 0; j < Itot; j++){
-					*(exst_sp + j) = *((*(indvs + j)) + 0);
-				}
-				unsigned int maxI = maxUI(exst_sp,Itot) + 1;
-				free(exst_sp);
-				*((*(indvs + Itot)) + 0) = maxI;
-				*((*(indvs + Itot)) + 1) = NWtot + NBtot;
-				*((*(indvs + Itot)) + 2) = 1;
-				*((*(indvs + Itot)) + 3) = deme;
+				*((*(indvs + NMax)) + 0) = NMax;
+				*((*(indvs + NMax)) + 1) = Ntot;
+				*((*(indvs + NMax)) + 2) = 1;
+				*((*(indvs + NMax)) + 3) = deme;
 				
 				/* Adding new site and re-ordering tracts in other tables */
 				if(isyetbp != 1){
@@ -1182,7 +1166,7 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 					*((*(breaks + 0)) + maxtr) = rsite;
 					*((*(breaks + 1)) + maxtr) = 0;
 					/* Adding new site to genotype; coalescent time; ancestry table */
-					for(j = 0; j < Itot; j++){
+					for(j = 0; j < NMax; j++){
 						for(x = nbreaks; x >= maxtr; x--){
 							*((*(GType + j)) + x + 1) = *((*(GType + j)) + x);
 							*((*(CTms + j)) + x + 1) = *((*(CTms + j)) + x);
@@ -1193,30 +1177,30 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 				
 				/* Now creating the new sample genotype; updating all other tables */
 				/* (If it turns out these tables 'align', change code to combine loops?) */
-				for(j = 0; j < Itot; j++){
+				for(j = 0; j < NMax; j++){
 					if( *((*(GType + j)) + 0) == rands ){
 						for(x = (nbreaks + 1); x > maxtr; x--){
-							*((*(GType + Itot)) + x) = *((*(GType + j)) + x);
+							*((*(GType + NMax)) + x) = *((*(GType + j)) + x);
 							*((*(GType + j)) + x) = (-1);
 						}
 						break;
 					}
 				}
 				
-				for(j = 0; j < Itot; j++){
+				for(j = 0; j < NMax; j++){
 					if( *((*(CTms + j)) + 0) == rands ){
 						for(x = (nbreaks + 1); x > maxtr; x--){
-							*((*(CTms + Itot)) + x) = *((*(CTms + j)) + x);
+							*((*(CTms + NMax)) + x) = *((*(CTms + j)) + x);
 							*((*(CTms + j)) + x) = (-1);
 						}
 						break;
 					}
 				}
 				
-				for(j = 0; j < Itot; j++){
+				for(j = 0; j < NMax; j++){
 					if( *((*(TAnc + j)) + 0) == rands ){
 						for(x = (nbreaks + 1); x > maxtr; x--){
-							*((*(TAnc + Itot)) + x) = *((*(TAnc + j)) + x);
+							*((*(TAnc + NMax)) + x) = *((*(TAnc + j)) + x);
 							*((*(TAnc + j)) + x) = (-1);
 						}
 						break;
@@ -1224,13 +1208,13 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 				}
 				
 				for(x = maxtr; x > 0; x--){
-					*((*(GType + Itot)) + x) = (-1);
-					*((*(CTms + Itot)) + x) = (-1);					
-					*((*(TAnc + Itot)) + x) = (-1);
+					*((*(GType + NMax)) + x) = (-1);
+					*((*(CTms + NMax)) + x) = (-1);					
+					*((*(TAnc + NMax)) + x) = (-1);
 				}
-				*((*(GType + Itot)) + 0) = maxI;
-				*((*(CTms + Itot)) + 0) = maxI;
-				*((*(TAnc + Itot)) + 0) = maxI;
+				*((*(GType + NMax)) + 0) = NMax;
+				*((*(CTms + NMax)) + 0) = NMax;
+				*((*(TAnc + NMax)) + 0) = NMax;
 			}
 			
 			free(singsamps10);
@@ -1244,7 +1228,7 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 }	/* End of coalescent routine */
 
 /* Updating information following coalescent event */
-void cchange(unsigned int **indvs, int **GType, double **CTms, int **TAnc, unsigned int *csamp, unsigned int *par, unsigned int lsamp, unsigned int Ntot, unsigned int nbreaks, double Ttot, unsigned int Itot){
+void cchange(unsigned int **indvs, int **GType, double **CTms, int **TAnc, unsigned int *csamp, unsigned int *par, unsigned int lsamp, unsigned int Ntot, unsigned int nbreaks, double Ttot){
 	unsigned int j, i, x;
 	unsigned int crow = 0;
 	unsigned int prow = 0;
@@ -1268,7 +1252,7 @@ void cchange(unsigned int **indvs, int **GType, double **CTms, int **TAnc, unsig
 		}
 		
 		/* 'csamp' coalesces */
- 		*((*(indvs + crow)) + 1) = Itot;
+ 		*((*(indvs + crow)) + 1) = HUGEVAL;
 		*((*(indvs + crow)) + 2) = 2;
 		
 		for(x = 0; x < nbreaks; x++){
@@ -1292,17 +1276,26 @@ void cchange(unsigned int **indvs, int **GType, double **CTms, int **TAnc, unsig
 void ccheck(unsigned int **indvs, int **GType, unsigned int **breaks, unsigned int nsites, unsigned int *lrec, unsigned int Ntot, unsigned int nbreaks){
 	unsigned int achange = 0;	/* Has there been 'a change'? */
 	unsigned int j, x;
-	unsigned int gcount;	/* count of extant tracts present */
-	unsigned int lcoal;		/* Length of coalesced tracts */
+	unsigned int gcount;		/* count of extant tracts present */
+	unsigned int lcoal;			/* Length of coalesced tracts */
+	unsigned int ridx;			/* Index of sample */
 	
 	/* Has tract coalesced completely? Checking this */
 	
-	for(x = 0; x < nbreaks; x++){ 
+	for(x = 0; x < nbreaks; x++){
 		if( *((*(breaks + 1)) + x) != 1 ){		/* If not yet coalesced... */
 			gcount = 0;
 			for(j = 0; j < Ntot; j++){
+			/*
 				if( (*((*(indvs + j)) + 2) != 2 ) && ( *((*(GType + j)) + (x+1)) != (-1) )){
 					gcount++;
+				}
+			*/
+				if( (*((*(indvs + j)) + 2) != 2 ) ){
+					ridx = *((*(indvs + j)) + 0);
+					if(*((*(GType + ridx)) + (x+1)) != (-1)){
+						gcount++;
+					}
 				}
 			}
 			/* If only one individual exists which carries that tract, then it has coalesced */
@@ -1363,7 +1356,7 @@ void sexsamp(unsigned int **indvs, unsigned int *rsex, unsigned int *nsex, unsig
 			unsigned int *WHsamp = calloc(*(Nwith + x),sizeof(unsigned int));
 			unsigned int *WHchosen = calloc(*(nsex + x),sizeof(unsigned int));
 			/* Obtaining WH in that deme */
-			sselect_UI(indvs, WHsamp, Itot, 2, 1, 0, 3, x);
+			sselect_UI(indvs, WHsamp, Ntot, 2, 1, 0, 3, x);
 			/* Sampling those to be split */
 			gsl_ran_choose(r,WHchosen,(*(nsex + x)),WHsamp,(*(Nwith + x)),sizeof(unsigned int));
 			gsl_ran_shuffle(r, WHchosen, (*(nsex + x)), sizeof(unsigned int));
@@ -1427,10 +1420,10 @@ void indv_sort(unsigned int **indvs, unsigned int nrow){
 		}
 	}
 	
-	/*	
+	/*
 	printf("Press Enter to Continue");
 	while( getchar() != '\n' );
-	*/
+	*/	
 }
 
 /* Insertion-sort for double-type tables */
@@ -2005,43 +1998,8 @@ char * treemaker(double **TFin, double thetain, double mind, double maxd, unsign
 
 }	/* End of treemaker routine */
 
-/* Error message if mutation overflow */
-void ErrorMut(){
-	fprintf(stderr,"Too many mutations - out of memory.\n");
-	exit(1);
-}
-
-/* Increasing space for mutants if run out of space */
-void moremut(double ***MTin, unsigned int *nrow, unsigned int comp, unsigned int Itot){
-	unsigned int newnr = (*nrow);
-	unsigned int j = 0;
-	
-	while(newnr < comp){
-		newnr = 2*newnr;
-	}
-	printf("New rows is %d\n",newnr);
-	*MTin = (double **)realloc(*MTin, newnr*sizeof(double *));			/* Mutation table */
-	for(j = 0; j < (*nrow); j++){
-		printf("J is %d\n",j);
-		*MTin[j] = (double *)realloc( *((*(MTin + j))) ,(Itot+1)*sizeof(double));
-	}
-	for(j = (*nrow); j < newnr; j++){
-		*MTin[j] = (double *)calloc((Itot + 1),sizeof(double));
-	}
-	
-	for(j = 0; j < (*nrow)/2; j++){
-		for(int k = 0; k < (Itot+1); k++){
-			printf("%lf ", *( *((*(MTin + j)) + k)) );
-		}
-		printf("\n");
-	}
-	printf("\n");
-	
-	*nrow = newnr;
-}
-
 /* Reccal: calculating effective recombination rate over potential sites */
-void reccal(unsigned int **indvs, int **GType, unsigned int **breaks, unsigned int *Nbet, unsigned int *Nwith, unsigned int *rsex, unsigned int esex, unsigned int *lnrec, unsigned int lrec, unsigned int nbreaks, unsigned int sw){
+void reccal(unsigned int **indvs, int **GType, unsigned int **breaks, unsigned int *Nbet, unsigned int *Nwith, unsigned int *rsex, unsigned int esex, unsigned int *lnrec, unsigned int lrec, unsigned int nbreaks, unsigned int NMax, unsigned int sw){
 	unsigned int j, i;
 	unsigned int count = 0;
 	unsigned int vl = 0;
@@ -2079,7 +2037,7 @@ void reccal(unsigned int **indvs, int **GType, unsigned int **breaks, unsigned i
 		}
 	}else if(sw == 1){
 		while(count < vl){
-			for(j = 0; j < Ntot; j++){
+			for(j = 0; j < NMax; j++){
 				if( *((*(GType + j)) + 0) == *(rsex + count)){
 					*(BHi + count) = *((*(GType + j)) + 0);
 					*(BHid + count) = *((*(GType + j)) + 3);
@@ -2104,7 +2062,7 @@ void reccal(unsigned int **indvs, int **GType, unsigned int **breaks, unsigned i
 			is0r = 0;			
 			ridx = 0;
 			/* Determining case to run */
-			for(j = 0; j < Ntot; j++){
+			for(j = 0; j < NMax; j++){
 				if( *((*(GType + j)) + 0) == *(BHi + i) ){
 					ridx = j;
 					if( *((*(GType + j)) + 1) == -1 ){
@@ -2163,21 +2121,12 @@ void reccal(unsigned int **indvs, int **GType, unsigned int **breaks, unsigned i
 int main(int argc, char *argv[]){
 	unsigned int x, i, j;		/* Assignment counter, rep counter, indv counter */
 	unsigned int pST, npST = 0;	/* State of reproduction heterogeneity */	
-	double Ttot = 0;			/* Time in past, initiate at zero */
-	double NextT = 0;			/* Next time, after drawing event */
 	unsigned int Ntot = 0;		/* Total number of samples at time */
 	unsigned int Nindv = 0;		/* Total number of individuals */
 	unsigned int IwithT = 0;	/* Total within individual samples */
 	unsigned int IbetT = 0;		/* Total between individual samples */	
 	unsigned int IwithC = 0;	/* Cumulative Iwith sum */
 	unsigned int IbetC = 0;		/* Cumulative Ibet sum */
-	double tls = 0;				/* 'Time since Last Switch' or tls */
-	double tts = 0;				/* 'Time to switch' */
-	double nosex = 0;			/* Probability of no sexual reproduction over all demes */
-	double psum = 0;			/* Sum of transition probs (first go) */
-	double tjump = 0;			/* Time until next event */
-	double mind = 0;			/* Min tract dist */
-	double maxd = 0;			/* Max tract dist */
 	unsigned int esex = 0;		/* Total sex events (segregation of paired samples) */
 	unsigned int CsexS = 0;		/* Switch once sex samples chosen */
 	unsigned int done = 0;		/* Is simulation complete? */
@@ -2189,6 +2138,26 @@ int main(int argc, char *argv[]){
 	unsigned int count = 0;		/* For creating ancestry table */	
 	unsigned int ts = INITBR;	/* Initial size of tables */
 	unsigned int lrec = 0;		/* Length of non-coalesced genome */
+	unsigned int NMax = 0;		/* Max samples present (for correct table searching!) */
+	unsigned int Iindv = 0;		/* Number of initial individuals */
+	unsigned int Itot = 0;		/* Number of initial samples */	
+	unsigned int Nreps = 0;		/* Number of simulation replicates */	
+	unsigned int pSTIN = 0;		/* Determine type of heterogeneity (0=fluctuating sex, 1=stepwise change, 2 = constant sex) */
+	unsigned int N = 0;			/* Population Size */
+	double pLH = 0;				/* Prob of low-sex to high-sex transition, OR time of transition if stepwise change */
+	double pHL = 0;				/* Prob of high-sex to low-sex transition */
+	double Ttot = 0;			/* Time in past, initiate at zero */
+	double NextT = 0;			/* Next time, after drawing event */	
+	double tls = 0;				/* 'Time since Last Switch' or tls */
+	double tts = 0;				/* 'Time to switch' */
+	double nosex = 0;			/* Probability of no sexual reproduction over all demes */
+	double psum = 0;			/* Sum of transition probs (first go) */
+	double tjump = 0;			/* Time until next event */
+	double mind = 0;			/* Min tract dist */
+	double maxd = 0;			/* Max tract dist */
+	double g = 0;				/* Broad-scale gene conversion */		
+	double theta = 0;			/* Scaled mutation rate, 4Nmu */	
+	double mig = 0;				/* Migration rate between demes */	
 	char Tout[32];				/* String to hold filename in (Trees) */
 	FILE *ofp_tr;				/* Pointer for tree output */
 	
@@ -2196,7 +2165,7 @@ int main(int argc, char *argv[]){
 	const gsl_rng_type * T; 
 	gsl_rng * r;
 	
-	/* Reading in data from command line. */
+	/* Reading in data from command line */
 	/*
 	if(argc != 8){
 		fprintf(stderr,"Invalid number of input values.\n");
@@ -2205,8 +2174,10 @@ int main(int argc, char *argv[]){
 	*/
 	N = atoi(argv[1]);
 	rec = strtod(argv[2],NULL);
+	rec = rec/(2.0*N);		
 	nsites = atoi(argv[3]);
 	g = strtod(argv[4],NULL);
+	g = g/(2.0*N);	
 	theta = strtod(argv[5],NULL);
 	pSTIN = atoi(argv[6]);
 	pLH = strtod(argv[7],NULL);
@@ -2224,14 +2195,14 @@ int main(int argc, char *argv[]){
 		fprintf(stderr,"Population size must be a multiple of deme number.\n");
 		exit(1);
 	}
-	N = N/(d*1.0);	/* Scaling NT to a demetic size, for more consistent use in calculations */
+	N = (unsigned int)(N/(d*1.0));	/* Scaling NT to a demetic size, for more consistent use in calculations */
 	
 	/* Initial Error checking */
 	if(N <= 0){
 		fprintf(stderr,"Total Population size N is zero or negative, not allowed.\n");
 		exit(1);
 	}
-	if(g < 0 || g > 1){
+	if(g < 0){
 		fprintf(stderr,"Rate of gene conversion has to lie between 0 and 1.\n");
 		exit(1);
 	}
@@ -2385,7 +2356,9 @@ int main(int argc, char *argv[]){
 	*/
 	
 	/* Creating necessary directories */
-	/*mkdir("Trees/", 0777);*/
+	if(rec > 0){
+		mkdir("Trees/", 0777);
+	}
 	mkdir("Mutations/", 0777);
 	
 	/* Running the simulation Nreps times */
@@ -2401,6 +2374,7 @@ int main(int argc, char *argv[]){
 		}
 		Ttot = 0;
 		Ntot = Itot;
+		NMax = Itot;		
 		Nindv = Iindv;
 		lrec = nsites;
 	
@@ -2412,7 +2386,7 @@ int main(int argc, char *argv[]){
 		}
 		
 		/* Setting up temporal heterogeneity */
-		rate_change(pST,pLH,pHL,sexH,sexL,0,sexC,sexCInv,&tts,&npST,r);
+		rate_change(N,pST,pLH,pHL,sexH,sexL,0,sexC,sexCInv,&tts,&npST,r);
 		pST = npST;
 		tls = 0;
 		
@@ -2420,12 +2394,12 @@ int main(int argc, char *argv[]){
 		/* ASSIGNING MEMORY FROM SCRATCH HERE, SINCE TABLES WILL BE MODIFIED FOR EACH SIM */
 		
 		unsigned int **indvs = calloc(Itot+ts,sizeof(unsigned int *));		/* Table of individual samples */
-		int **GType = calloc(Itot+ts,sizeof(int *));		/* Table of sample genotypes */
-		double **CTms = calloc(Itot+ts,sizeof(unsigned int *));			/* Coalescent times per sample */
-		int **TAnc = calloc(Itot+ts,sizeof(int *));		/* Table of ancestors for each sample */
-		unsigned int **breaks = calloc(2,sizeof(unsigned int *));		/* Table of breakpoints created in the simulation */
-		double **TFin = calloc((Itot-1),sizeof(unsigned int *));		/* Final ancestry table, for tree reconstruction */
-		for(j = 0; j < Itot; j++){										/* Assigning space for each genome sample */
+		int **GType = calloc(Itot+ts,sizeof(int *));						/* Table of sample genotypes */
+		double **CTms = calloc(Itot+ts,sizeof(unsigned int *));				/* Coalescent times per sample */
+		int **TAnc = calloc(Itot+ts,sizeof(int *));							/* Table of ancestors for each sample */
+		unsigned int **breaks = calloc(2,sizeof(unsigned int *));			/* Table of breakpoints created in the simulation */
+		double **TFin = calloc((Itot-1),sizeof(unsigned int *));			/* Final ancestry table, for tree reconstruction */
+		for(j = 0; j < Itot; j++){											/* Assigning space for each genome sample */
 			indvs[j] = calloc(4,sizeof(unsigned int));
 			GType[j] = calloc(ts+1,sizeof(int));
 			CTms[j] = calloc(ts+1,sizeof(double));
@@ -2447,7 +2421,8 @@ int main(int argc, char *argv[]){
 			*((*(CTms + j)) + 0) = j;
 			*((*(CTms + j)) + 1) = -1;			
 			*((*(TAnc + j)) + 0) = j;
-			/* Entry of "-1" equivalent to NA in old code, i.e. it is not ancestral, reflects extant tracts */
+			/* Entry of "-1" equivalent to NA in old code, 
+			i.e. it is not ancestral, reflects extant tracts */
 			*((*(TAnc + j)) + 1) = (-1);
 		}
 		if(IwithT != 0){
@@ -2515,7 +2490,7 @@ int main(int argc, char *argv[]){
 			if(NextT > (tls + tts)){ 	/* If next event happens after a switch, change rates of sex */
 				tls = (tls + tts);	/* 'Time since Last Switch' or tls	*/
 				Ttot = tls;
-				rate_change(pST,pLH,pHL,sexH,sexL,1,sexC,sexCInv,&tts,&npST,r);
+				rate_change(N,pST,pLH,pHL,sexH,sexL,1,sexC,sexCInv,&tts,&npST,r);
 				pST = npST;
 			}else if (NextT <= (tls + tts)){	/* If next event happens before a switch, draw an action	*/
 				Ttot = NextT;
@@ -2549,9 +2524,9 @@ int main(int argc, char *argv[]){
 					(so can calculate recombination prob accurately) */
 					
 					/* First, choosing samples to split by sex */
-					sexsamp(indvs, rsex, evsex, Nwith, Itot, r);
+					sexsamp(indvs, rsex, evsex, Nwith, Ntot, r);
 					/* (Add reccal code here? Pipe in sex event info?) */
-					reccal(indvs, GType, breaks, Nbet, Nwith, rsex, esex, nlrec2, lrec, nbreaks, 1);
+					reccal(indvs, GType, breaks, Nbet, Nwith, rsex, esex, nlrec2, lrec, nbreaks, NMax, 1);
 					/* Then recalculating probability of events */
 					probset2(N, g, sexC, rec, lrec, nlrec, nlrec2, mig, Nwith, Nbet, evsex, 1, pr);
 				}
@@ -2595,10 +2570,10 @@ int main(int argc, char *argv[]){
 							
 				/* Changing ancestry accordingly */
 				/* MOVED CODE HERE TO AVOID ERRORS WHEN NUMBER OF SAMPLES MISMATCH */
-				coalesce(indvs, GType, CTms, TAnc, Ttot, Nwith, Nbet, Itot, deme, rsex, evsex, event, drec, e2, breaks, nsites, &lrec, nbreaks, r);
+				coalesce(indvs, GType, CTms, TAnc, Ttot, Nwith, Nbet, deme, rsex, evsex, event, drec, e2, breaks, nsites, &lrec, nbreaks, NMax, r);
 				
 				/* Sorting table afterwards to ensure paired samples are together */
-				indv_sort(indvs, Itot);
+				indv_sort(indvs, NMax);
 				/* Based on outcome, altering (non-mig) states accordingly */
 				if(event != 9){		/* Since already done for state = 9 above... */
 					stchange2(event,deme,evsex,WCH,BCH);
@@ -2610,11 +2585,18 @@ int main(int argc, char *argv[]){
 				}
 				if(event == 10){
 					nbreaks++;
+					if(Ntot > NMax){
+						NMax = Ntot;
+						if(NMax > HUGEVAL){
+							fprintf(stderr,"Too many recombinant (exceeds HUGEVAL), exiting program.\n");
+							exit(1);			
+						}
+					}
 				}
 				
 				/* Updating baseline recombinable material depending on number single samples */
 				if(isallUI(*(breaks+1),nbreaks,1,0) == 0){
-					reccal(indvs, GType, breaks, Nbet, Nwith, rsex, esex, nlrec, lrec, nbreaks, 0);
+					reccal(indvs, GType, breaks, Nbet, Nwith, rsex, esex, nlrec, lrec, nbreaks, NMax, 0);
 				}
 				free(rsex);		/* Can be discarded once used to change ancestry */
 				
@@ -2651,7 +2633,7 @@ int main(int argc, char *argv[]){
 			
 			/* Creating ancestry table */
 			count = 0;
-			for(j = 0; j < Itot; j++){
+			for(j = 0; j < NMax; j++){
 				if((*((*(CTms + j)) + x)) != (-1.0)){
 					*((*(TFin + count)) + 0) = *((*(GType + j)) + x);
 					*((*(TFin + count)) + 1) = *((*(CTms + j)) + x);
@@ -2669,7 +2651,7 @@ int main(int argc, char *argv[]){
 				maxd = 1;
 				mind = (*((*(breaks + 0)) + (x-1)))/(1.0*nsites);
 			}
-			char *ret_tree = treemaker(TFin, theta*(maxd-mind), mind, maxd, Itot,i, r);
+			char *ret_tree = treemaker(TFin, theta*(maxd-mind), mind, maxd, Itot, i, r);
 			if(rec == 0){
 				ofp_tr = fopen("Trees.dat","a+");
 				fprintf(ofp_tr,"%s\n",ret_tree);
