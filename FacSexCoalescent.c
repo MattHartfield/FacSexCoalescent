@@ -2645,7 +2645,44 @@ int main(int argc, char *argv[]){
 					}
 				}
 				
+				/* Printout of tabs here */
+				printf("INDV TABLE\n");
+				for(j = 0; j < NMax; j++){
+					for(x = 0; x < 4; x++){
+						printf("%d ",*((*(indvs + j)) + x));
+					}
+					printf("\n");
+				}
+				printf("\n");
 				
+				printf("GTYPE TABLE\n");
+				for(j = 0; j < NMax; j++){
+					for(x = 0; x <= nbreaks; x++){
+						printf("%d ",*((*(GType + j)) + x));
+					}
+					printf("\n");
+				}
+				printf("\n");
+				
+				printf("CTMS TABLE\n");
+				for(j = 0; j < NMax; j++){
+					for(x = 0; x <= nbreaks; x++){
+						printf("%lf ",*((*(CTms + j)) + x));
+					}
+					printf("\n");
+				}
+				printf("\n");
+				
+				printf("TANC TABLE\n");
+				for(j = 0; j < NMax; j++){
+					for(x = 0; x <= nbreaks; x++){
+						printf("%d ",*((*(TAnc + j)) + x));
+					}
+					printf("\n");
+				}
+				printf("\n");
+				
+				Wait();
 				
 				/* Testing if all sites coalesced or not */
 				done = isallUI(*(breaks + 1),nbreaks,1,0);
