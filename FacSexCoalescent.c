@@ -75,6 +75,7 @@ void sexsamp(unsigned int **indvs, unsigned int *rsex, unsigned int *nsex, unsig
 void indv_sort(unsigned int **indvs, unsigned int nrow);
 void indv_sortD(double **Tin, unsigned int nrow, unsigned int ncol, unsigned int tcol);
 void Wait();
+void TestTabs(unsigned int **indvs, int **GType, double **CTms , int **TAnc, unsigned int **breaks, unsigned int NMax, unsigned int nbreaks);
 char * treemaker(double **TFin, double thetain, double mind, double maxd, unsigned int Itot, unsigned int run, const gsl_rng *r);
 void reccal(unsigned int **indvs, int **GType, unsigned int **breaks, unsigned int *Nbet, unsigned int *Nwith, unsigned int *rsex, unsigned int esex, unsigned int *lnrec, unsigned int lrec, unsigned int nbreaks, unsigned int NMax, unsigned int sw);
 
@@ -111,8 +112,8 @@ unsigned int isanyD(double *vin, unsigned int size_t, double match){
 unsigned int isallUI(unsigned int *vin, unsigned int size_t, unsigned int match, unsigned int offset){
 	unsigned int i;
 	unsigned int res = 1;
-	for(i = 0; i < size_t; i++){
-		if(*(vin + i + offset) != match){
+	for(i = offset; i < size_t; i++){
+		if(*(vin + i) != match){
 			res = 0;
 		}
 	}
@@ -123,8 +124,8 @@ unsigned int isallUI(unsigned int *vin, unsigned int size_t, unsigned int match,
 unsigned int isallI(int *vin, unsigned int size_t, int match, unsigned int offset){
 	unsigned int i;
 	unsigned int res = 1;
-	for(i = 0; i < size_t; i++){
-		if(*(vin + i + offset) != match){
+	for(i = offset; i < size_t; i++){
+		if(*(vin + i) != match){
 			res = 0;
 		}
 	}
@@ -355,9 +356,9 @@ int minI(int *vin, unsigned int size_t, unsigned int offset){
 unsigned int first_neI(int *vin, unsigned int size_t, int target, unsigned int offset){
 	int ret = 0;
 	unsigned int i = 0;
-	for(i = 0; i < size_t; i++){
-		if(*(vin + i + offset) != target){
-			ret = (i + offset);
+	for(i = offset; i < size_t; i++){
+		if(*(vin + i) != target){
+			ret = i;
 			break;
 		}
 	}
@@ -368,9 +369,9 @@ unsigned int first_neI(int *vin, unsigned int size_t, int target, unsigned int o
 unsigned int first_neUI(unsigned int *vin, unsigned int size_t, unsigned int target, unsigned int offset){
 	unsigned int ret = 0;
 	unsigned int i = 0;
-	for(i = 0; i < size_t; i++){
-		if(*(vin + i + offset) != target){
-			ret = (i + offset);
+	for(i = offset; i < size_t; i++){
+		if(*(vin + i) != target){
+			ret = i;
 			break;
 		}
 	}
@@ -381,9 +382,9 @@ unsigned int first_neUI(unsigned int *vin, unsigned int size_t, unsigned int tar
 unsigned int last_neI(int *vin, unsigned int size_t, int target, unsigned int offset){
 	int ret = 0;
 	unsigned int i = 0;
-	for(i = 0; i < size_t; i++){
-		if(*(vin + i + offset) != target){
-			ret = (i + offset);
+	for(i = offset; i < size_t; i++){
+		if(*(vin + i) != target){
+			ret = i;
 		}
 	}
 	return ret;
@@ -393,9 +394,9 @@ unsigned int last_neI(int *vin, unsigned int size_t, int target, unsigned int of
 unsigned int last_neUI(unsigned int *vin, unsigned int size_t, unsigned int target, unsigned int offset){
 	unsigned int ret = 0;
 	unsigned int i = 0;
-	for(i = 0; i < size_t; i++){
-		if(*(vin + i + offset) != target){
-			ret = (i + offset);
+	for(i = offset; i < size_t; i++){
+		if(*(vin + i) != target){
+			ret = i;
 		}
 	}
 	return ret;
@@ -846,7 +847,6 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 			while(par == csamp){	/* Ensuring par != csamp */
 				gsl_ran_choose(r,&par,1,singsamps5,(*(Nbet + deme)),sizeof(unsigned int));			/* Other sample involved in coalescence (par) */
 			}
-			printf("Csamp, par are %d %d\n",csamp,par);
 		
 			/* Now updating coalescent times */
 			cchange(indvs, GType, CTms, TAnc, &csamp, &par, 1, Ntot, nbreaks, Ttot);
@@ -1084,6 +1084,8 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 				gsl_ran_choose(r,&rands,1,singsamps10,(*(Nbet + deme) + 2*(*(nsex + deme))),sizeof(unsigned int));
 				rsite = (unsigned int)gsl_ran_flat(r, 1, nsites);
 				
+				printf("Rands, rsite is %d %d\n",rands, rsite);
+				
 				if(*nbreaks == 1){
 					yesrec = 1;
 					isyetbp = 0;
@@ -1106,6 +1108,7 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 					if(maxtr == *nbreaks){
 						isbpend = 1;
 					}
+					printf("STATS: isyetbp %d, isbpend %d, maxtr %d\n",isyetbp, isbpend, maxtr);					
 					
 					/* Next, checking if valid breakpoint depending on location */
 					if( (isbpend == 1) && (isyetbp == 0) ){
@@ -1121,7 +1124,7 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 					else if( (isbpend == 1) && (isyetbp == 1) ){
 						for(j = 0; j < NMax; j++){
 							if( *((*(GType + j)) + 0) == rands){
-								if((*((*(GType + j)) + *nbreaks) != (-1)) && (*((*(breaks + 1)) + *nbreaks) == 0) && (isallI((*(GType + j)), *nbreaks, 0, 1) != 1) ){
+								if((*((*(GType + j)) + *nbreaks) != (-1)) && (*((*(breaks + 1)) + *nbreaks) == 0) && (isallI((*(GType + j)), *nbreaks, -1, 1) != 1) ){
 									yesrec = 1;
 								}
 								break;
@@ -1148,76 +1151,75 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 							}
 						}
 					}					
+				}	
+			}		/* End of BP verification step */		
 				
-				}	/* End of BP verification step */
-				
-				/* Adding new sample to indv table */
-				*((*(indvs + NMax)) + 0) = NMax;
-				*((*(indvs + NMax)) + 1) = Ntot;
-				*((*(indvs + NMax)) + 2) = 1;
-				*((*(indvs + NMax)) + 3) = deme;
-				
-				/* Adding new site and re-ordering tracts in other tables */
-				if(isyetbp != 1){
-					(*nbreaks)++;
-					for(x = *nbreaks-2; x >= (int)(maxtr-1); x--){
-						*((*(breaks + 0)) + x + 1) = *((*(breaks + 0)) + x);
-						*((*(breaks + 1)) + x + 1) = *((*(breaks + 1)) + x);						
-					}
-					*((*(breaks + 0)) + maxtr) = rsite;
-					*((*(breaks + 1)) + maxtr) = 0;
-					/* Adding new site to genotype; coalescent time; ancestry table */
-					for(j = 0; j < NMax; j++){
-						for(x = (*nbreaks-1); x >= (int)(maxtr); x--){
-							*((*(GType + j)) + x + 1) = *((*(GType + j)) + x);
-							*((*(CTms + j)) + x + 1) = *((*(CTms + j)) + x);
-							*((*(TAnc + j)) + x + 1) = *((*(TAnc + j)) + x);
-						}
-					}
-				}else if(isyetbp == 1){
-					maxtr--;
+			/* Adding new sample to indv table */
+			*((*(indvs + NMax)) + 0) = NMax;
+			*((*(indvs + NMax)) + 1) = Ntot;
+			*((*(indvs + NMax)) + 2) = 1;
+			*((*(indvs + NMax)) + 3) = deme;
+			
+			/* Adding new site and re-ordering tracts in other tables */
+			if(isyetbp != 1){
+				(*nbreaks)++;
+				for(x = *nbreaks-2; x >= (int)(maxtr-1); x--){
+					*((*(breaks + 0)) + x + 1) = *((*(breaks + 0)) + x);
+					*((*(breaks + 1)) + x + 1) = *((*(breaks + 1)) + x);						
 				}
-				/* Now creating the new sample genotype; updating all other tables */
-				/* (If it turns out these tables 'align', change code to combine loops?) */
+				*((*(breaks + 0)) + maxtr) = rsite;
+				*((*(breaks + 1)) + maxtr) = 0;
+				/* Adding new site to genotype; coalescent time; ancestry table */
 				for(j = 0; j < NMax; j++){
-					if( *((*(GType + j)) + 0) == rands ){
-						for(x = (*nbreaks); x > (int)maxtr; x--){
-							*((*(GType + NMax)) + x) = *((*(GType + j)) + x);
-							*((*(GType + j)) + x) = (-1);
-						}
-						break;
+					for(x = (*nbreaks-1); x >= (int)(maxtr); x--){
+						*((*(GType + j)) + x + 1) = *((*(GType + j)) + x);
+						*((*(CTms + j)) + x + 1) = *((*(CTms + j)) + x);
+						*((*(TAnc + j)) + x + 1) = *((*(TAnc + j)) + x);
 					}
 				}
-				
-				for(j = 0; j < NMax; j++){
-					if( *((*(CTms + j)) + 0) == rands ){
-						for(x = (*nbreaks); x > (int)maxtr; x--){
-							*((*(CTms + NMax)) + x) = *((*(CTms + j)) + x);
-							*((*(CTms + j)) + x) = (-1);
-						}
-						break;
-					}
-				}
-				
-				for(j = 0; j < NMax; j++){
-					if( *((*(TAnc + j)) + 0) == rands ){
-						for(x = (*nbreaks); x > (int)maxtr; x--){
-							*((*(TAnc + NMax)) + x) = *((*(TAnc + j)) + x);
-							*((*(TAnc + j)) + x) = (-1);
-						}
-						break;
-					}
-				}
-				
-				for(x = maxtr; x > (int)0; x--){
-					*((*(GType + NMax)) + x) = (-1);
-					*((*(CTms + NMax)) + x) = (-1);					
-					*((*(TAnc + NMax)) + x) = (-1);
-				}
-				*((*(GType + NMax)) + 0) = NMax;
-				*((*(CTms + NMax)) + 0) = NMax;
-				*((*(TAnc + NMax)) + 0) = NMax;
+			}else if(isyetbp == 1){
+				maxtr--;
 			}
+			/* Now creating the new sample genotype; updating all other tables */
+			/* (If it turns out these tables 'align', change code to combine loops?) */
+			for(j = 0; j < NMax; j++){
+				if( *((*(GType + j)) + 0) == rands ){
+					for(x = (*nbreaks); x > (int)maxtr; x--){
+						*((*(GType + NMax)) + x) = *((*(GType + j)) + x);
+						*((*(GType + j)) + x) = (-1);
+					}
+					break;
+				}
+			}
+			
+			for(j = 0; j < NMax; j++){
+				if( *((*(CTms + j)) + 0) == rands ){
+					for(x = (*nbreaks); x > (int)maxtr; x--){
+						*((*(CTms + NMax)) + x) = *((*(CTms + j)) + x);
+						*((*(CTms + j)) + x) = (-1);
+					}
+					break;
+				}
+			}
+			
+			for(j = 0; j < NMax; j++){
+				if( *((*(TAnc + j)) + 0) == rands ){
+					for(x = (*nbreaks); x > (int)maxtr; x--){
+						*((*(TAnc + NMax)) + x) = *((*(TAnc + j)) + x);
+						*((*(TAnc + j)) + x) = (-1);
+					}
+					break;
+				}
+			}
+			
+			for(x = maxtr; x > (int)0; x--){
+				*((*(GType + NMax)) + x) = (-1);
+				*((*(CTms + NMax)) + x) = (-1);					
+				*((*(TAnc + NMax)) + x) = (-1);
+			}
+			*((*(GType + NMax)) + 0) = NMax;
+			*((*(CTms + NMax)) + 0) = NMax;
+			*((*(TAnc + NMax)) + 0) = NMax;
 			
 			free(singsamps10);
 			break;			
@@ -1470,6 +1472,60 @@ void indv_sortD(double **Tin, unsigned int nrow, unsigned int ncol, unsigned int
 void Wait(){
 	printf("Press Enter to Continue");
 	while( getchar() != '\n' );
+	printf("\n");	
+}
+
+void TestTabs(unsigned int **indvs, int **GType, double **CTms , int **TAnc, unsigned int **breaks, unsigned int NMax, unsigned int nbreaks){
+
+	unsigned int j, x;
+	
+	printf("INDV TABLE\n");
+	for(j = 0; j < NMax; j++){
+		for(x = 0; x < 4; x++){
+			printf("%d ",*((*(indvs + j)) + x));
+		}
+		printf("\n");
+	}
+	printf("\n");
+				
+	printf("GTYPE TABLE\n");
+	for(j = 0; j < NMax; j++){
+		for(x = 0; x <= nbreaks; x++){
+			printf("%d ",*((*(GType + j)) + x));
+		}
+		printf("\n");
+	}
+	printf("\n");
+				
+	printf("CTMS TABLE\n");
+	for(j = 0; j < NMax; j++){
+		for(x = 0; x <= nbreaks; x++){
+			printf("%lf ",*((*(CTms + j)) + x));
+		}
+		printf("\n");
+	}
+	printf("\n");
+	
+	printf("TANC TABLE\n");
+	for(j = 0; j < NMax; j++){
+		for(x = 0; x <= nbreaks; x++){
+			printf("%d ",*((*(TAnc + j)) + x));
+		}
+		printf("\n");
+	}
+	printf("\n");
+	
+	printf("BREAKS TABLE\n");
+	for(j = 0; j < 2; j++){
+		for(x = 0; x < nbreaks; x++){
+			printf("%d ",*((*(breaks + j)) + x));
+		}
+		printf("\n");
+	}
+	printf("\n");	
+	
+	Wait();
+
 }
 
 /* Function to reconstruct genealogy and to add mutation to branches */
@@ -2077,6 +2133,7 @@ void reccal(unsigned int **indvs, int **GType, unsigned int **breaks, unsigned i
 		*(lnrec + i) = 0;
 	}
 	
+	printf("vl, lrec are %d %d\n",vl,lrec);
 	if(vl > 0 && lrec > 1){
 		for(i = 0; i < vl; i++){
 			mintr = 0;
@@ -2099,11 +2156,13 @@ void reccal(unsigned int **indvs, int **GType, unsigned int **breaks, unsigned i
 					break;
 				}
 			}
-		
+			
+			printf("Sample is %d\n",*(BHi + i));
 			if( is0l == 1 || *((*(breaks + 1)) + 0) == 1 ){
 				mintr = first_neI(*(GType + ridx), nbreaks+1, (-1), 1);
 				mintr--;	/* So concordant with 'breaks' table */
 				minbr = first_neUI(*(breaks + 1), nbreaks, 1, 0);
+				printf("mintr, minbr are %d %d\n",mintr,minbr);
 				if(mintr > minbr){
 					brec = *((*(breaks + 0)) + mintr);
 					crec = coalcalc(breaks, brec, mintr,0);
@@ -2111,10 +2170,12 @@ void reccal(unsigned int **indvs, int **GType, unsigned int **breaks, unsigned i
 					brec = 1;
 					crec = 0;
 				}
+				printf("brec, crec are %d %d\n",brec,crec);
 			}else if( (is0r == 1 || *((*(breaks + 1)) + nbreaks-1) == 1) && (minbr != (nbreaks-1)) ){
 				maxtr = last_neI(*(GType + ridx), nbreaks+1, (-1), 1);
 				maxtr--;	/* So concordant with 'breaks' table */
 				maxbr = last_neUI(*(breaks + 1), nbreaks, 1, 0);
+				printf("maxtr, maxbr are %d %d\n",maxtr,maxbr);
 				if(maxtr < maxbr){
 					/* If non-sampled tract extend into coalesced samples on LHS, 
 					only examine run of zeros after that (prevent double counting) */
@@ -2132,6 +2193,7 @@ void reccal(unsigned int **indvs, int **GType, unsigned int **breaks, unsigned i
 						crec = 0;						
 					}
 				}
+				printf("brec, crec are %d %d\n",brec,crec);
 			}
 			*(lnrec + (*(BHid + i))) += (brec-crec);
 		}
@@ -2481,6 +2543,8 @@ int main(int argc, char *argv[]){
 		
 		done = 0;
 		while(done != 1){
+		
+			/* Printout of tabs here */
 			
 			/* Setting up vector of state-change probabilities *without sex* */
 			probset2(N, g, sexC, rec, lrec, nlrec, zeros, mig, Nwith, Nbet, zeros, 0, pr);
@@ -2609,12 +2673,13 @@ int main(int argc, char *argv[]){
 					*(Nsamps + 1) = *(Nbet + deme);
 				}
 				if(event == 10){
-					if(Ntot > NMax){
-						NMax = Ntot;
-						if(NMax > HUGEVAL){
-							fprintf(stderr,"Too many recombinants (exceeds HUGEVAL), exiting program.\n");
-							exit(1);			
-						}
+					NMax++;
+					if(NMax > HUGEVAL){
+						fprintf(stderr,"Too many recombinants (exceeds HUGEVAL), exiting program.\n");
+						exit(1);			
+					}
+					if(i > 0){
+						TestTabs(indvs, GType, CTms, TAnc, breaks, NMax, nbreaks);
 					}
 				}
 				
@@ -2644,45 +2709,6 @@ int main(int argc, char *argv[]){
 						TAnc[j] = (int *)calloc((ts + 1),sizeof(int));												
 					}
 				}
-				
-				/* Printout of tabs here */
-				printf("INDV TABLE\n");
-				for(j = 0; j < NMax; j++){
-					for(x = 0; x < 4; x++){
-						printf("%d ",*((*(indvs + j)) + x));
-					}
-					printf("\n");
-				}
-				printf("\n");
-				
-				printf("GTYPE TABLE\n");
-				for(j = 0; j < NMax; j++){
-					for(x = 0; x <= nbreaks; x++){
-						printf("%d ",*((*(GType + j)) + x));
-					}
-					printf("\n");
-				}
-				printf("\n");
-				
-				printf("CTMS TABLE\n");
-				for(j = 0; j < NMax; j++){
-					for(x = 0; x <= nbreaks; x++){
-						printf("%lf ",*((*(CTms + j)) + x));
-					}
-					printf("\n");
-				}
-				printf("\n");
-				
-				printf("TANC TABLE\n");
-				for(j = 0; j < NMax; j++){
-					for(x = 0; x <= nbreaks; x++){
-						printf("%d ",*((*(TAnc + j)) + x));
-					}
-					printf("\n");
-				}
-				printf("\n");
-				
-				Wait();
 				
 				/* Testing if all sites coalesced or not */
 				done = isallUI(*(breaks + 1),nbreaks,1,0);
