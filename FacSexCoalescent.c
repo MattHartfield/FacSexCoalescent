@@ -1524,7 +1524,7 @@ void TestTabs(unsigned int **indvs, int **GType, double **CTms , int **TAnc, uns
 	}
 	printf("\n");	
 	
-	Wait();
+/*	Wait();*/
 
 }
 
@@ -2109,19 +2109,18 @@ void reccal(unsigned int **indvs, int **GType, unsigned int **breaks, unsigned i
 		while(count < vl){
 			for(j = 0; j < Ntot; j++){
 				if( *((*(indvs + j)) + 2) == 1){
-					*(BHi + count) = *((*(GType + j)) + 0);
-					*(BHid + count) = *((*(GType + j)) + 3);
+					*(BHi + count) = *((*(indvs + j)) + 0);
+					*(BHid + count) = *((*(indvs + j)) + 3);
 					count++;
-					break;
 				}
 			}
 		}
 	}else if(sw == 1){
 		while(count < vl){
-			for(j = 0; j < NMax; j++){
-				if( *((*(GType + j)) + 0) == *(rsex + count)){
-					*(BHi + count) = *((*(GType + j)) + 0);
-					*(BHid + count) = *((*(GType + j)) + 3);
+			for(j = 0; j < Ntot; j++){
+				if( *((*(indvs + j)) + 1) == *(rsex + count)){
+					*(BHi + count) = *((*(indvs + j)) + 0);
+					*(BHid + count) = *((*(indvs + j)) + 3);
 					count++;
 					break;
 				}
@@ -2143,6 +2142,8 @@ void reccal(unsigned int **indvs, int **GType, unsigned int **breaks, unsigned i
 			is0l = 0;
 			is0r = 0;			
 			ridx = 0;
+			brec = 0;
+			crec = 0;
 			/* Determining case to run */
 			for(j = 0; j < NMax; j++){
 				if( *((*(GType + j)) + 0) == *(BHi + i) ){
@@ -2196,6 +2197,7 @@ void reccal(unsigned int **indvs, int **GType, unsigned int **breaks, unsigned i
 				printf("brec, crec are %d %d\n",brec,crec);
 			}
 			*(lnrec + (*(BHid + i))) += (brec-crec);
+			printf("lnrec is %d\n",*(lnrec + (0)));
 		}
 	}
 	
@@ -2678,9 +2680,6 @@ int main(int argc, char *argv[]){
 						fprintf(stderr,"Too many recombinants (exceeds HUGEVAL), exiting program.\n");
 						exit(1);			
 					}
-					if(i > 0){
-						TestTabs(indvs, GType, CTms, TAnc, breaks, NMax, nbreaks);
-					}
 				}
 				
 				/* Sorting table afterwards to ensure paired samples are together */
@@ -2689,6 +2688,7 @@ int main(int argc, char *argv[]){
 				/* Updating baseline recombinable material depending on number single samples */
 				if(isallUI(*(breaks+1),nbreaks,1,0) == 0){
 					reccal(indvs, GType, breaks, Nbet, Nwith, rsex, esex, nlrec, lrec, nbreaks, NMax, 0);
+					TestTabs(indvs, GType, CTms, TAnc, breaks, NMax, nbreaks);
 				}
 				free(rsex);		/* Can be discarded once used to change ancestry */
 				
