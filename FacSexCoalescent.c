@@ -847,6 +847,7 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 			while(par == csamp){	/* Ensuring par != csamp */
 				gsl_ran_choose(r,&par,1,singsamps5,(*(Nbet + deme)),sizeof(unsigned int));			/* Other sample involved in coalescence (par) */
 			}
+			printf("Csamp, par is %d %d\n",csamp,par);
 		
 			/* Now updating coalescent times */
 			cchange(indvs, GType, CTms, TAnc, &csamp, &par, 1, Ntot, nbreaks, Ttot);
@@ -1134,7 +1135,8 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 					else if( (isbpend == 0) && (isyetbp == 0) ){
 						for(j = 0; j < NMax; j++){
 							if( *((*(GType + j)) + 0) == rands){
-								if( (isallI((*(GType + j)), (maxtr+1), (-1), 1) != 1) && (isallI((*(GType + j)), (*nbreaks+1), (-1), (maxtr)) != 1) && (isallUI((*(breaks + 1)), maxtr, 1, 0) != 1) ){
+								/*if( (isallI((*(GType + j)), (maxtr+1), (-1), 1) != 1) && (isallI((*(GType + j)), (*nbreaks+1), (-1), (maxtr)) != 1) && (isallUI((*(breaks + 1)), maxtr, 1, 0) != 1) ){*/
+								if( (isallI((*(GType + j)), (maxtr+1), (-1), 1) != 1) && (isallUI((*(breaks + 1)), maxtr, 1, 0) != 1) ){
 									yesrec = 1;
 								}
 								break;
@@ -1144,7 +1146,8 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 					else if( (isbpend == 0) && (isyetbp == 1) ){
 						for(j = 0; j < NMax; j++){
 							if( *((*(GType + j)) + 0) == rands){
-								if(isallI((*(GType + j)), (maxtr+1), (-1), 1) != 1 && isallI((*(GType + j)), (*nbreaks+1), (-1), (maxtr+1)) && (isallUI((*(breaks + 1)), maxtr, 1, 0) != 1) && (isallUI((*(breaks + 1)), *nbreaks, 1, (maxtr+1)) != 1) ){
+								printf("C1 %d C2 %d C3 %d C4 %d\n",isallI((*(GType + j)), (maxtr+1), (-1), 1),isallI((*(GType + j)), (*nbreaks+1), (-1), (maxtr+1)),isallUI((*(breaks + 1)), maxtr, 1, 0),isallUI((*(breaks + 1)), *nbreaks, 1, maxtr));
+								if(isallI((*(GType + j)), (maxtr+1), (-1), 1) != 1 && isallI((*(GType + j)), (*nbreaks+1), (-1), (maxtr+1)) != 1 && (isallUI((*(breaks + 1)), maxtr, 1, 0) != 1) && (isallUI((*(breaks + 1)), *nbreaks, 1, maxtr) != 1) ){
 									yesrec = 1;
 								}
 								break;
@@ -1524,7 +1527,7 @@ void TestTabs(unsigned int **indvs, int **GType, double **CTms , int **TAnc, uns
 	}
 	printf("\n");	
 	
-/*	Wait();*/
+	Wait();
 
 }
 
@@ -2098,7 +2101,7 @@ void reccal(unsigned int **indvs, int **GType, unsigned int **breaks, unsigned i
 	if(sw == 0){
 		vl = sumUI(Nbet,d);
 	}else if(sw == 1){
-		vl = esex;
+		vl = 2*esex;
 	}
 	unsigned int *BHi = calloc(vl,sizeof(unsigned int));
 	unsigned int *BHid = calloc(vl,sizeof(unsigned int));
@@ -2121,7 +2124,13 @@ void reccal(unsigned int **indvs, int **GType, unsigned int **breaks, unsigned i
 				if( *((*(indvs + j)) + 1) == *(rsex + count)){
 					*(BHi + count) = *((*(indvs + j)) + 0);
 					*(BHid + count) = *((*(indvs + j)) + 3);
+					*(BHi + count + 1) = *((*(indvs + j + 1)) + 0);
+					*(BHid + count + 1) = *((*(indvs + j + 1)) + 3);
+					printf("\n");
+					printf("%d %d\n",*(BHi + count),*(BHi + count+1));
+					printf("\n");					
 					count++;
+					count++;					
 					break;
 				}
 			}
@@ -2172,7 +2181,10 @@ void reccal(unsigned int **indvs, int **GType, unsigned int **breaks, unsigned i
 					crec = 0;
 				}
 				printf("brec, crec are %d %d\n",brec,crec);
-			}else if( (is0r == 1 || *((*(breaks + 1)) + nbreaks-1) == 1) && (minbr != (nbreaks-1)) ){
+				*(lnrec + (*(BHid + i))) += (brec-crec);
+			}
+			
+			if( (is0r == 1 || *((*(breaks + 1)) + nbreaks-1) == 1) && (minbr != (nbreaks-1)) ){
 				maxtr = last_neI(*(GType + ridx), nbreaks+1, (-1), 1);
 				maxtr--;	/* So concordant with 'breaks' table */
 				maxbr = last_neUI(*(breaks + 1), nbreaks, 1, 0);
@@ -2195,8 +2207,8 @@ void reccal(unsigned int **indvs, int **GType, unsigned int **breaks, unsigned i
 					}
 				}
 				printf("brec, crec are %d %d\n",brec,crec);
+				*(lnrec + (*(BHid + i))) += (brec-crec);
 			}
-			*(lnrec + (*(BHid + i))) += (brec-crec);
 			printf("lnrec is %d\n",*(lnrec + (0)));
 		}
 	}
@@ -2225,7 +2237,8 @@ int main(int argc, char *argv[]){
 	unsigned int drec = 0;		/* Receiving deme for migration event */
 	unsigned int e2 = 0;		/* Outcome of mig sampling, type of deme that migrates */
 	unsigned int count = 0;		/* For creating ancestry table */	
-	unsigned int ts = INITBR;	/* Initial size of tables */
+	unsigned int exr = INITBR;	/* Extra rows */
+	unsigned int exc = INITBR;	/* Extra columns */
 	unsigned int lrec = 0;		/* Length of non-coalesced genome */
 	unsigned int NMax = 0;		/* Max samples present (for correct table searching!) */
 	unsigned int Iindv = 0;		/* Number of initial individuals */
@@ -2467,6 +2480,8 @@ int main(int argc, char *argv[]){
 		NMax = Itot;		
 		Nindv = Iindv;
 		lrec = nsites;
+		exr = INITBR;
+	    exc = INITBR;
 	
 		for(x = 0; x < d; x++){
 			*(Nwith + x) = *(Iwith + x);	/* Resetting number of within-host samples */
@@ -2483,23 +2498,23 @@ int main(int argc, char *argv[]){
 		/* Setting up summary table of individual samples */
 		/* ASSIGNING MEMORY FROM SCRATCH HERE, SINCE TABLES WILL BE MODIFIED FOR EACH SIM */
 		
-		unsigned int **indvs = calloc(Itot+ts,sizeof(unsigned int *));		/* Table of individual samples */
-		int **GType = calloc(Itot+ts,sizeof(int *));						/* Table of sample genotypes */
-		double **CTms = calloc(Itot+ts,sizeof(double *));					/* Coalescent times per sample */
-		int **TAnc = calloc(Itot+ts,sizeof(int *));							/* Table of ancestors for each sample */
+		unsigned int **indvs = calloc(Itot+exr,sizeof(unsigned int *));		/* Table of individual samples */
+		int **GType = calloc(Itot+exr,sizeof(int *));						/* Table of sample genotypes */
+		double **CTms = calloc(Itot+exr,sizeof(double *));					/* Coalescent times per sample */
+		int **TAnc = calloc(Itot+exr,sizeof(int *));							/* Table of ancestors for each sample */
 		unsigned int **breaks = calloc(2,sizeof(unsigned int *));			/* Table of breakpoints created in the simulation */
 		double **TFin = calloc((Itot-1),sizeof(double *));					/* Final ancestry table, for tree reconstruction */
-		for(j = 0; j < (Itot+ts); j++){										/* Assigning space for each genome sample */
+		for(j = 0; j < (Itot+exr); j++){										/* Assigning space for each genome sample */
 			indvs[j] = calloc(4,sizeof(unsigned int));
-			GType[j] = calloc(ts+1,sizeof(int));
-			CTms[j] = calloc(ts+1,sizeof(double));
-			TAnc[j] = calloc(ts+1,sizeof(int));
+			GType[j] = calloc(exc+1,sizeof(int));
+			CTms[j] = calloc(exc+1,sizeof(double));
+			TAnc[j] = calloc(exc+1,sizeof(int));
 			if(j < (Itot - 1)){
 				TFin[j] = calloc(3,sizeof(double));
 			}
 		}
-		breaks[0] = calloc(ts,sizeof(unsigned int));
-		breaks[1] = calloc(ts,sizeof(unsigned int));
+		breaks[0] = calloc(exc,sizeof(unsigned int));
+		breaks[1] = calloc(exc,sizeof(unsigned int));
 		nbreaks = 1;
 		
 		IwithC = 0;
@@ -2693,21 +2708,38 @@ int main(int argc, char *argv[]){
 				free(rsex);		/* Can be discarded once used to change ancestry */
 				
 				/* Checking if need to expand tables */
-				if(nbreaks == ts){
-					ts += INITBR;
-					GType = (int **)realloc(GType, (Itot+ts)*sizeof(int *));
-					CTms = (double **)realloc(GType, (Itot+ts)*sizeof(double *));
-					TAnc = (int **)realloc(GType, (Itot+ts)*sizeof(int *));												
-					for(j = 0; j < (Itot+ts-INITBR); j++){
-						GType[j] = (int *)realloc( *(GType + j) ,(ts + 1)*sizeof(int));
-						CTms[j] = (double *)realloc( *(CTms + j) ,(ts + 1)*sizeof(double));
-						TAnc[j] = (int *)realloc( *(TAnc + j) ,(ts + 1)*sizeof(int));
+
+				printf("NMax is %d, limit is %d\n",NMax,(exr+Itot-1));
+				if(NMax == (exr+Itot-1)){
+					exr += INITBR;
+					indvs = (unsigned int **)realloc(indvs,(Itot+exr)*sizeof(unsigned int *));
+					GType = (int **)realloc(GType, (Itot+exr)*sizeof(int *));
+					CTms = (double **)realloc(CTms, (Itot+exr)*sizeof(double *));
+					TAnc = (int **)realloc(TAnc, (Itot+exr)*sizeof(int *));												
+					for(j = 0; j < (Itot+exr-INITBR); j++){
+						indvs[j] = (unsigned int *)realloc(*(indvs + j),4*sizeof(unsigned int));					
+						GType[j] = (int *)realloc( *(GType + j) ,(exc + 1)*sizeof(int));
+						CTms[j] = (double *)realloc( *(CTms + j) ,(exc + 1)*sizeof(double));
+						TAnc[j] = (int *)realloc( *(TAnc + j) ,(exc + 1)*sizeof(int));
 					}
-					for(j = (Itot+ts-INITBR); j < (Itot+ts); j++){
-						GType[j] = (int *)calloc((ts + 1),sizeof(int));
-						CTms[j] = (double *)calloc((ts + 1),sizeof(double));
-						TAnc[j] = (int *)calloc((ts + 1),sizeof(int));												
+					for(j = (Itot+exr-INITBR); j < (Itot+exr); j++){
+						indvs[j] = (unsigned int *)calloc(4,sizeof(unsigned int));					
+						GType[j] = (int *)calloc((exc + 1),sizeof(int));
+						CTms[j] = (double *)calloc((exc + 1),sizeof(double));
+						TAnc[j] = (int *)calloc((exc + 1),sizeof(int));												
 					}
+					printf("Row alloc successful\n");
+				}
+				
+				if(nbreaks == exc){
+					exc += INITBR;
+					for(j = 0; j < (Itot+exr); j++){
+						GType[j] = (int *)realloc( *(GType + j) ,(exc + 1)*sizeof(int));
+						CTms[j] = (double *)realloc( *(CTms + j) ,(exc + 1)*sizeof(double));
+						TAnc[j] = (int *)realloc( *(TAnc + j) ,(exc + 1)*sizeof(int));
+					}
+					breaks[0] = (unsigned int *)realloc(*(breaks + 0),exc*sizeof(unsigned int));
+					breaks[1] = (unsigned int *)realloc(*(breaks + 1),exc*sizeof(unsigned int));\
 				}
 				
 				/* Testing if all sites coalesced or not */
@@ -2761,7 +2793,7 @@ int main(int argc, char *argv[]){
 		/* Freeing memory at end of particular run */
 		free(breaks[1]);
 		free(breaks[0]);
-		for(j = 0; j < (Itot + ts); j++){
+		for(j = 0; j < (Itot + exr); j++){
 			if(j < (Itot - 1)){
 				free(TFin[j]);
 			}
