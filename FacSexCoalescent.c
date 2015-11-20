@@ -1136,7 +1136,7 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 						for(j = 0; j < NMax; j++){
 							if( *((*(GType + j)) + 0) == rands){
 								/*if( (isallI((*(GType + j)), (maxtr+1), (-1), 1) != 1) && (isallI((*(GType + j)), (*nbreaks+1), (-1), (maxtr)) != 1) && (isallUI((*(breaks + 1)), maxtr, 1, 0) != 1) ){*/
-								if( (isallI((*(GType + j)), (maxtr+1), (-1), 1) != 1) && (isallUI((*(breaks + 1)), maxtr, 1, 0) != 1) ){
+								if( (isallI((*(GType + j)), maxtr, (-1), 1) != 1) && (isallUI((*(breaks + 1)), maxtr, 1, 0) != 1) ){
 									yesrec = 1;
 								}
 								break;
@@ -1147,7 +1147,7 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 						for(j = 0; j < NMax; j++){
 							if( *((*(GType + j)) + 0) == rands){
 								printf("C1 %d C2 %d C3 %d C4 %d\n",isallI((*(GType + j)), (maxtr+1), (-1), 1),isallI((*(GType + j)), (*nbreaks+1), (-1), (maxtr+1)),isallUI((*(breaks + 1)), maxtr, 1, 0),isallUI((*(breaks + 1)), *nbreaks, 1, maxtr));
-								if(isallI((*(GType + j)), (maxtr+1), (-1), 1) != 1 && isallI((*(GType + j)), (*nbreaks+1), (-1), (maxtr+1)) != 1 && (isallUI((*(breaks + 1)), maxtr, 1, 0) != 1) && (isallUI((*(breaks + 1)), *nbreaks, 1, maxtr) != 1) ){
+								if(isallI((*(GType + j)), maxtr, (-1), 1) != 1 && isallI((*(GType + j)), (*nbreaks+1), (-1), maxtr) != 1 && (isallUI((*(breaks + 1)), maxtr, 1, 0) != 1) && (isallUI((*(breaks + 1)), *nbreaks, 1, maxtr) != 1) ){
 									yesrec = 1;
 								}
 								break;
@@ -1527,7 +1527,9 @@ void TestTabs(unsigned int **indvs, int **GType, double **CTms , int **TAnc, uns
 	}
 	printf("\n");	
 	
+	/*
 	Wait();
+	*/
 
 }
 
@@ -2086,6 +2088,7 @@ char * treemaker(double **TFin, double thetain, double mind, double maxd, unsign
 void reccal(unsigned int **indvs, int **GType, unsigned int **breaks, unsigned int *Nbet, unsigned int *Nwith, unsigned int *rsex, unsigned int esex, unsigned int *lnrec, unsigned int lrec, unsigned int nbreaks, unsigned int NMax, unsigned int sw){
 	unsigned int j, i;
 	unsigned int count = 0;
+	unsigned int count2 = 0;	
 	unsigned int vl = 0;
 	unsigned int mintr = 0;
 	unsigned int minbr = 0;
@@ -2108,6 +2111,7 @@ void reccal(unsigned int **indvs, int **GType, unsigned int **breaks, unsigned i
 	
 	/* Vector of samples */
 	count = 0;
+	count2 = 0;
 	if(sw == 0){
 		while(count < vl){
 			for(j = 0; j < Ntot; j++){
@@ -2121,7 +2125,7 @@ void reccal(unsigned int **indvs, int **GType, unsigned int **breaks, unsigned i
 	}else if(sw == 1){
 		while(count < vl){
 			for(j = 0; j < Ntot; j++){
-				if( *((*(indvs + j)) + 1) == *(rsex + count)){
+				if( *((*(indvs + j)) + 1) == *(rsex + count2)){
 					*(BHi + count) = *((*(indvs + j)) + 0);
 					*(BHid + count) = *((*(indvs + j)) + 3);
 					*(BHi + count + 1) = *((*(indvs + j + 1)) + 0);
@@ -2130,7 +2134,8 @@ void reccal(unsigned int **indvs, int **GType, unsigned int **breaks, unsigned i
 					printf("%d %d\n",*(BHi + count),*(BHi + count+1));
 					printf("\n");					
 					count++;
-					count++;					
+					count++;
+					count2++;					
 					break;
 				}
 			}
@@ -2168,7 +2173,7 @@ void reccal(unsigned int **indvs, int **GType, unsigned int **breaks, unsigned i
 			}
 			
 			printf("Sample is %d\n",*(BHi + i));
-			if( is0l == 1 || *((*(breaks + 1)) + 0) == 1 ){
+			if( is0l == 1 || *((*(breaks + 1)) + 0) == 1 ){			
 				mintr = first_neI(*(GType + ridx), nbreaks+1, (-1), 1);
 				mintr--;	/* So concordant with 'breaks' table */
 				minbr = first_neUI(*(breaks + 1), nbreaks, 1, 0);
@@ -2637,6 +2642,7 @@ int main(int argc, char *argv[]){
 					/* Then recalculating probability of events */
 					probset2(N, g, sexC, rec, lrec, nlrec, nlrec2, mig, Nwith, Nbet, evsex, 1, pr);
 				}
+				TestTabs(indvs, GType, CTms, TAnc, breaks, NMax, nbreaks);
 				if(isanylessD_2D(pr,11,d,0) == 1){
 					fprintf(stderr,"A negative probability exists, you need to double-check your algebra (or probability inputs).\n");
 					exit(1);				
@@ -2699,11 +2705,9 @@ int main(int argc, char *argv[]){
 				
 				/* Sorting table afterwards to ensure paired samples are together */
 				indv_sort(indvs, NMax);
-				
 				/* Updating baseline recombinable material depending on number single samples */
 				if(isallUI(*(breaks+1),nbreaks,1,0) == 0){
 					reccal(indvs, GType, breaks, Nbet, Nwith, rsex, esex, nlrec, lrec, nbreaks, NMax, 0);
-					TestTabs(indvs, GType, CTms, TAnc, breaks, NMax, nbreaks);
 				}
 				free(rsex);		/* Can be discarded once used to change ancestry */
 				
