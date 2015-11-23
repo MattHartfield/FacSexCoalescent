@@ -847,7 +847,7 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 			while(par == csamp){	/* Ensuring par != csamp */
 				gsl_ran_choose(r,&par,1,singsamps5,(*(Nbet + deme)),sizeof(unsigned int));			/* Other sample involved in coalescence (par) */
 			}
-			printf("Csamp, par is %d %d\n",csamp,par);
+			/*printf("Csamp, par is %d %d\n",csamp,par);*/
 		
 			/* Now updating coalescent times */
 			cchange(indvs, GType, CTms, TAnc, &csamp, &par, 1, Ntot, nbreaks, Ttot);
@@ -1085,7 +1085,7 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 				gsl_ran_choose(r,&rands,1,singsamps10,(*(Nbet + deme) + 2*(*(nsex + deme))),sizeof(unsigned int));
 				rsite = (unsigned int)gsl_ran_flat(r, 1, nsites);
 				
-				printf("Rands, rsite is %d %d\n",rands, rsite);
+/*				printf("Rands, rsite is %d %d\n",rands, rsite);*/
 				
 				if(*nbreaks == 1){
 					yesrec = 1;
@@ -1109,7 +1109,7 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 					if(maxtr == *nbreaks){
 						isbpend = 1;
 					}
-					printf("STATS: isyetbp %d, isbpend %d, maxtr %d\n",isyetbp, isbpend, maxtr);					
+/*					printf("STATS: isyetbp %d, isbpend %d, maxtr %d\n",isyetbp, isbpend, maxtr);					*/
 					
 					/* Next, checking if valid breakpoint depending on location */
 					if( (isbpend == 1) && (isyetbp == 0) ){
@@ -1137,7 +1137,7 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 							if( *((*(GType + j)) + 0) == rands){
 								/* if( (isallI((*(GType + j)), (maxtr+1), (-1), 1) != 1) && (isallI((*(GType + j)), (*nbreaks+1), (-1), (maxtr)) != 1) && (isallUI((*(breaks + 1)), maxtr, 1, 0) != 1) ){ */
 								/* if( (isallI((*(GType + j)), maxtr+1, (-1), 1) != 1) && (isallUI((*(breaks + 1)), maxtr, 1, 0) != 1) ){ */
-								printf("Ca1 %d Ca2 %d\n",*((*(GType + j)) + maxtr),*((*(breaks + 1)) + (maxtr-1)));
+								/* printf("Ca1 %d Ca2 %d\n",*((*(GType + j)) + maxtr),*((*(breaks + 1)) + (maxtr-1))); */
 								if( (*((*(GType + j)) + maxtr) != (-1)) && (*((*(breaks + 1)) + (maxtr-1)) != 1) ){
 									yesrec = 1;
 								}
@@ -1148,7 +1148,7 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 					else if( (isbpend == 0) && (isyetbp == 1) ){
 						for(j = 0; j < NMax; j++){
 							if( *((*(GType + j)) + 0) == rands){
-								printf("C1 %d C2 %d C3 %d C4 %d\n",isallI((*(GType + j)), maxtr, (-1), 1),isallI((*(GType + j)), (*nbreaks+1), (-1), (maxtr+1)),isallUI((*(breaks + 1)), maxtr, 1, 0),isallUI((*(breaks + 1)), *nbreaks, 1, maxtr));
+								/* printf("C1 %d C2 %d C3 %d C4 %d\n",isallI((*(GType + j)), maxtr, (-1), 1),isallI((*(GType + j)), (*nbreaks+1), (-1), (maxtr+1)),isallUI((*(breaks + 1)), maxtr, 1, 0),isallUI((*(breaks + 1)), *nbreaks, 1, maxtr));*/
 								if(isallI((*(GType + j)), maxtr, (-1), 1) != 1 && isallI((*(GType + j)), (*nbreaks+1), (-1), maxtr) != 1 && (isallUI((*(breaks + 1)), maxtr-1, 1, 0) != 1) && (isallUI((*(breaks + 1)), *nbreaks, 1, maxtr-1) != 1) ){
 									yesrec = 1;
 								}
@@ -1673,6 +1673,7 @@ char * treemaker(double **TFin, double thetain, double mind, double maxd, unsign
 			}
 			
     	}else if(i > 0){
+   			
     		/* There can be three cases: Merge clades if child already listed; 
     		Add to clade if child new but parent already listed; 
     		Create new clade otherwise.
@@ -1699,6 +1700,10 @@ char * treemaker(double **TFin, double thetain, double mind, double maxd, unsign
     				}
     			}
 	    	}
+	    	
+	    	printf("Parent, Child are %d %d\n",parent1,child1);
+	    	
+	    	printf("CC, PC are %d %d: csum is therefore %d\n",cc,pc,csum);
 	    	
 	    	if(csum==0){	/* Create a new clade */
     			nc++;
@@ -2036,8 +2041,11 @@ char * treemaker(double **TFin, double thetain, double mind, double maxd, unsign
     			nc--;
     			
     		}
+   			
     	}
 	}
+	
+	printf("Actual treemaking done\n");
 	
 	/* Printing out Mutations to file */
 	indv_sortD(MTab,nmut,(Itot+1),0);
@@ -2143,7 +2151,7 @@ void reccal(unsigned int **indvs, int **GType, unsigned int **breaks, unsigned i
 		*(lnrec + i) = 0;
 	}
 	
-	printf("vl, lrec are %d %d\n",vl,lrec);
+/*	printf("vl, lrec are %d %d\n",vl,lrec);*/
 	if(vl > 0 && lrec > 1){
 		for(i = 0; i < vl; i++){
 			mintr = 0;
@@ -2169,12 +2177,12 @@ void reccal(unsigned int **indvs, int **GType, unsigned int **breaks, unsigned i
 				}
 			}
 			
-			printf("Sample is %d\n",*(BHi + i));
+			/*printf("Sample is %d\n",*(BHi + i));*/
 			if( is0l == 1 || *((*(breaks + 1)) + 0) == 1 ){
 				mintr = first_neI(*(GType + ridx), nbreaks+1, (-1), 1);
 				mintr--;	/* So concordant with 'breaks' table */
 				minbr = first_neUI(*(breaks + 1), nbreaks, 1, 0);
-				printf("mintr, minbr are %d %d\n",mintr,minbr);
+/*				printf("mintr, minbr are %d %d\n",mintr,minbr);*/
 				if(mintr > minbr){
 					brec = *((*(breaks + 0)) + mintr);
 					crec = coalcalc(breaks, brec, mintr,0);
@@ -2186,7 +2194,7 @@ void reccal(unsigned int **indvs, int **GType, unsigned int **breaks, unsigned i
 					brec = 1;
 					crec = 0;
 				}
-				printf("brec, crec are %d %d\n",brec,crec);
+/*				printf("brec, crec are %d %d\n",brec,crec);*/
 				*(lnrec + (*(BHid + i))) += (brec-crec);
 			}
 			
@@ -2194,7 +2202,7 @@ void reccal(unsigned int **indvs, int **GType, unsigned int **breaks, unsigned i
 				maxtr = last_neI(*(GType + ridx), nbreaks+1, (-1), 1);
 				maxtr--;	/* So concordant with 'breaks' table */
 				maxbr = last_neUI(*(breaks + 1), nbreaks, 1, 0);
-				printf("maxtr, maxbr are %d %d\n",maxtr,maxbr);
+/*				printf("maxtr, maxbr are %d %d\n",maxtr,maxbr);*/
 				if(maxtr < maxbr){
 					/* If non-sampled tract extend into coalesced samples on LHS, 
 					only examine run of zeros after that (prevent double counting) */
@@ -2216,13 +2224,13 @@ void reccal(unsigned int **indvs, int **GType, unsigned int **breaks, unsigned i
 						crec = 0;						
 					}
 				}
-				printf("brec, crec are %d %d\n",brec,crec);
+/*				printf("brec, crec are %d %d\n",brec,crec);*/
 				*(lnrec + (*(BHid + i))) += (brec-crec);
 			}
 		}
 	}
 	
-	printf("lnrec is %d\n",*(lnrec + (0)));
+/*	printf("lnrec is %d\n",*(lnrec + (0)));*/
 	
 	free(BHid);
 	free(BHi);
@@ -2666,7 +2674,7 @@ int main(int argc, char *argv[]){
 				event = matchUI(draw,11,1);
 				gsl_ran_multinomial(r,d,1,(*(pr + event)),draw2);
 				deme = matchUI(draw2,d,1);
-				printf("Event is %d\n",event);
+				/*printf("Event is %d\n",event);*/
 
 				if(event == 9){		/* Choosing demes to swap NOW if there is a migration */
 					stchange2(event,deme,evsex,WCH,BCH);
@@ -2722,7 +2730,6 @@ int main(int argc, char *argv[]){
 				
 				/* Checking if need to expand tables */
 
-				printf("NMax is %d, limit is %d\n",NMax,(exr+Itot-1));
 				if(NMax == (exr+Itot-1)){
 					exr += INITBR;
 					indvs = (unsigned int **)realloc(indvs,(Itot+exr)*sizeof(unsigned int *));
@@ -2741,7 +2748,6 @@ int main(int argc, char *argv[]){
 						CTms[j] = (double *)calloc((exc + 1),sizeof(double));
 						TAnc[j] = (int *)calloc((exc + 1),sizeof(int));												
 					}
-					printf("Row alloc successful\n");
 				}
 				
 				if(nbreaks == exc){
@@ -2754,10 +2760,11 @@ int main(int argc, char *argv[]){
 					breaks[0] = (unsigned int *)realloc(*(breaks + 0),exc*sizeof(unsigned int));
 					breaks[1] = (unsigned int *)realloc(*(breaks + 1),exc*sizeof(unsigned int));\
 				}
-				
+				/*
 				if(i == 0){
 					TestTabs(indvs, GType, CTms, TAnc, breaks, NMax, nbreaks);
 				}
+				*/
 				/* Testing if all sites coalesced or not */
 				done = isallUI(*(breaks + 1),nbreaks,1,0);
 				/*
@@ -2768,7 +2775,6 @@ int main(int argc, char *argv[]){
 			}
 		}
 		
-		/* Creating ancestry table for reconstruction, adding mutations */
 		for(x = 1; x <= nbreaks; x++){
 			
 			/* Creating ancestry table */
@@ -2778,12 +2784,14 @@ int main(int argc, char *argv[]){
 					*((*(TFin + count)) + 0) = *((*(GType + j)) + x);
 					*((*(TFin + count)) + 1) = *((*(CTms + j)) + x);
 					*((*(TFin + count)) + 2) = *((*(TAnc + j)) + x);
-					printf("%f %f %f\n",*((*(TFin + count)) + 0),*((*(TFin + count)) + 1),*((*(TFin + count)) + 2));					
 					count++;
 				}
 			}
-			printf("\n");
 			indv_sortD(TFin,(Itot-1),3,1);
+			for(j = 0; j < Itot-1; j++){
+				printf("%f %f %f\n",*((*(TFin + j)) + 0),*((*(TFin + j)) + 1),*((*(TFin + j)) + 2));
+			}
+			printf("\n");
 
 			/* Using ancestry table to build tree and mutation table */
 			if(x < nbreaks){
@@ -2793,6 +2801,7 @@ int main(int argc, char *argv[]){
 				maxd = 1;
 				mind = (*((*(breaks + 0)) + (x-1)))/(1.0*nsites);
 			}
+			printf("For x equal %d: mind, maxd are %lf %lf\n",x,mind,maxd);
 			char *ret_tree = treemaker(TFin, theta*(maxd-mind), mind, maxd, Itot, i, r);
 			if(rec == 0){
 				ofp_tr = fopen("Trees.dat","a+");
