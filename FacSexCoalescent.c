@@ -1115,7 +1115,7 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 					if( (isbpend == 1) && (isyetbp == 0) ){
 						for(j = 0; j < NMax; j++){
 							if( *((*(GType + j)) + 0) == rands){
-								if((*((*(GType + j)) + *nbreaks) != (-1)) && (*((*(breaks + 1)) + *nbreaks) == 0)){
+								if((*((*(GType + j)) + *nbreaks) != (-1)) && (*((*(breaks + 1)) + ((*nbreaks)-1)) == 0)){
 									yesrec = 1;
 								}
 								break;
@@ -2178,6 +2178,10 @@ void reccal(unsigned int **indvs, int **GType, unsigned int **breaks, unsigned i
 				if(mintr > minbr){
 					brec = *((*(breaks + 0)) + mintr);
 					crec = coalcalc(breaks, brec, mintr,0);
+					/* Correction if boundary straddles coalesced BP */
+					if( (*((*(breaks + 1)) + (mintr-1)) == 1) && (*((*(breaks + 1)) + (mintr)) == 1) ){
+						crec++;
+					}
 				}else if(mintr <= minbr){
 					brec = 1;
 					crec = 0;
@@ -2199,6 +2203,10 @@ void reccal(unsigned int **indvs, int **GType, unsigned int **breaks, unsigned i
 					}
 					brec = nsites - *((*(breaks + 0)) + maxtr + 1);
 					crec = coalcalc(breaks, nsites, nbreaks, maxtr + 1);
+					/* Correction if boundary straddles coalesced BP */
+					if( (*((*(breaks + 1)) + (maxtr)) == 1) && (*((*(breaks + 1)) + (maxtr + 1)) == 1) ){
+						crec++;
+					}
 				}else if(maxtr >= maxbr){
 					if(maxbr < mintr){
 						brec = 0;
@@ -2644,7 +2652,6 @@ int main(int argc, char *argv[]){
 					/* Then recalculating probability of events */
 					probset2(N, g, sexC, rec, lrec, nlrec, nlrec2, mig, Nwith, Nbet, evsex, 1, pr);
 				}
-				TestTabs(indvs, GType, CTms, TAnc, breaks, NMax, nbreaks);
 				if(isanylessD_2D(pr,11,d,0) == 1){
 					fprintf(stderr,"A negative probability exists, you need to double-check your algebra (or probability inputs).\n");
 					exit(1);				
@@ -2748,6 +2755,9 @@ int main(int argc, char *argv[]){
 					breaks[1] = (unsigned int *)realloc(*(breaks + 1),exc*sizeof(unsigned int));\
 				}
 				
+				if(i == 0){
+					TestTabs(indvs, GType, CTms, TAnc, breaks, NMax, nbreaks);
+				}
 				/* Testing if all sites coalesced or not */
 				done = isallUI(*(breaks + 1),nbreaks,1,0);
 				/*
