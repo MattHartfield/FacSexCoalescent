@@ -125,7 +125,7 @@ unsigned int isallI(int *vin, unsigned int size_t, int match, unsigned int offse
 	unsigned int i;
 	unsigned int res = 1;
 	for(i = offset; i < size_t; i++){
-		if(*(vin + i) != match){
+	if(*(vin + i) != match){
 			res = 0;
 		}
 	}
@@ -1135,8 +1135,10 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 					else if( (isbpend == 0) && (isyetbp == 0) ){
 						for(j = 0; j < NMax; j++){
 							if( *((*(GType + j)) + 0) == rands){
-								/*if( (isallI((*(GType + j)), (maxtr+1), (-1), 1) != 1) && (isallI((*(GType + j)), (*nbreaks+1), (-1), (maxtr)) != 1) && (isallUI((*(breaks + 1)), maxtr, 1, 0) != 1) ){*/
-								if( (isallI((*(GType + j)), maxtr, (-1), 1) != 1) && (isallUI((*(breaks + 1)), maxtr, 1, 0) != 1) ){
+								/* if( (isallI((*(GType + j)), (maxtr+1), (-1), 1) != 1) && (isallI((*(GType + j)), (*nbreaks+1), (-1), (maxtr)) != 1) && (isallUI((*(breaks + 1)), maxtr, 1, 0) != 1) ){ */
+								/* if( (isallI((*(GType + j)), maxtr+1, (-1), 1) != 1) && (isallUI((*(breaks + 1)), maxtr, 1, 0) != 1) ){ */
+								printf("Ca1 %d Ca2 %d\n",*((*(GType + j)) + maxtr),*((*(breaks + 1)) + (maxtr-1)));
+								if( (*((*(GType + j)) + maxtr) != (-1)) && (*((*(breaks + 1)) + (maxtr-1)) != 1) ){
 									yesrec = 1;
 								}
 								break;
@@ -1146,8 +1148,8 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 					else if( (isbpend == 0) && (isyetbp == 1) ){
 						for(j = 0; j < NMax; j++){
 							if( *((*(GType + j)) + 0) == rands){
-								printf("C1 %d C2 %d C3 %d C4 %d\n",isallI((*(GType + j)), (maxtr+1), (-1), 1),isallI((*(GType + j)), (*nbreaks+1), (-1), (maxtr+1)),isallUI((*(breaks + 1)), maxtr, 1, 0),isallUI((*(breaks + 1)), *nbreaks, 1, maxtr));
-								if(isallI((*(GType + j)), maxtr, (-1), 1) != 1 && isallI((*(GType + j)), (*nbreaks+1), (-1), maxtr) != 1 && (isallUI((*(breaks + 1)), maxtr, 1, 0) != 1) && (isallUI((*(breaks + 1)), *nbreaks, 1, maxtr) != 1) ){
+								printf("C1 %d C2 %d C3 %d C4 %d\n",isallI((*(GType + j)), maxtr, (-1), 1),isallI((*(GType + j)), (*nbreaks+1), (-1), (maxtr+1)),isallUI((*(breaks + 1)), maxtr, 1, 0),isallUI((*(breaks + 1)), *nbreaks, 1, maxtr));
+								if(isallI((*(GType + j)), maxtr, (-1), 1) != 1 && isallI((*(GType + j)), (*nbreaks+1), (-1), maxtr) != 1 && (isallUI((*(breaks + 1)), maxtr-1, 1, 0) != 1) && (isallUI((*(breaks + 1)), *nbreaks, 1, maxtr-1) != 1) ){
 									yesrec = 1;
 								}
 								break;
@@ -1526,10 +1528,8 @@ void TestTabs(unsigned int **indvs, int **GType, double **CTms , int **TAnc, uns
 		printf("\n");
 	}
 	printf("\n");	
-	
-	/*
+
 	Wait();
-	*/
 
 }
 
@@ -2129,10 +2129,7 @@ void reccal(unsigned int **indvs, int **GType, unsigned int **breaks, unsigned i
 					*(BHi + count) = *((*(indvs + j)) + 0);
 					*(BHid + count) = *((*(indvs + j)) + 3);
 					*(BHi + count + 1) = *((*(indvs + j + 1)) + 0);
-					*(BHid + count + 1) = *((*(indvs + j + 1)) + 3);
-					printf("\n");
-					printf("%d %d\n",*(BHi + count),*(BHi + count+1));
-					printf("\n");					
+					*(BHid + count + 1) = *((*(indvs + j + 1)) + 3);			
 					count++;
 					count++;
 					count2++;					
@@ -2173,7 +2170,7 @@ void reccal(unsigned int **indvs, int **GType, unsigned int **breaks, unsigned i
 			}
 			
 			printf("Sample is %d\n",*(BHi + i));
-			if( is0l == 1 || *((*(breaks + 1)) + 0) == 1 ){			
+			if( is0l == 1 || *((*(breaks + 1)) + 0) == 1 ){
 				mintr = first_neI(*(GType + ridx), nbreaks+1, (-1), 1);
 				mintr--;	/* So concordant with 'breaks' table */
 				minbr = first_neUI(*(breaks + 1), nbreaks, 1, 0);
@@ -2214,9 +2211,10 @@ void reccal(unsigned int **indvs, int **GType, unsigned int **breaks, unsigned i
 				printf("brec, crec are %d %d\n",brec,crec);
 				*(lnrec + (*(BHid + i))) += (brec-crec);
 			}
-			printf("lnrec is %d\n",*(lnrec + (0)));
 		}
 	}
+	
+	printf("lnrec is %d\n",*(lnrec + (0)));
 	
 	free(BHid);
 	free(BHi);
@@ -2267,6 +2265,7 @@ int main(int argc, char *argv[]){
 	double mig = 0;				/* Migration rate between demes */	
 	char Tout[32];				/* String to hold filename in (Trees) */
 	FILE *ofp_tr;				/* Pointer for tree output */
+	FILE *ofp_sd;				/* Pointer for seed output */	
 	
 	/* GSL random number definitions */
 	const gsl_rng_type * T; 
@@ -2451,6 +2450,9 @@ int main(int argc, char *argv[]){
 	T = gsl_rng_default;
 	r = gsl_rng_alloc(T);
 	printf("%lu\n",gsl_rng_default_seed);
+	ofp_sd = fopen("Seed.dat","a+");
+	fprintf(ofp_sd,"%lu\n",gsl_rng_default_seed);
+	fclose(ofp_sd);
 	
 	/* 
 	In R code I defined lists here for:
@@ -2642,7 +2644,9 @@ int main(int argc, char *argv[]){
 					/* Then recalculating probability of events */
 					probset2(N, g, sexC, rec, lrec, nlrec, nlrec2, mig, Nwith, Nbet, evsex, 1, pr);
 				}
-				TestTabs(indvs, GType, CTms, TAnc, breaks, NMax, nbreaks);
+				if(i > 0){
+					TestTabs(indvs, GType, CTms, TAnc, breaks, NMax, nbreaks);
+				}
 				if(isanylessD_2D(pr,11,d,0) == 1){
 					fprintf(stderr,"A negative probability exists, you need to double-check your algebra (or probability inputs).\n");
 					exit(1);				
