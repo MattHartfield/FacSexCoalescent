@@ -1125,7 +1125,7 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 					else if( (isbpend == 1) && (isyetbp == 1) ){
 						for(j = 0; j < NMax; j++){
 							if( *((*(GType + j)) + 0) == rands){
-								if((*((*(GType + j)) + *nbreaks) != (-1)) && (*((*(breaks + 1)) + *nbreaks) == 0) && (isallI((*(GType + j)), *nbreaks, -1, 1) != 1) ){
+								if((*((*(GType + j)) + *nbreaks) != (-1)) && (*((*(breaks + 1)) + ((*nbreaks)-1)) == 0) && (isallI((*(GType + j)), *nbreaks, -1, 1) != 1) && isallUI((*(breaks + 1)), ((*nbreaks)-1), 1, 0) != 1){
 									yesrec = 1;
 								}
 								break;
@@ -1528,9 +1528,9 @@ void TestTabs(unsigned int **indvs, int **GType, double **CTms , int **TAnc, uns
 		printf("\n");
 	}
 	printf("\n");	
-
+	/*
 	Wait();
-
+	*/
 }
 
 /* Function to reconstruct genealogy and to add mutation to branches */
@@ -2644,9 +2644,7 @@ int main(int argc, char *argv[]){
 					/* Then recalculating probability of events */
 					probset2(N, g, sexC, rec, lrec, nlrec, nlrec2, mig, Nwith, Nbet, evsex, 1, pr);
 				}
-				if(i > 0){
-					TestTabs(indvs, GType, CTms, TAnc, breaks, NMax, nbreaks);
-				}
+				TestTabs(indvs, GType, CTms, TAnc, breaks, NMax, nbreaks);
 				if(isanylessD_2D(pr,11,d,0) == 1){
 					fprintf(stderr,"A negative probability exists, you need to double-check your algebra (or probability inputs).\n");
 					exit(1);				
