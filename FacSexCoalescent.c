@@ -1587,7 +1587,7 @@ char * treemaker(double **TFin, double thetain, double mind, double maxd, unsign
 	}
 	
 	/* Allocating space for mutation table */
-	unsigned int MTRows = (thetain*sumrep(Itot) + 5*thetain*sumrepsq(Itot));
+	unsigned int MTRows = 30;
 	double **MTab = calloc(MTRows,sizeof(double *));			/* Mutation table */
 	for(j = 0; j < MTRows; j++){
 		MTab[j] = calloc((Itot+1),sizeof(double));
@@ -1700,11 +1700,7 @@ char * treemaker(double **TFin, double thetain, double mind, double maxd, unsign
     				}
     			}
 	    	}
-	    	
-	    	printf("Parent, Child are %d %d\n",parent1,child1);
-	    	
-	    	printf("CC, PC are %d %d: csum is therefore %d\n",cc,pc,csum);
-	    	
+	    	  	
 	    	if(csum==0){	/* Create a new clade */
     			nc++;
     			
@@ -1922,7 +1918,7 @@ char * treemaker(double **TFin, double thetain, double mind, double maxd, unsign
 				strcat(tc2,(*(clades + cc)));
 				strcat(tc2,cln);
 				strcat(tc2,btchar2);
-				strcat(tc2,rbr);			
+				strcat(tc2,rbr);
 				
 				/* Assigning mutations */
 				rmut1 = gsl_ran_poisson(r,(0.5*thetain*(birthtime - (*(Cheight+pc)))));
@@ -2044,8 +2040,6 @@ char * treemaker(double **TFin, double thetain, double mind, double maxd, unsign
    			
     	}
 	}
-	
-	printf("Actual treemaking done\n");
 	
 	/* Printing out Mutations to file */
 	indv_sortD(MTab,nmut,(Itot+1),0);
@@ -2288,12 +2282,10 @@ int main(int argc, char *argv[]){
 	gsl_rng * r;
 	
 	/* Reading in data from command line */
-	/*
-	if(argc != 8){
-		fprintf(stderr,"Invalid number of input values.\n");
+	if(argc < 16){
+		fprintf(stderr,"At least 15 inputs are needed (see accompanying README file).\n");
 		exit(1);
 	}
-	*/
 	N = atoi(argv[1]);
 	rec = strtod(argv[2],NULL);
 	rec = rec/(2.0*N);
@@ -2791,7 +2783,6 @@ int main(int argc, char *argv[]){
 			for(j = 0; j < Itot-1; j++){
 				printf("%f %f %f\n",*((*(TFin + j)) + 0),*((*(TFin + j)) + 1),*((*(TFin + j)) + 2));
 			}
-			printf("\n");
 
 			/* Using ancestry table to build tree and mutation table */
 			if(x < nbreaks){
@@ -2802,6 +2793,7 @@ int main(int argc, char *argv[]){
 				mind = (*((*(breaks + 0)) + (x-1)))/(1.0*nsites);
 			}
 			printf("For x equal %d: mind, maxd are %lf %lf\n",x,mind,maxd);
+			printf("\n");
 			char *ret_tree = treemaker(TFin, theta*(maxd-mind), mind, maxd, Itot, i, r);
 			if(rec == 0){
 				ofp_tr = fopen("Trees.dat","a+");
