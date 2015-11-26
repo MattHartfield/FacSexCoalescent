@@ -1109,7 +1109,7 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 					if(maxtr == *nbreaks){
 						isbpend = 1;
 					}
-/*					printf("STATS: isyetbp %d, isbpend %d, maxtr %d\n",isyetbp, isbpend, maxtr);					*/
+/*					printf("STATS: isyetbp %d, isbpend %d, maxtr %d\n",isyetbp, isbpend, maxtr); */
 					
 					/* Next, checking if valid breakpoint depending on location */
 					if( (isbpend == 1) && (isyetbp == 0) ){
@@ -1138,9 +1138,18 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 								/* if( (isallI((*(GType + j)), (maxtr+1), (-1), 1) != 1) && (isallI((*(GType + j)), (*nbreaks+1), (-1), (maxtr)) != 1) && (isallUI((*(breaks + 1)), maxtr, 1, 0) != 1) ){ */
 								/* if( (isallI((*(GType + j)), maxtr+1, (-1), 1) != 1) && (isallUI((*(breaks + 1)), maxtr, 1, 0) != 1) ){ */
 								/* printf("Ca1 %d Ca2 %d\n",*((*(GType + j)) + maxtr),*((*(breaks + 1)) + (maxtr-1))); */
-								if( (*((*(GType + j)) + maxtr) != (-1)) && (*((*(breaks + 1)) + (maxtr-1)) != 1) ){
+								if( (isallI((*(GType + j)), maxtr+1, (-1), 1) != 1) && (isallI((*(GType + j)), (*nbreaks+1), (-1), (maxtr)) != 1) && (*((*(breaks + 1)) + (maxtr-1)) != 1)){
 									yesrec = 1;
 								}
+								/*
+								if( (*((*(GType + j)) + maxtr) != (-1)) && (*((*(breaks + 1)) + (maxtr-1)) != 1) ){
+									yesrec = 1;
+								}else if( (*((*(GType + j)) + maxtr) == (-1)) && (*((*(breaks + 1)) + (maxtr-1)) != 1) ){
+									if( (isallI((*(GType + j)), maxtr+1, (-1), 1) != 1) && (isallI((*(GType + j)), (*nbreaks+1), (-1), (maxtr)) != 1)){
+										yesrec = 1;
+									}
+								}
+								*/
 								break;
 							}
 						}
@@ -1566,6 +1575,7 @@ char * treemaker(double **TFin, double thetain, double mind, double maxd, unsign
 	static const char scln[] = ";";
 	static const char lsq[] = "[";
 	static const char rsq[] = "]";
+	static const char spa[] = " ";	
 	char p1char[10];
 	char c1char[10];
 	char btchar1[16];
@@ -2067,6 +2077,7 @@ char * treemaker(double **TFin, double thetain, double mind, double maxd, unsign
     	strcpy(str,lsq);
     	strcat(str,brkchar);
     	strcat(str,rsq);
+    	strcat(str,spa);    	
     	strcat(str,(*(clades + 0)));
     }
     
@@ -2288,8 +2299,8 @@ int main(int argc, char *argv[]){
 	}
 	N = atoi(argv[1]);
 	rec = strtod(argv[2],NULL);
-	rec = rec/(2.0*N);
 	nsites = atoi(argv[3]);
+	rec = rec/(2.0*(nsites-1)*N);
 	g = strtod(argv[4],NULL);
 	g = g/(2.0*N);	
 	theta = strtod(argv[5],NULL);
@@ -2457,7 +2468,7 @@ int main(int argc, char *argv[]){
 	if (!getenv("GSL_RNG_SEED")) gsl_rng_default_seed = time(0);
 	T = gsl_rng_default;
 	r = gsl_rng_alloc(T);
-	printf("%lu\n",gsl_rng_default_seed);
+	/*printf("%lu\n",gsl_rng_default_seed);*/
 	ofp_sd = fopen("Seed.dat","a+");
 	fprintf(ofp_sd,"%lu\n",gsl_rng_default_seed);
 	fclose(ofp_sd);
@@ -2480,7 +2491,8 @@ int main(int argc, char *argv[]){
 	
 	/* Running the simulation Nreps times */
 	for(i = 0; i < Nreps; i++){
-		printf("Starting Run %d\n",i);
+	
+		/* printf("Starting Run %d\n",i); */
 
 		/* Setting up type of sex heterogeneity */
 		if(pSTIN == 0){
@@ -2617,7 +2629,7 @@ int main(int argc, char *argv[]){
 			}else if (NextT <= (tls + tts)){	/* If next event happens before a switch, draw an action	*/
 				Ttot = NextT;
 				/*printf("Ttot is %.10lf\n",Ttot);*/
-						
+
 				/* Determines if sex occurs; if so, which samples are chosen */
 				/* (deme-independent Binomial draws) */
 				esex = 0;
@@ -2753,9 +2765,7 @@ int main(int argc, char *argv[]){
 					breaks[1] = (unsigned int *)realloc(*(breaks + 1),exc*sizeof(unsigned int));\
 				}
 				/*
-				if(i == 0){
-					TestTabs(indvs, GType, CTms, TAnc, breaks, NMax, nbreaks);
-				}
+				TestTabs(indvs, GType, CTms, TAnc, breaks, NMax, nbreaks);
 				*/
 				/* Testing if all sites coalesced or not */
 				done = isallUI(*(breaks + 1),nbreaks,1,0);
@@ -2780,9 +2790,11 @@ int main(int argc, char *argv[]){
 				}
 			}
 			indv_sortD(TFin,(Itot-1),3,1);
+			/*
 			for(j = 0; j < Itot-1; j++){
 				printf("%f %f %f\n",*((*(TFin + j)) + 0),*((*(TFin + j)) + 1),*((*(TFin + j)) + 2));
 			}
+			*/
 
 			/* Using ancestry table to build tree and mutation table */
 			if(x < nbreaks){
@@ -2792,8 +2804,10 @@ int main(int argc, char *argv[]){
 				maxd = 1;
 				mind = (*((*(breaks + 0)) + (x-1)))/(1.0*nsites);
 			}
+			/*
 			printf("For x equal %d: mind, maxd are %lf %lf\n",x,mind,maxd);
 			printf("\n");
+			*/
 			char *ret_tree = treemaker(TFin, theta*(maxd-mind), mind, maxd, Itot, i, r);
 			if(rec == 0){
 				ofp_tr = fopen("Trees.dat","a+");
