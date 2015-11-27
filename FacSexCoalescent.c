@@ -1158,7 +1158,7 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 						for(j = 0; j < NMax; j++){
 							if( *((*(GType + j)) + 0) == rands){
 								/* printf("C1 %d C2 %d C3 %d C4 %d\n",isallI((*(GType + j)), maxtr, (-1), 1),isallI((*(GType + j)), (*nbreaks+1), (-1), (maxtr+1)),isallUI((*(breaks + 1)), maxtr, 1, 0),isallUI((*(breaks + 1)), *nbreaks, 1, maxtr));*/
-								if(isallI((*(GType + j)), maxtr, (-1), 1) != 1 && isallI((*(GType + j)), (*nbreaks+1), (-1), maxtr) != 1 && (isallUI((*(breaks + 1)), maxtr-1, 1, 0) != 1) && (isallUI((*(breaks + 1)), *nbreaks, 1, maxtr-1) != 1) ){
+								if( (isallI((*(GType + j)), maxtr, (-1), 1) != 1) && (isallI((*(GType + j)), (*nbreaks+1), (-1), maxtr) != 1) && (isallUI((*(breaks + 1)), maxtr-1, 1, 0) != 1) && (isallUI((*(breaks + 1)), *nbreaks, 1, maxtr-1) != 1) ){
 									yesrec = 1;
 								}
 								break;
@@ -1510,7 +1510,7 @@ void TestTabs(unsigned int **indvs, int **GType, double **CTms , int **TAnc, uns
 		printf("\n");
 	}
 	printf("\n");
-				
+	/*			
 	printf("CTMS TABLE\n");
 	for(j = 0; j < NMax; j++){
 		for(x = 0; x <= nbreaks; x++){
@@ -1528,7 +1528,7 @@ void TestTabs(unsigned int **indvs, int **GType, double **CTms , int **TAnc, uns
 		printf("\n");
 	}
 	printf("\n");
-	
+	*/
 	printf("BREAKS TABLE\n");
 	for(j = 0; j < 2; j++){
 		for(x = 0; x < nbreaks; x++){
@@ -1537,9 +1537,9 @@ void TestTabs(unsigned int **indvs, int **GType, double **CTms , int **TAnc, uns
 		printf("\n");
 	}
 	printf("\n");	
-	/*
+
 	Wait();
-	*/
+
 }
 
 /* Function to reconstruct genealogy and to add mutation to branches */
@@ -2203,6 +2203,8 @@ void reccal(unsigned int **indvs, int **GType, unsigned int **breaks, unsigned i
 				*(lnrec + (*(BHid + i))) += (brec-crec);
 			}
 			
+			brec = 0;
+			crec = 0;
 			if( (is0r == 1 || *((*(breaks + 1)) + nbreaks-1) == 1) && (minbr != (nbreaks-1)) ){
 				maxtr = last_neI(*(GType + ridx), nbreaks+1, (-1), 1);
 				maxtr--;	/* So concordant with 'breaks' table */
@@ -2232,11 +2234,14 @@ void reccal(unsigned int **indvs, int **GType, unsigned int **breaks, unsigned i
 /*				printf("brec, crec are %d %d\n",brec,crec);*/
 				*(lnrec + (*(BHid + i))) += (brec-crec);
 			}
+/*			printf("For indv %d, lnrec now %d\n",*(BHi + i),*(lnrec + (*(BHid + i))));			*/
 		}
 	}
 	
-/*	printf("lnrec is %d\n",*(lnrec + (0)));*/
-	
+/*	printf("lnrec is %d\n",*(lnrec + (0)));
+			printf("\n");
+			printf("\n");
+	*/
 	free(BHid);
 	free(BHi);
 }
@@ -2765,7 +2770,9 @@ int main(int argc, char *argv[]){
 					breaks[1] = (unsigned int *)realloc(*(breaks + 1),exc*sizeof(unsigned int));\
 				}
 				/*
+				if(event == 10){
 				TestTabs(indvs, GType, CTms, TAnc, breaks, NMax, nbreaks);
+				}
 				*/
 				/* Testing if all sites coalesced or not */
 				done = isallUI(*(breaks + 1),nbreaks,1,0);
