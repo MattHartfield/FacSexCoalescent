@@ -1157,7 +1157,9 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 					else if( (isbpend == 0) && (isyetbp == 1) ){
 						for(j = 0; j < NMax; j++){
 							if( *((*(GType + j)) + 0) == rands){
-								/* printf("C1 %d C2 %d C3 %d C4 %d\n",isallI((*(GType + j)), maxtr, (-1), 1),isallI((*(GType + j)), (*nbreaks+1), (-1), (maxtr+1)),isallUI((*(breaks + 1)), maxtr, 1, 0),isallUI((*(breaks + 1)), *nbreaks, 1, maxtr));*/
+								if(maxtr == 1){
+									printf("C1 %d C2 %d C3 %d C4 %d\n",(isallI((*(GType + j)), maxtr, (-1), 1) != 1),(isallI((*(GType + j)), (*nbreaks+1), (-1), maxtr) != 1),(isallUI((*(breaks + 1)), maxtr-1, 1, 0) != 1),(isallUI((*(breaks + 1)), *nbreaks, 1, maxtr-1) != 1));
+								}
 								if( (isallI((*(GType + j)), maxtr, (-1), 1) != 1) && (isallI((*(GType + j)), (*nbreaks+1), (-1), maxtr) != 1) && (isallUI((*(breaks + 1)), maxtr-1, 1, 0) != 1) && (isallUI((*(breaks + 1)), *nbreaks, 1, maxtr-1) != 1) ){
 									yesrec = 1;
 								}
@@ -1353,6 +1355,8 @@ unsigned int coalcalc(unsigned int **breaks, unsigned int nsites, unsigned int n
 	unsigned int lcoal = 0;
 	
 	for(x = start; x < (nbreaks - 1); x++){
+		val1 = 0;
+		val2 = 0;		
 		if(*((*(breaks + 1)) + x) == 1){
 			val1 = *((*(breaks + 0)) + x);
 			val2 = *((*(breaks + 0)) + x + 1);
@@ -1362,14 +1366,17 @@ unsigned int coalcalc(unsigned int **breaks, unsigned int nsites, unsigned int n
 			}
 		}
 	}
+	
+	val1 = 0;
+	val2 = 0;		
 	if(*((*(breaks + 1)) + (nbreaks - 1)) == 1){
 		val1 = *((*(breaks + 0)) + (nbreaks - 1));
 		val2 = nsites;
 		lcoal += (val2 - val1 - 1);
 	}
-	
+
 	return(lcoal);
-	
+
 }	/* End of coalcalc function */
 
 /* Function to choose which samples split by sex */
@@ -1510,7 +1517,7 @@ void TestTabs(unsigned int **indvs, int **GType, double **CTms , int **TAnc, uns
 		printf("\n");
 	}
 	printf("\n");
-	/*			
+	/*		
 	printf("CTMS TABLE\n");
 	for(j = 0; j < NMax; j++){
 		for(x = 0; x <= nbreaks; x++){
@@ -2109,7 +2116,7 @@ void reccal(unsigned int **indvs, int **GType, unsigned int **breaks, unsigned i
 	unsigned int maxbr = 0;
 	unsigned int Ntot = sumUI(Nbet,d) + 2*sumUI(Nwith,d);
 	unsigned int is0l = 0;
-	unsigned int is0r = 0;	
+	unsigned int is0r = 0;
 	unsigned int ridx = 0;
 	unsigned int brec = 0; 		/* Accounted breakpoints */
 	unsigned int crec = 0; 		/* Coalesced breakpoints */	
@@ -2234,7 +2241,7 @@ void reccal(unsigned int **indvs, int **GType, unsigned int **breaks, unsigned i
 /*				printf("brec, crec are %d %d\n",brec,crec);*/
 				*(lnrec + (*(BHid + i))) += (brec-crec);
 			}
-/*			printf("For indv %d, lnrec now %d\n",*(BHi + i),*(lnrec + (*(BHid + i))));			*/
+/*			printf("For indv %d, lnrec now %d\n",*(BHi + i),*(lnrec + (*(BHid + i))));*/
 		}
 	}
 	
@@ -2593,12 +2600,12 @@ int main(int argc, char *argv[]){
 		done = 0;
 		while(done != 1){
 		
-			/* Printout of tabs here */
+/*			printf("nlrec, nlrec2 is %d %d\n",*(nlrec + 0),*(nlrec2 + 0));		*/
 			
 			/* Setting up vector of state-change probabilities *without sex* */
 			probset2(N, g, sexC, rec, lrec, nlrec, zeros, mig, Nwith, Nbet, zeros, 0, pr);
 			nosex = powDUI(sexCInv,Nwith,d);				/* Probability of no segregation via sex, accounting for within-deme variation */
-			psum = (1-nosex) + nosex*(sumT_D(pr,11,d));		/* Sum of all event probabilites, for drawing random time */
+			psum = (1-nosex) + nosex*(sumT_D(pr,11,d));		/* Sum of all event probabilities, for drawing random time */
 			
 			/* Intermediate error checking */
 			if(psum > 1){
@@ -2668,11 +2675,12 @@ int main(int argc, char *argv[]){
 					reccal(indvs, GType, breaks, Nbet, Nwith, rsex, esex, nlrec2, lrec, nbreaks, NMax, 1);
 					/* Then recalculating probability of events */
 					probset2(N, g, sexC, rec, lrec, nlrec, nlrec2, mig, Nwith, Nbet, evsex, 1, pr);
+					if(isanylessD_2D(pr,11,d,0) == 1){
+						fprintf(stderr,"A negative probability exists, you need to double-check your algebra (or probability inputs).\n");
+						exit(1);				
+					}
 				}
-				if(isanylessD_2D(pr,11,d,0) == 1){
-					fprintf(stderr,"A negative probability exists, you need to double-check your algebra (or probability inputs).\n");
-					exit(1);				
-				}
+				printf("%d %d %d %.10lf\n",lrec,*(nlrec+0),*(nlrec2+0),*((*(pr + 0)) + 10));
 				
 				/* Given event happens, what is that event? 
 				Weighted average based on above probabilities. 
@@ -2683,7 +2691,7 @@ int main(int argc, char *argv[]){
 				event = matchUI(draw,11,1);
 				gsl_ran_multinomial(r,d,1,(*(pr + event)),draw2);
 				deme = matchUI(draw2,d,1);
-				/*printf("Event is %d\n",event);*/
+				/* printf("Event is %d\n",event); */
 
 				if(event == 9){		/* Choosing demes to swap NOW if there is a migration */
 					stchange2(event,deme,evsex,WCH,BCH);
@@ -2734,6 +2742,9 @@ int main(int argc, char *argv[]){
 				/* Updating baseline recombinable material depending on number single samples */
 				if(isallUI(*(breaks+1),nbreaks,1,0) == 0){
 					reccal(indvs, GType, breaks, Nbet, Nwith, rsex, esex, nlrec, lrec, nbreaks, NMax, 0);
+					for(x = 0; x < d; x++){
+						*(nlrec2 + x) = 0;
+					}
 				}
 				free(rsex);		/* Can be discarded once used to change ancestry */
 				
@@ -2769,18 +2780,9 @@ int main(int argc, char *argv[]){
 					breaks[0] = (unsigned int *)realloc(*(breaks + 0),exc*sizeof(unsigned int));
 					breaks[1] = (unsigned int *)realloc(*(breaks + 1),exc*sizeof(unsigned int));\
 				}
-				/*
-				if(event == 10){
-				TestTabs(indvs, GType, CTms, TAnc, breaks, NMax, nbreaks);
-				}
-				*/
+				
 				/* Testing if all sites coalesced or not */
 				done = isallUI(*(breaks + 1),nbreaks,1,0);
-				/*
-				if(Ntot == 1){
-					done = 1;
-				}
-				*/
 			}
 		}
 		
