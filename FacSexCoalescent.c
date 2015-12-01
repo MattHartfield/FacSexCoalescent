@@ -77,7 +77,7 @@ void indv_sortD(double **Tin, unsigned int nrow, unsigned int ncol, unsigned int
 void Wait();
 void TestTabs(unsigned int **indvs, int **GType, double **CTms , int **TAnc, unsigned int **breaks, unsigned int NMax, unsigned int nbreaks);
 char * treemaker(double **TFin, double thetain, double mind, double maxd, unsigned int Itot, unsigned int run, const gsl_rng *r);
-void reccal(unsigned int **indvs, int **GType, unsigned int **breaks, unsigned int *Nbet, unsigned int *Nwith, unsigned int *rsex, unsigned int esex, unsigned int *lnrec, unsigned int lrec, unsigned int nbreaks, unsigned int NMax, unsigned int sw);
+void reccal(unsigned int **indvs, int **GType, unsigned int **breaks, unsigned int *Nbet, unsigned int *Nwith, unsigned int *rsex, unsigned int esex, unsigned int *lnrec, unsigned int lrec, unsigned int nbreaks, unsigned int NMax, unsigned int sw, unsigned int run);
 
 /* Global variable declaration */
 double rec = 0;				/* Per-site recombination rate */
@@ -853,7 +853,9 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 			while(par == csamp){	/* Ensuring par != csamp */
 				gsl_ran_choose(r,&par,1,singsamps5,(*(Nbet + deme)),sizeof(unsigned int));			/* Other sample involved in coalescence (par) */
 			}
-/*			printf("Csamp, par is %d %d\n",csamp,par);*/
+			
+			/* printf("Csamp, par is %d %d\n",csamp,par); */
+			
 		
 			/* Now updating coalescent times */
 			cchange(indvs, GType, CTms, TAnc, &csamp, &par, 1, Ntot, nbreaks, Ttot);
@@ -1163,9 +1165,11 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 					else if( (isbpend == 0) && (isyetbp == 1) ){
 						for(j = 0; j < NMax; j++){
 							if( *((*(GType + j)) + 0) == rands){
+								/*
 								if(maxtr == 1){
 									printf("C1 %d C2 %d C3 %d C4 %d\n",(isallI((*(GType + j)), maxtr, (-1), 1) != 1),(isallI((*(GType + j)), (*nbreaks+1), (-1), maxtr) != 1),(isallUI((*(breaks + 1)), maxtr-1, 1, 0) != 1),(isallUI((*(breaks + 1)), *nbreaks, 1, maxtr-1) != 1));
 								}
+								*/
 								if( (isallI((*(GType + j)), maxtr, (-1), 1) != 1) && (isallI((*(GType + j)), (*nbreaks+1), (-1), maxtr) != 1) && (isallUI((*(breaks + 1)), maxtr-1, 1, 0) != 1) && (isallUI((*(breaks + 1)), *nbreaks, 1, maxtr-1) != 1) ){
 									yesrec = 1;
 								}
@@ -1507,7 +1511,7 @@ void TestTabs(unsigned int **indvs, int **GType, double **CTms , int **TAnc, uns
 	unsigned int j, x;
 	
 	printf("INDV TABLE\n");
-	for(j = 0; j < NMax; j++){
+	for(j = 0; j < 10; j++){
 		for(x = 0; x < 4; x++){
 			printf("%d ",*((*(indvs + j)) + x));
 		}
@@ -1516,9 +1520,8 @@ void TestTabs(unsigned int **indvs, int **GType, double **CTms , int **TAnc, uns
 	printf("\n");
 				
 	printf("GTYPE TABLE\n");
-	for(j = 0; j < NMax; j++){
-		printf("%d ",*((*(GType + j)) + 0));
-		for(x = 151; x <= nbreaks; x++){
+	for(j = 410; j < NMax; j++){
+		for(x = 0; x <= nbreaks; x++){
 			printf("%d ",*((*(GType + j)) + x));
 		}
 		printf("\n");
@@ -1545,8 +1548,7 @@ void TestTabs(unsigned int **indvs, int **GType, double **CTms , int **TAnc, uns
 	*/
 	printf("BREAKS TABLE\n");
 	for(j = 0; j < 2; j++){
-		printf("%d ",*((*(breaks + j)) + 0));
-		for(x = 150; x < nbreaks; x++){
+		for(x = 0; x < nbreaks; x++){
 			printf("%d ",*((*(breaks + j)) + x));
 		}
 		printf("\n");
@@ -2113,7 +2115,7 @@ char * treemaker(double **TFin, double thetain, double mind, double maxd, unsign
 }	/* End of treemaker routine */
 
 /* Reccal: calculating effective recombination rate over potential sites */
-void reccal(unsigned int **indvs, int **GType, unsigned int **breaks, unsigned int *Nbet, unsigned int *Nwith, unsigned int *rsex, unsigned int esex, unsigned int *lnrec, unsigned int lrec, unsigned int nbreaks, unsigned int NMax, unsigned int sw){
+void reccal(unsigned int **indvs, int **GType, unsigned int **breaks, unsigned int *Nbet, unsigned int *Nwith, unsigned int *rsex, unsigned int esex, unsigned int *lnrec, unsigned int lrec, unsigned int nbreaks, unsigned int NMax, unsigned int sw, unsigned int run){
 	unsigned int j, i;
 	unsigned int count = 0;
 	unsigned int count2 = 0;	
@@ -2198,12 +2200,16 @@ void reccal(unsigned int **indvs, int **GType, unsigned int **breaks, unsigned i
 				}
 			}
 			
-			printf("Sample is %d\n",*(BHi + i));
+			if(run == 270){
+				printf("Sample is %d\n",*(BHi + i));
+			}
 			if( is0l == 1 || *((*(breaks + 1)) + 0) == 1 ){
 				mintr = first_neI(*(GType + ridx), nbreaks+1, (-1), 1);
 				mintr--;	/* So concordant with 'breaks' table */
 				minbr = first_neUI(*(breaks + 1), nbreaks, 1, 0);
+				if(run == 270){
 				printf("mintr, minbr are %d %d\n",mintr,minbr);
+				}
 				if(mintr > minbr){
 					brec = *((*(breaks + 0)) + mintr);
 					crec = coalcalc(breaks, brec, mintr,0);
@@ -2215,18 +2221,22 @@ void reccal(unsigned int **indvs, int **GType, unsigned int **breaks, unsigned i
 					brec = 1;
 					crec = 0;
 				}
+				if(run == 270){
 				printf("brec, crec are %d %d\n",brec,crec);
+				}
 				*(lnrec + (*(BHid + i))) += (brec-crec);
 			}
 			
 			brec = 0;
 			crec = 0;
 			corr = 0;
-			if( (is0r == 1 || *((*(breaks + 1)) + nbreaks-1) == 1) && (minbr != (nbreaks-1)) ){
+			if( is0r == 1 || *((*(breaks + 1)) + nbreaks-1) == 1){
 				maxtr = last_neI(*(GType + ridx), nbreaks+1, (-1), 1);
 				maxtr--;	/* So concordant with 'breaks' table */
 				maxbr = last_neUI(*(breaks + 1), nbreaks, 1, 0);
+				if(run == 270){
 				printf("maxtr, maxbr are %d %d\n",maxtr,maxbr);
+				}
 				if(maxtr < maxbr){
 					/* If non-sampled tract extend into coalesced samples on LHS, 
 					only examine run of zeros after that (prevent double counting) */
@@ -2250,10 +2260,14 @@ void reccal(unsigned int **indvs, int **GType, unsigned int **breaks, unsigned i
 						crec = 0;						
 					}
 				}
+				if(run == 270){
 				printf("brec, crec are %d %d\n",brec,crec);
+				}
 				*(lnrec + (*(BHid + i))) += (brec-crec);
 			}
+			if(run == 270){
 			printf("For indv %d, lnrec now %d\n",*(BHi + i),*(lnrec + (*(BHid + i))));
+			}
 		}
 	}
 	
@@ -2677,7 +2691,7 @@ int main(int argc, char *argv[]){
 					/* First, choosing samples to split by sex */
 					sexsamp(indvs, rsex, evsex, Nwith, Ntot, r);
 					/* (Add reccal code here? Pipe in sex event info?) */
-					reccal(indvs, GType, breaks, Nbet, Nwith, rsex, esex, nlrec2, lrec, nbreaks, NMax, 1);
+					reccal(indvs, GType, breaks, Nbet, Nwith, rsex, esex, nlrec2, lrec, nbreaks, NMax, 1,i);
 					/* Then recalculating probability of events */				
 					probset2(N, g, sexC, rec, lrec, nlrec, nlrec2, mig, Nwith, Nbet, evsex, 1, pr);
 					if(isanylessD_2D(pr,11,d,0) == 1){
@@ -2695,8 +2709,10 @@ int main(int argc, char *argv[]){
 				event = matchUI(draw,11,1);
 				gsl_ran_multinomial(r,d,1,(*(pr + event)),draw2);
 				deme = matchUI(draw2,d,1);
-
-				printf("Event is %d\n",event);
+				
+				if(i == 270){
+					printf("Event is %d\n",event);
+				}
 
 				/*
 				printf("%d %d %d %.10lf\n",lrec,*(nlrec+0),*(nlrec2+0),(*((*(pr + 10)) + 0))/(1.0*brp));
@@ -2753,7 +2769,7 @@ int main(int argc, char *argv[]){
 				indv_sort(indvs, NMax);
 				/* Updating baseline recombinable material depending on number single samples */
 				if(isallUI(*(breaks+1),nbreaks,1,0) == 0){
-					reccal(indvs, GType, breaks, Nbet, Nwith, rsex, esex, nlrec, lrec, nbreaks, NMax, 0);
+					reccal(indvs, GType, breaks, Nbet, Nwith, rsex, esex, nlrec, lrec, nbreaks, NMax, 0,i);
 					for(x = 0; x < d; x++){
 						*(nlrec2 + x) = 0;
 					}
@@ -2794,7 +2810,7 @@ int main(int argc, char *argv[]){
 					breaks[1] = (unsigned int *)realloc(*(breaks + 1),exc*sizeof(unsigned int));\
 				}
 				
-				if(i == 2){
+				if(i == 270 && lrec < 10){
 					TestTabs(indvs, GType, CTms , TAnc, breaks, NMax, nbreaks);
 				}
 				
