@@ -650,8 +650,9 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 	unsigned int Ntot = NWtot + NBtot;
 	unsigned int Nindv = sumUI(Nwith,d) + sumUI(Nbet,d);
 	unsigned int nsum = sumUI(nsex,d);
-	unsigned int j, a;
-	int x;
+	unsigned int j = 0;
+	unsigned int a = 0;
+	int x = 0;
 	unsigned int count = 0;		/* For converting WH to BH samples */
 	unsigned int done = 0;		/* For sampling right individual */
 	unsigned int rands = 0;		/* Sample split by rec (event 10) */
@@ -853,9 +854,7 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 			while(par == csamp){	/* Ensuring par != csamp */
 				gsl_ran_choose(r,&par,1,singsamps5,(*(Nbet + deme)),sizeof(unsigned int));			/* Other sample involved in coalescence (par) */
 			}
-			
 			/* printf("Csamp, par is %d %d\n",csamp,par); */
-			
 		
 			/* Now updating coalescent times */
 			cchange(indvs, GType, CTms, TAnc, &csamp, &par, 1, Ntot, nbreaks, Ttot);
@@ -1093,7 +1092,7 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 				gsl_ran_choose(r,&rands,1,singsamps10,(*(Nbet + deme) + 2*(*(nsex + deme))),sizeof(unsigned int));
 				rsite = (unsigned int)gsl_ran_flat(r, 1, nsites);
 				
-				printf("Rands, rsite is %d %d\n",rands, rsite);
+/*				printf("Rands, rsite is %d %d\n",rands, rsite);*/
 				
 				if(*nbreaks == 1){
 					yesrec = 1;
@@ -1117,7 +1116,7 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 					if(maxtr == *nbreaks){
 						isbpend = 1;
 					}
-/*					printf("STATS: isyetbp %d, isbpend %d, maxtr %d\n",isyetbp, isbpend, maxtr); */
+/*					printf("STATS: isyetbp %d, isbpend %d, maxtr %d\n",isyetbp, isbpend, maxtr);*/
 					
 					/* Next, checking if valid breakpoint depending on location */
 					if( (isbpend == 1) && (isyetbp == 0) ){
@@ -1187,7 +1186,7 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 			*((*(indvs + NMax)) + 3) = deme;
 			
 			/* Adding new site and re-ordering tracts in other tables */
-			if(isyetbp != 1){
+			if((isyetbp != 1) && (*((*(GType + j)) + maxtr) != (-1)) ){
 				(*nbreaks)++;
 				for(x = *nbreaks-2; x >= (int)(maxtr-1); x--){
 					*((*(breaks + 0)) + x + 1) = *((*(breaks + 0)) + x);
@@ -1203,7 +1202,7 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 						*((*(TAnc + j)) + x + 1) = *((*(TAnc + j)) + x);
 					}
 				}
-			}else if(isyetbp == 1){
+			}else if((isyetbp == 1) || (*((*(GType + j)) + maxtr) == (-1) )){
 				maxtr--;
 			}
 			/* Now creating the new sample genotype; updating all other tables */
@@ -1511,7 +1510,7 @@ void TestTabs(unsigned int **indvs, int **GType, double **CTms , int **TAnc, uns
 	unsigned int j, x;
 	
 	printf("INDV TABLE\n");
-	for(j = 0; j < 10; j++){
+	for(j = 0; j < NMax; j++){
 		for(x = 0; x < 4; x++){
 			printf("%d ",*((*(indvs + j)) + x));
 		}
@@ -1520,7 +1519,7 @@ void TestTabs(unsigned int **indvs, int **GType, double **CTms , int **TAnc, uns
 	printf("\n");
 				
 	printf("GTYPE TABLE\n");
-	for(j = 410; j < NMax; j++){
+	for(j = 0; j < NMax; j++){
 		for(x = 0; x <= nbreaks; x++){
 			printf("%d ",*((*(GType + j)) + x));
 		}
@@ -2199,17 +2198,20 @@ void reccal(unsigned int **indvs, int **GType, unsigned int **breaks, unsigned i
 					break;
 				}
 			}
-			
+			/*
 			if(run == 270){
 				printf("Sample is %d\n",*(BHi + i));
 			}
-			if( is0l == 1 || *((*(breaks + 1)) + 0) == 1 ){
-				mintr = first_neI(*(GType + ridx), nbreaks+1, (-1), 1);
+			*/
+			if( is0l == 1 || *((*(breaks + 1)) + 0) == 1){
+				mintr = first_neI(*(GType + ridx), nbreaks + 1, (-1), 1);
 				mintr--;	/* So concordant with 'breaks' table */
 				minbr = first_neUI(*(breaks + 1), nbreaks, 1, 0);
+				/*
 				if(run == 270){
 				printf("mintr, minbr are %d %d\n",mintr,minbr);
 				}
+				*/
 				if(mintr > minbr){
 					brec = *((*(breaks + 0)) + mintr);
 					crec = coalcalc(breaks, brec, mintr,0);
@@ -2221,9 +2223,11 @@ void reccal(unsigned int **indvs, int **GType, unsigned int **breaks, unsigned i
 					brec = 1;
 					crec = 0;
 				}
+				/*
 				if(run == 270){
 				printf("brec, crec are %d %d\n",brec,crec);
 				}
+				*/
 				*(lnrec + (*(BHid + i))) += (brec-crec);
 			}
 			
@@ -2234,15 +2238,17 @@ void reccal(unsigned int **indvs, int **GType, unsigned int **breaks, unsigned i
 				maxtr = last_neI(*(GType + ridx), nbreaks+1, (-1), 1);
 				maxtr--;	/* So concordant with 'breaks' table */
 				maxbr = last_neUI(*(breaks + 1), nbreaks, 1, 0);
+				/*
 				if(run == 270){
 				printf("maxtr, maxbr are %d %d\n",maxtr,maxbr);
 				}
+				*/
 				if(maxtr < maxbr){
 					/* If non-sampled tract extend into coalesced samples on LHS, 
 					only examine run of zeros after that (prevent double counting) */
 					if(maxtr < minbr){
 						maxtr = (minbr-1);
-						printf("maxtr now %d\n",maxtr);
+/*						printf("maxtr now %d\n",maxtr);*/
 						corr = 1;
 					}
 					brec = nsites - *((*(breaks + 0)) + maxtr + 1) - corr;
@@ -2260,14 +2266,18 @@ void reccal(unsigned int **indvs, int **GType, unsigned int **breaks, unsigned i
 						crec = 0;						
 					}
 				}
+				/*
 				if(run == 270){
 				printf("brec, crec are %d %d\n",brec,crec);
 				}
+				*/
 				*(lnrec + (*(BHid + i))) += (brec-crec);
 			}
+			/*
 			if(run == 270){
 			printf("For indv %d, lnrec now %d\n",*(BHi + i),*(lnrec + (*(BHid + i))));
 			}
+			*/
 		}
 	}
 	
@@ -2338,7 +2348,6 @@ int main(int argc, char *argv[]){
 	N = atoi(argv[1]);
 	rec = strtod(argv[2],NULL);
 	nsites = atoi(argv[3]);
-	rec = rec/(2.0*(nsites-1)*N);
 	g = strtod(argv[4],NULL);
 	g = g/(2.0*N);	
 	theta = strtod(argv[5],NULL);
@@ -2353,6 +2362,9 @@ int main(int argc, char *argv[]){
 	}
 	if(rec == 0){
 		nsites = 1; /* Set no sites to 1 if no recombination, as a precaution */
+	}
+	if(rec != 0){
+		rec = rec/(2.0*(nsites-1)*N);
 	}
 	if(N%d != 0){
 		fprintf(stderr,"Population size must be a multiple of deme number.\n");
@@ -2659,7 +2671,7 @@ int main(int argc, char *argv[]){
 				pST = npST;
 			}else if (NextT <= (tls + tts)){	/* If next event happens before a switch, draw an action	*/
 				Ttot = NextT;
-				/*printf("Ttot is %.10lf\n",Ttot);*/
+/*				printf("Ttot is %.10lf\n",Ttot);*/
 
 				/* Determines if sex occurs; if so, which samples are chosen */
 				/* (deme-independent Binomial draws) */
@@ -2703,22 +2715,14 @@ int main(int argc, char *argv[]){
 				/* Given event happens, what is that event? 
 				Weighted average based on above probabilities. 
 				Then drawing deme of event. */
-				
 				rowsumD(pr,11,d,pr_rsums);
 				gsl_ran_multinomial(r,11,1,pr_rsums,draw);			
 				event = matchUI(draw,11,1);
 				gsl_ran_multinomial(r,d,1,(*(pr + event)),draw2);
 				deme = matchUI(draw2,d,1);
-				
-				if(i == 270){
-					printf("Event is %d\n",event);
-				}
-
 				/*
-				printf("%d %d %d %.10lf\n",lrec,*(nlrec+0),*(nlrec2+0),(*((*(pr + 10)) + 0))/(1.0*brp));
-				if((*((*(pr + 10)) + 0))/(1.0*brp) > 1){
-					Wait();					
-				}
+				printf("Event is %d\n",event);
+				printf("%d %d %d %d %d %.10lf %.10lf\n",lrec,*(nlrec+0),*(nlrec+1),*(nlrec2+0),*(nlrec2+1),(*((*(pr + 10)) + 0)),(*((*(pr + 10)) + 1)));
 				*/
 
 				if(event == 9){		/* Choosing demes to swap NOW if there is a migration */
@@ -2774,7 +2778,7 @@ int main(int argc, char *argv[]){
 						*(nlrec2 + x) = 0;
 					}
 				}
-				printf("lrec now %d\n",lrec);
+/*				printf("lrec now %d\n",lrec);*/
 				free(rsex);		/* Can be discarded once used to change ancestry */
 				
 				/* Checking if need to expand tables */
@@ -2809,10 +2813,9 @@ int main(int argc, char *argv[]){
 					breaks[0] = (unsigned int *)realloc(*(breaks + 0),exc*sizeof(unsigned int));
 					breaks[1] = (unsigned int *)realloc(*(breaks + 1),exc*sizeof(unsigned int));\
 				}
-				
-				if(i == 270 && lrec < 10){
-					TestTabs(indvs, GType, CTms , TAnc, breaks, NMax, nbreaks);
-				}
+				/*
+				TestTabs(indvs, GType, CTms , TAnc, breaks, NMax, nbreaks);
+				*/
 				
 				/* Testing if all sites coalesced or not */
 				done = isallUI(*(breaks + 1),nbreaks,1,0);
