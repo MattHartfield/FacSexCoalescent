@@ -1116,27 +1116,7 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 				free(parsamps8);
 			}
 			
-			/* Adding new site and re-ordering tracts in other tables */
-			if((isyetbp != 1) && (*((*(GType + gcsamp)) + mintr + 1) != (-1)) ){
-				(*nbreaks)++;
-				for(x = *nbreaks-2; x >= (int)(mintr); x--){
-					*((*(breaks + 0)) + x + 1) = *((*(breaks + 0)) + x);
-					*((*(breaks + 1)) + x + 1) = *((*(breaks + 1)) + x);						
-				}
-				*((*(breaks + 0)) + mintr) = gcst;
-				*((*(breaks + 1)) + mintr) = 0;
-				/* Adding new site to genotype; coalescent time; ancestry table */
-				for(j = 0; j < NMax; j++){
-					for(x = (*nbreaks-1); x >= (int)(mintr+1); x--){
-						*((*(GType + j)) + x + 1) = *((*(GType + j)) + x);
-						*((*(CTms + j)) + x + 1) = *((*(CTms + j)) + x);
-						*((*(TAnc + j)) + x + 1) = *((*(TAnc + j)) + x);
-					}
-				}
-				mintr++;
-			}
-			
-			/* Same for end of bp case */
+			/* Adding new site and re-ordering tracts in other tables, end first */
 			if((isyetbp != 1) && (*((*(GType + gcsamp)) + maxtr + 1) != (-1)) ){
 				(*nbreaks)++;
 				for(x = *nbreaks-2; x >= (int)(maxtr); x--){
@@ -1154,7 +1134,31 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 					}
 				}
 				maxtr++;
+				mintr++;
 			}
+			
+			/* Same for start of bp case */
+			if((isyetbp != 1) && (*((*(GType + gcsamp)) + mintr + 1) != (-1)) ){
+				(*nbreaks)++;
+				for(x = *nbreaks-2; x >= (int)(mintr); x--){
+					*((*(breaks + 0)) + x + 1) = *((*(breaks + 0)) + x);
+					*((*(breaks + 1)) + x + 1) = *((*(breaks + 1)) + x);						
+				}
+				*((*(breaks + 0)) + mintr) = gcst;
+				*((*(breaks + 1)) + mintr) = 0;
+				/* Adding new site to genotype; coalescent time; ancestry table */
+				for(j = 0; j < NMax; j++){
+					for(x = (*nbreaks-1); x >= (int)(mintr+1); x--){
+						*((*(GType + j)) + x + 1) = *((*(GType + j)) + x);
+						*((*(CTms + j)) + x + 1) = *((*(CTms + j)) + x);
+						*((*(TAnc + j)) + x + 1) = *((*(TAnc + j)) + x);
+					}
+				}
+				maxtr++;
+				mintr++;
+			}
+			TestTabs(indvs, GType, CTms , TAnc, breaks, NMax, *nbreaks);
+
 				
 			/* ONLY PROCEED IF NOT ALL SITES EMPTY (otherwise alternative regimes used) */
 			printf("gt %d; mintr, maxtr is %d %d\n",gt,mintr,maxtr);
@@ -1762,9 +1766,9 @@ void TestTabs(unsigned int **indvs, int **GType, double **CTms , int **TAnc, uns
 		printf("\n");
 	}
 	printf("\n");	
-/*
+
 	Wait();
-*/
+
 }
 
 /* Function to reconstruct genealogy and to add mutation to branches */
@@ -3044,8 +3048,6 @@ int main(int argc, char *argv[]){
 					breaks[0] = (unsigned int *)realloc(*(breaks + 0),exc*sizeof(unsigned int));
 					breaks[1] = (unsigned int *)realloc(*(breaks + 1),exc*sizeof(unsigned int));\
 				}
-				
-				TestTabs(indvs, GType, CTms , TAnc, breaks, NMax, nbreaks);
 				
 				/* Testing if all sites coalesced or not */
 				done = isallUI(*(breaks + 1),nbreaks,1,0);
