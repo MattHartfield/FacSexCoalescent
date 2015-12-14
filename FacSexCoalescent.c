@@ -597,8 +597,8 @@ void stchange2(unsigned int ev, unsigned int deme, unsigned int *kin, int *WCH, 
 			*(oo3 + 1) = -1;
 			break;
 		case 8:
-			*(oo3 + 0) = -1;
-			*(oo3 + 1) = 1;
+			*(oo3 + 0) = 0;
+			*(oo3 + 1) = 0;
 			break;
 		case 9:
 			*(oo3 + 0) = 0;
@@ -674,6 +674,7 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 	unsigned int gcend = 0; 	/* GC end point (event 8) */
 	unsigned int gcsamp = 0;	/* Index of GC'ed sample (event 8) */
 	unsigned int gcsamp2 = 0;	/* Index of GC'ed sample if paired sample involved (event 8) */	
+	unsigned int gcln = 0;		/* Length of GC event (event 8) */
 	
 	/* Then further actions based on other event */
 	switch(ex)
@@ -1019,7 +1020,7 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 			free(singsamps7);
 			free(parsamps7);
 			break;
-		case 8:		/* Event 8: Paired sample coaleses via gene conversion */
+		case 8:		/* Event 8: Gene conversion */
 		
 			/*
 			fprintf(stderr,"No gene conversion yet - will implement multiple sites in course.\n");
@@ -1055,10 +1056,15 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 					yesrec = 1;
 				}
 			}
-			gcend = gcst + (gsl_ran_geometric(r,(1.0/lambda)));
+			gcln = 0;
+			while(gcln == 0){
+				gcln = (gsl_ran_geometric(r,(1.0/lambda)));
+			}
+			gcend = gcst + gcln;
 			if(gcend > nsites){
 				gcend = nsites;		/* So doesn't extend past end of tract */
 			}
+			printf("gcln %d, gcend %d\n",gcln,gcend);
 			for(x = 0; x < *nbreaks; x++){
 				if( *((*(breaks + 0)) + x) == gcend){
 					isyetbp2 = 1;
@@ -1067,6 +1073,9 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 					maxtr = (x-1);
 					break;
 				}
+			}
+			if(maxtr == 0){ 	/* If endpoint not found amongst existing bps, must be at end */
+				maxtr = *nbreaks;
 			}
 			
 			if(gt == 0){	/* Acts on single sample */
@@ -1120,8 +1129,7 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 						*((*(TAnc + j)) + x + 1) = *((*(TAnc + j)) + x);
 					}
 				}
-			}else if((isyetbp == 1) || (*((*(GType + j)) + mintr) == (-1) )){
-				mintr--;
+				mintr++;
 			}
 			
 			/* Same for end of bp case */
@@ -1141,12 +1149,15 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 						*((*(TAnc + j)) + x + 1) = *((*(TAnc + j)) + x);
 					}
 				}
-			}else if((isyetbp == 1) || (*((*(GType + j)) + maxtr) == (-1) )){
-				maxtr--;
+				maxtr++;
 			}
 				
 			/* ONLY PROCEED IF NOT ALL SITES EMPTY (otherwise alternative regimes used) */
-			if((isallI((*(GType + gcsamp)), maxtr, (-1), (mintr+1)) != 1) || ((isallI((*(GType + gcsamp)), mintr, (-1), 1) != 1) && (isallI((*(GType + gcsamp)), (*nbreaks+1), (-1), (maxtr+1)) != 1))){
+			printf("mintr,maxtr is %d %d\n",mintr,maxtr);
+			printf("Case 1: %d\n",(isallI((*(GType + gcsamp)), (maxtr+1), (-1), (mintr+1))));
+			printf("Case 2: %d\n",(isallI((*(GType + gcsamp)), (mintr+1), (-1), 1)));
+			printf("Case 3: %d\n",(isallI((*(GType + gcsamp)), (*nbreaks+1), (-1), (maxtr+1))));
+			if((isallI((*(GType + gcsamp)), (maxtr+1), (-1), (mintr+1)) != 1) || ((isallI((*(GType + gcsamp)), (mintr+1), (-1), 1) != 1) && (isallI((*(GType + gcsamp)), (*nbreaks+1), (-1), (maxtr+1)) != 1))){
 				
 				if(gt == 1){
 					/* Now creating the new sample genotype; updating all other tables */
@@ -1191,11 +1202,12 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 					*((*(GType + NMax)) + 0) = NMax;
 					*((*(CTms + NMax)) + 0) = NMax;
 					*((*(TAnc + NMax)) + 0) = NMax;
+				
 				}
 			}
 			
 			/* Coalesce sample if all WH material transferred */
-			if( (gt == 1) && (isallI((*(GType + gcsamp)), mintr, (-1), 1) == 1) && (isallI((*(GType + gcsamp)), (*nbreaks+1), (-1), (maxtr+1)) == 1) ){
+			if( (gt == 1) && (isallI((*(GType + gcsamp)), mintr, (-1), 1) == 1) && (isallI((*(GType + gcsamp)), (*nbreaks+1), (-1), (maxtr+1)) == 1)){
 				*gcalt = 2;
 				csamp = gcsamp;
 				par = gcsamp2;
@@ -2535,7 +2547,7 @@ int main(int argc, char *argv[]){
 	nsites = atoi(argv[3]);
 	g = strtod(argv[4],NULL);
 	g = g/(2.0*N*nsites);	
-	lambda = atoi(argv[5]);
+	lambda = strtod(argv[5],NULL);
 	theta = strtod(argv[6],NULL);
 	pSTIN = atoi(argv[7]);
 	pLH = strtod(argv[8],NULL);
@@ -2710,7 +2722,7 @@ int main(int argc, char *argv[]){
 	fclose(ofp_sd);
 	
 	/* Creating necessary directories */
-	if(rec > 0){
+	if((rec > 0 || g > 0) && (nsites != 1)){
 		mkdir("Trees/", 0777);
 	}
 	mkdir("Mutations/", 0777);
@@ -2718,7 +2730,7 @@ int main(int argc, char *argv[]){
 	/* Running the simulation Nreps times */
 	for(i = 0; i < Nreps; i++){
 	
-		/* printf("Starting Run %d\n",i); */
+		printf("Starting Run %d\n",i);
 
 		/* Setting up type of sex heterogeneity */
 		if(pSTIN == 0){
@@ -2906,8 +2918,9 @@ int main(int argc, char *argv[]){
 				event = matchUI(draw,11,1);
 				gsl_ran_multinomial(r,d,1,(*(pr + event)),draw2);
 				deme = matchUI(draw2,d,1);
-				/*
+
 				printf("Event is %d\n",event);
+				/*
 				printf("%d %d %d %d %d %.10lf %.10lf\n",lrec,*(nlrec+0),*(nlrec+1),*(nlrec2+0),*(nlrec2+1),(*((*(pr + 10)) + 0)),(*((*(pr + 10)) + 1)));
 				*/
 
@@ -2947,6 +2960,7 @@ int main(int argc, char *argv[]){
 					Ntot = 2*(sumUI(Nwith,d)) + sumUI(Nbet,d);
 					*(Nsamps + 0) = *(Nwith + deme);
 					*(Nsamps + 1) = *(Nbet + deme);
+					printf("stats: %d %d %d %d\n",*(Nwith+0),*(Nbet+0),sumUI(Nwith,d),sumUI(Nbet,d));
 					if(gcalt != 0){
 						(*(Nbet + deme))++;
 						(*(Nsamps + 1))++;
@@ -2972,6 +2986,7 @@ int main(int argc, char *argv[]){
 						exit(1);			
 					}
 				}
+				TestTabs(indvs, GType, CTms , TAnc, breaks, NMax, nbreaks);
 				
 				/* Sorting table afterwards to ensure paired samples are together */
 				indv_sort(indvs, NMax);
@@ -3017,9 +3032,6 @@ int main(int argc, char *argv[]){
 					breaks[0] = (unsigned int *)realloc(*(breaks + 0),exc*sizeof(unsigned int));
 					breaks[1] = (unsigned int *)realloc(*(breaks + 1),exc*sizeof(unsigned int));\
 				}
-				/*
-				TestTabs(indvs, GType, CTms , TAnc, breaks, NMax, nbreaks);
-				*/
 				
 				/* Testing if all sites coalesced or not */
 				done = isallUI(*(breaks + 1),nbreaks,1,0);
