@@ -435,8 +435,8 @@ double P8(unsigned int x, unsigned int y, unsigned int k, unsigned int Na){
 	return (diff*y)/(1.0*Na);
 }
 double P9(unsigned int x, unsigned int y, unsigned int k, double gee, unsigned int lrec){
-	/* Paired sample coaleses via gene conversion */
-	return gee*(lrec)*(x + y + k);
+	/* Gene conversion event */
+	return gee*(lrec)*((x-k) + y + 2*k);
 }
 double P10(unsigned int x, unsigned int y, unsigned int k, double mee){
 	/* A sample migrates to another deme */
@@ -675,6 +675,8 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 	unsigned int gcsamp = 0;	/* Index of GC'ed sample (event 8) */
 	unsigned int gcsamp2 = 0;	/* Index of GC'ed sample if paired sample involved (event 8) */	
 	unsigned int gcln = 0;		/* Length of GC event (event 8) */
+	unsigned int NWd = 0; 		/* WH in deme (ev 8) */
+	unsigned int NTd = 0; 		/* Tot in deme (ev 8) */	
 	
 	/* Then further actions based on other event */
 	switch(ex)
@@ -1038,7 +1040,9 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 			sexconv(indvs, rsex, nsum, Ntot);
 			
 			/* First, is it a paired or single sample that is affected? */
-			gt = gsl_ran_bernoulli(r,(NWtot/(1.0*Ntot)));
+			NWd = (*(Nwith + deme) - *(nsex + deme));
+			NTd = (*(Nbet + deme) + *(Nwith + deme) + *(nsex + deme));
+			gt = gsl_ran_bernoulli(r,(NWd/(1.0*NTd)));
 			/* Then drawing startpoint, length of GC event */
 			yesrec = 0;
 			while(yesrec != 1){
@@ -1153,11 +1157,11 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 			}
 				
 			/* ONLY PROCEED IF NOT ALL SITES EMPTY (otherwise alternative regimes used) */
-			printf("mintr,maxtr is %d %d\n",mintr,maxtr);
+			printf("gt %d; mintr, maxtr is %d %d\n",gt,mintr,maxtr);
 			printf("Case 1: %d\n",(isallI((*(GType + gcsamp)), (maxtr+1), (-1), (mintr+1))));
 			printf("Case 2: %d\n",(isallI((*(GType + gcsamp)), (mintr+1), (-1), 1)));
 			printf("Case 3: %d\n",(isallI((*(GType + gcsamp)), (*nbreaks+1), (-1), (maxtr+1))));
-			if((isallI((*(GType + gcsamp)), (maxtr+1), (-1), (mintr+1)) != 1) || ((isallI((*(GType + gcsamp)), (mintr+1), (-1), 1) != 1) && (isallI((*(GType + gcsamp)), (*nbreaks+1), (-1), (maxtr+1)) != 1))){
+			if((isallI((*(GType + gcsamp)), (maxtr+1), (-1), (mintr+1)) != 1) && (isallI((*(GType + gcsamp)), (mintr+1), (-1), 1) != 1) && (isallI((*(GType + gcsamp)), (*nbreaks+1), (-1), (maxtr+1)) != 1)){
 				
 				if(gt == 1){
 					/* Now creating the new sample genotype; updating all other tables */
@@ -1171,6 +1175,7 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 					}
 				}else if(gt == 0){
 					*gcalt = 1;
+					printf("GCA CHANGED\n");
 				
 					/* Adding new sample to indv table */
 					*((*(indvs + NMax)) + 0) = NMax;
@@ -1208,9 +1213,18 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 			
 			/* Coalesce sample if all WH material transferred */
 			if( (gt == 1) && (isallI((*(GType + gcsamp)), mintr, (-1), 1) == 1) && (isallI((*(GType + gcsamp)), (*nbreaks+1), (-1), (maxtr+1)) == 1)){
+				printf("GC coalescence here\n");
 				*gcalt = 2;
 				csamp = gcsamp;
 				par = gcsamp2;
+				/* Making sure remained sample becomes BH */
+				for(j = 0; j < Ntot; j++){
+					if( *((*(indvs + j)) + 0) == gcsamp2){
+						*((*(indvs + j)) + 2) = 1;
+						break;
+					}
+				}
+				
 				/* Now updating coalescent times */
 				cchange(indvs, GType, CTms, TAnc, &csamp, &par, 1, Ntot, nbreaks, Ttot);
 			
@@ -2546,7 +2560,7 @@ int main(int argc, char *argv[]){
 	rec = strtod(argv[2],NULL);
 	nsites = atoi(argv[3]);
 	g = strtod(argv[4],NULL);
-	g = g/(2.0*N*nsites);	
+	g = g/(2.0*N*nsites);
 	lambda = strtod(argv[5],NULL);
 	theta = strtod(argv[6],NULL);
 	pSTIN = atoi(argv[7]);
@@ -2960,7 +2974,6 @@ int main(int argc, char *argv[]){
 					Ntot = 2*(sumUI(Nwith,d)) + sumUI(Nbet,d);
 					*(Nsamps + 0) = *(Nwith + deme);
 					*(Nsamps + 1) = *(Nbet + deme);
-					printf("stats: %d %d %d %d\n",*(Nwith+0),*(Nbet+0),sumUI(Nwith,d),sumUI(Nbet,d));
 					if(gcalt != 0){
 						(*(Nbet + deme))++;
 						(*(Nsamps + 1))++;
@@ -2986,7 +2999,6 @@ int main(int argc, char *argv[]){
 						exit(1);			
 					}
 				}
-				TestTabs(indvs, GType, CTms , TAnc, breaks, NMax, nbreaks);
 				
 				/* Sorting table afterwards to ensure paired samples are together */
 				indv_sort(indvs, NMax);
@@ -3032,6 +3044,8 @@ int main(int argc, char *argv[]){
 					breaks[0] = (unsigned int *)realloc(*(breaks + 0),exc*sizeof(unsigned int));
 					breaks[1] = (unsigned int *)realloc(*(breaks + 1),exc*sizeof(unsigned int));\
 				}
+				
+				TestTabs(indvs, GType, CTms , TAnc, breaks, NMax, nbreaks);
 				
 				/* Testing if all sites coalesced or not */
 				done = isallUI(*(breaks + 1),nbreaks,1,0);
