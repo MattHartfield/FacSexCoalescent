@@ -67,7 +67,7 @@ void probset2(unsigned int N, double g, double *sexC, double rec, unsigned int l
 void rate_change(unsigned int N, unsigned int pST,double pLH, double pHL, double *sexH, double *sexL, unsigned int switch1, double *sexCN, double *sexCNInv, double *tts, unsigned int *npST,const gsl_rng *r);
 void stchange2(unsigned int ev, unsigned int deme, unsigned int *kin, int *WCH, int *BCH);
 void sexconv(unsigned int **Tin, unsigned int *rsex, unsigned int nsum, unsigned int Ntot);
-void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, double Ttot, unsigned int *Nwith, unsigned int *Nbet, unsigned int deme, unsigned int *rsex, unsigned int *nsex, unsigned int ex, unsigned int drec, unsigned int e2, unsigned int **breaks, unsigned int nsites, unsigned int *lrec, unsigned int *nbreaks, unsigned int Nmax, unsigned int lambda, unsigned int *gcalt, const gsl_rng *r);
+void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, double Ttot, unsigned int *Nwith, unsigned int *Nbet, unsigned int deme, unsigned int *rsex, unsigned int *nsex, unsigned int ex, unsigned int drec, unsigned int e2, unsigned int **breaks, unsigned int nsites, unsigned int *lrec, unsigned int *nbreaks, unsigned int Nmax, double lambda, unsigned int *gcalt, const gsl_rng *r);
 void cchange(unsigned int **indvs, int **GType, double **CTms, int **TAnc, unsigned int *csamp, unsigned int *par, unsigned int lsamp, unsigned int Ntot, unsigned int *nbreaks, double Ttot);
 unsigned int ccheck(unsigned int **indvs, int **GType, unsigned int **breaks, unsigned int nsites, unsigned int *lrec, unsigned int Ntot, unsigned int nbreaks);
 unsigned int coalcalc(unsigned int **breaks, unsigned int nsites, unsigned int nbreaks, unsigned int start);
@@ -640,7 +640,7 @@ void sexconv(unsigned int **Tin, unsigned int *rsex, unsigned int nsum, unsigned
 }
 
 /* Function to change status of samples following event change */
-void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, double Ttot, unsigned int *Nwith, unsigned int *Nbet, unsigned int deme, unsigned int *rsex, unsigned int *nsex, unsigned int ex, unsigned int drec, unsigned int e2, unsigned int **breaks, unsigned int nsites, unsigned int *lrec, unsigned int *nbreaks, unsigned int NMax, unsigned int lambda, unsigned int *gcalt, const gsl_rng *r){
+void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, double Ttot, unsigned int *Nwith, unsigned int *Nbet, unsigned int deme, unsigned int *rsex, unsigned int *nsex, unsigned int ex, unsigned int drec, unsigned int e2, unsigned int **breaks, unsigned int nsites, unsigned int *lrec, unsigned int *nbreaks, unsigned int NMax, double lambda, unsigned int *gcalt, const gsl_rng *r){
 	
 	unsigned int NWtot = 2*sumUI(Nwith,d);
 	unsigned int NBtot = sumUI(Nbet,d);
@@ -1068,7 +1068,7 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 			if(gcend > nsites){
 				gcend = nsites;		/* So doesn't extend past end of tract */
 			}
-			printf("gcln %d, gcend %d\n",gcln,gcend);
+			printf("nsites %d, gcst %d, gcln %d, gcend %d\n",nsites,gcst,gcln,gcend);
 			for(x = 0; x < *nbreaks; x++){
 				if( *((*(breaks + 0)) + x) == gcend){
 					isyetbp2 = 1;
@@ -2572,8 +2572,8 @@ int main(int argc, char *argv[]){
 	if(d == 1){
 		mig = 0;	/* Set migration to zero if only one deme, as a precaution */
 	}
-	if(rec == 0){
-		nsites = 1; /* Set no sites to 1 if no recombination, as a precaution */
+	if(rec == 0 && g == 0){
+		nsites = 1; /* Set no sites to 1 if no recombination OR gc, as a precaution */
 	}
 	if(rec != 0){
 		rec = rec/(2.0*(nsites-1)*N);
