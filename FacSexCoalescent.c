@@ -1097,20 +1097,21 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 				if( mindr == 1 && *((*(breaks + 1)) + mintr) != 1){
 					yesrec = 1;
 				}else if(mindr == 0){		/* GC start past end of current breakpoints, so need to force it */
-					mintr = *nbreaks;
+					mintr = ((*nbreaks)-1);
 					yesrec = 1;
 				}
 			}
+			printf("MINTR %d NBREAKS %d\n",mintr,*nbreaks);
 			
 			/* Inserting new, start BP if needed */
 			if((isyetbp != 1) && (*((*(GType + gcsamp)) + mintr + 1) != (-1)) ){
 				(*nbreaks)++;
-				for(x = *nbreaks-2; x >= (int)(mintr); x--){
+				for(x = *nbreaks-2; x >= (int)(mintr+1); x--){
 					*((*(breaks + 0)) + x + 1) = *((*(breaks + 0)) + x);
 					*((*(breaks + 1)) + x + 1) = *((*(breaks + 1)) + x);						
 				}
-				*((*(breaks + 0)) + mintr) = gcst;
-				*((*(breaks + 1)) + mintr) = 0;
+				*((*(breaks + 0)) + mintr + 1) = gcst;
+				*((*(breaks + 1)) + mintr + 1) = 0;
 				/* Adding new site to genotype; coalescent time; ancestry table */
 				for(j = 0; j < NMax; j++){
 					for(x = (*nbreaks-1); x >= (int)(mintr); x--){
@@ -1141,18 +1142,19 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 				}
 			}
 			if(maxtr == 0){ 	/* If endpoint not found amongst existing bps, must be at end */
-				maxtr = *nbreaks;
+				maxtr = ((*nbreaks)-1);
 			}
+			printf("MAXTR %d NBREAKS %d\n",maxtr,*nbreaks);			
 			
 			/* Inserting new, end BP if needed */
 			if((isyetbp != 1) && (*((*(GType + gcsamp)) + maxtr + 1) != (-1)) ){
 				(*nbreaks)++;
-				for(x = *nbreaks-2; x >= (int)(maxtr); x--){
+				for(x = *nbreaks-2; x >= (int)(maxtr+1); x--){
 					*((*(breaks + 0)) + x + 1) = *((*(breaks + 0)) + x);
 					*((*(breaks + 1)) + x + 1) = *((*(breaks + 1)) + x);						
 				}
-				*((*(breaks + 0)) + maxtr) = gcend;
-				*((*(breaks + 1)) + maxtr) = 0;
+				*((*(breaks + 0)) + maxtr+1) = gcend;
+				*((*(breaks + 1)) + maxtr+1) = 0;
 				/* Adding new site to genotype; coalescent time; ancestry table */
 				for(j = 0; j < NMax; j++){
 					for(x = (*nbreaks-1); x >= (int)(maxtr); x--){
@@ -1238,6 +1240,7 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 				/* Check if tracts have coalesced */
 				*lrec = ccheck(indvs,GType,breaks,nsites,lrec,Ntot,*nbreaks);
 			}
+			TestTabs(indvs, GType, CTms , TAnc, breaks, NMax, *nbreaks);			
 			
 			break;
 		case 9:		/* Event 9: Migration of a sample */
@@ -1770,8 +1773,8 @@ void TestTabs(unsigned int **indvs, int **GType, double **CTms , int **TAnc, uns
 	}
 	printf("\n");	
 
-	Wait();
-/*	exit(1);*/
+/*	Wait();	*/
+	exit(1);
 
 }
 
@@ -3019,9 +3022,6 @@ int main(int argc, char *argv[]){
 				}
 /*				printf("lrec now %d\n",lrec);*/
 				free(rsex);		/* Can be discarded once used to change ancestry */
-				if(event==8){
-				TestTabs(indvs, GType, CTms , TAnc, breaks, NMax, nbreaks);
-				}
 				
 				/* Checking if need to expand tables */
 
