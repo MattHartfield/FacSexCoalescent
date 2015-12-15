@@ -677,6 +677,7 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 	unsigned int gcln = 0;		/* Length of GC event (event 8) */
 	unsigned int NWd = 0; 		/* WH in deme (ev 8) */
 	unsigned int NTd = 0; 		/* Tot in deme (ev 8) */	
+	unsigned int mindr = 0;		/* Done choosing min tract point? (event 8) */
 	
 	/* Then further actions based on other event */
 	switch(ex)
@@ -1043,44 +1044,6 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 			NWd = (*(Nwith + deme) - *(nsex + deme));
 			NTd = (*(Nbet + deme) + *(Nwith + deme) + *(nsex + deme));
 			gt = gsl_ran_bernoulli(r,(NWd/(1.0*NTd)));
-			/* Then drawing startpoint, length of GC event */
-			yesrec = 0;
-			while(yesrec != 1){
-				gcst = (unsigned int)gsl_ran_flat(r, 0, nsites);
-				for(x = 0; x < *nbreaks; x++){
-					if( *((*(breaks + 0)) + x) == gcst){
-						isyetbp = 1;
-					}
-					if( *((*(breaks + 0)) + x) > gcst){
-						mintr = (x-1);
-						break;
-					}
-				}
-				if( *((*(breaks + 1)) + mintr) != 1){
-					yesrec = 1;
-				}
-			}
-			gcln = 0;
-			while(gcln == 0){
-				gcln = (gsl_ran_geometric(r,(1.0/lambda)));
-			}
-			gcend = gcst + gcln;
-			if(gcend > nsites){
-				gcend = nsites;		/* So doesn't extend past end of tract */
-			}
-			printf("nsites %d, gcst %d, gcln %d, gcend %d\n",nsites,gcst,gcln,gcend);
-			for(x = 0; x < *nbreaks; x++){
-				if( *((*(breaks + 0)) + x) == gcend){
-					isyetbp2 = 1;
-				}
-				if( *((*(breaks + 0)) + x) > gcend){
-					maxtr = (x-1);
-					break;
-				}
-			}
-			if(maxtr == 0){ 	/* If endpoint not found amongst existing bps, must be at end */
-				maxtr = *nbreaks;
-			}
 			
 			if(gt == 0){	/* Acts on single sample */
 				unsigned int *singsamps8 = calloc((*(Nbet + deme) + 2*(*(nsex + deme))),sizeof(unsigned int));
@@ -1116,28 +1079,30 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 				free(parsamps8);
 			}
 			
-			/* Adding new site and re-ordering tracts in other tables, end first */
-			if((isyetbp != 1) && (*((*(GType + gcsamp)) + maxtr + 1) != (-1)) ){
-				(*nbreaks)++;
-				for(x = *nbreaks-2; x >= (int)(maxtr); x--){
-					*((*(breaks + 0)) + x + 1) = *((*(breaks + 0)) + x);
-					*((*(breaks + 1)) + x + 1) = *((*(breaks + 1)) + x);						
-				}
-				*((*(breaks + 0)) + maxtr) = gcend;
-				*((*(breaks + 1)) + maxtr) = 0;
-				/* Adding new site to genotype; coalescent time; ancestry table */
-				for(j = 0; j < NMax; j++){
-					for(x = (*nbreaks-1); x >= (int)(maxtr+1); x--){
-						*((*(GType + j)) + x + 1) = *((*(GType + j)) + x);
-						*((*(CTms + j)) + x + 1) = *((*(CTms + j)) + x);
-						*((*(TAnc + j)) + x + 1) = *((*(TAnc + j)) + x);
+			/* Then drawing startpoint, length of GC event */
+			yesrec = 0;
+			while(yesrec != 1){
+				mindr = 0;
+				gcst = (unsigned int)gsl_ran_flat(r, 0, nsites);
+				for(x = 0; x < *nbreaks; x++){
+					if( *((*(breaks + 0)) + x) == gcst){
+						isyetbp = 1;
+					}
+					if( *((*(breaks + 0)) + x) > gcst){
+						mintr = (x-1);
+						mindr = 1;
+						break;
 					}
 				}
-				maxtr++;
-				mintr++;
+				if( mindr == 1 && *((*(breaks + 1)) + mintr) != 1){
+					yesrec = 1;
+				}else if(mindr == 0){		/* GC start past end of current breakpoints, so need to force it */
+					mintr = *nbreaks;
+					yesrec = 1;
+				}
 			}
 			
-			/* Same for start of bp case */
+			/* Inserting new, start BP if needed */
 			if((isyetbp != 1) && (*((*(GType + gcsamp)) + mintr + 1) != (-1)) ){
 				(*nbreaks)++;
 				for(x = *nbreaks-2; x >= (int)(mintr); x--){
@@ -1148,24 +1113,63 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 				*((*(breaks + 1)) + mintr) = 0;
 				/* Adding new site to genotype; coalescent time; ancestry table */
 				for(j = 0; j < NMax; j++){
-					for(x = (*nbreaks-1); x >= (int)(mintr+1); x--){
+					for(x = (*nbreaks-1); x >= (int)(mintr); x--){
+						*((*(GType + j)) + x + 1) = *((*(GType + j)) + x);
+						*((*(CTms + j)) + x + 1) = *((*(CTms + j)) + x);
+						*((*(TAnc + j)) + x + 1) = *((*(TAnc + j)) + x);
+					}
+				}
+				mintr++;
+			}
+			
+			gcln = 0;
+			while(gcln == 0){
+				gcln = (gsl_ran_geometric(r,(1.0/lambda)));
+			}
+			gcend = gcst + gcln;
+			if(gcend > nsites){
+				gcend = nsites;		/* So doesn't extend past end of tract */
+			}
+			printf("nsites %d, gcst %d, gcln %d, gcend %d\n",nsites,gcst,gcln,gcend);
+			for(x = 0; x < *nbreaks; x++){
+				if( *((*(breaks + 0)) + x) == gcend){
+					isyetbp2 = 1;
+				}
+				if( *((*(breaks + 0)) + x) > gcend){
+					maxtr = (x-1);
+					break;
+				}
+			}
+			if(maxtr == 0){ 	/* If endpoint not found amongst existing bps, must be at end */
+				maxtr = *nbreaks;
+			}
+			
+			/* Inserting new, end BP if needed */
+			if((isyetbp != 1) && (*((*(GType + gcsamp)) + maxtr + 1) != (-1)) ){
+				(*nbreaks)++;
+				for(x = *nbreaks-2; x >= (int)(maxtr); x--){
+					*((*(breaks + 0)) + x + 1) = *((*(breaks + 0)) + x);
+					*((*(breaks + 1)) + x + 1) = *((*(breaks + 1)) + x);						
+				}
+				*((*(breaks + 0)) + maxtr) = gcend;
+				*((*(breaks + 1)) + maxtr) = 0;
+				/* Adding new site to genotype; coalescent time; ancestry table */
+				for(j = 0; j < NMax; j++){
+					for(x = (*nbreaks-1); x >= (int)(maxtr); x--){
 						*((*(GType + j)) + x + 1) = *((*(GType + j)) + x);
 						*((*(CTms + j)) + x + 1) = *((*(CTms + j)) + x);
 						*((*(TAnc + j)) + x + 1) = *((*(TAnc + j)) + x);
 					}
 				}
 				maxtr++;
-				mintr++;
 			}
-			TestTabs(indvs, GType, CTms , TAnc, breaks, NMax, *nbreaks);
-
 				
 			/* ONLY PROCEED IF NOT ALL SITES EMPTY (otherwise alternative regimes used) */
-			printf("gt %d; mintr, maxtr is %d %d\n",gt,mintr,maxtr);
-			printf("Case 1: %d\n",(isallI((*(GType + gcsamp)), (maxtr+1), (-1), (mintr+1))));
-			printf("Case 2: %d\n",(isallI((*(GType + gcsamp)), (mintr+1), (-1), 1)));
-			printf("Case 3: %d\n",(isallI((*(GType + gcsamp)), (*nbreaks+1), (-1), (maxtr+1))));
-			if((isallI((*(GType + gcsamp)), (maxtr+1), (-1), (mintr+1)) != 1) && (isallI((*(GType + gcsamp)), (mintr+1), (-1), 1) != 1) && (isallI((*(GType + gcsamp)), (*nbreaks+1), (-1), (maxtr+1)) != 1)){
+			printf("gt is %d, rands is %d. mintr, maxtr are %d %d\n",gt,rands,mintr,maxtr);
+			printf("Case 1: %d\n",(isallI((*(GType + gcsamp)), (maxtr), (-1), (mintr))));
+			printf("Case 2: %d\n",(isallI((*(GType + gcsamp)), (mintr), (-1), 1)));
+			printf("Case 3: %d\n",(isallI((*(GType + gcsamp)), (*nbreaks+1), (-1), (maxtr))));
+			if((isallI((*(GType + gcsamp)), (maxtr), (-1), (mintr)) != 1) && (isallI((*(GType + gcsamp)), (mintr), (-1), 1) != 1) && (isallI((*(GType + gcsamp)), (*nbreaks+1), (-1), (maxtr)) != 1)){
 				
 				if(gt == 1){
 					/* Now creating the new sample genotype; updating all other tables */
@@ -1179,7 +1183,6 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 					}
 				}else if(gt == 0){
 					*gcalt = 1;
-					printf("GCA CHANGED\n");
 				
 					/* Adding new sample to indv table */
 					*((*(indvs + NMax)) + 0) = NMax;
@@ -1188,7 +1191,7 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 					*((*(indvs + NMax)) + 3) = deme;
 		
 					/* Now creating the new sample genotype; updating all other tables */
-					for(x = (maxtr+1); x >= (int)(mintr+1); x--){
+					for(x = (maxtr-1); x >= (int)(mintr); x--){
 						*((*(GType + NMax)) + x) = *((*(GType + gcsamp)) + x);
 						*((*(GType + gcsamp)) + x) = (-1);
 						*((*(CTms + NMax)) + x) = *((*(CTms + gcsamp)) + x);
@@ -1197,12 +1200,12 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 						*((*(TAnc + gcsamp)) + x) = (-1);								
 					}
 		
-					for(x = (*nbreaks + 1); x > (int)(maxtr+1); x--){
+					for(x = (*nbreaks + 1); x >= (int)(maxtr); x--){
 						*((*(GType + NMax)) + x) = (-1);
 						*((*(CTms + NMax)) + x) = (-1);					
 						*((*(TAnc + NMax)) + x) = (-1);
 					}
-					for(x = mintr; x > (int)0; x--){
+					for(x = (mintr-1); x > (int)0; x--){
 						*((*(GType + NMax)) + x) = (-1);
 						*((*(CTms + NMax)) + x) = (-1);					
 						*((*(TAnc + NMax)) + x) = (-1);
@@ -1768,6 +1771,7 @@ void TestTabs(unsigned int **indvs, int **GType, double **CTms , int **TAnc, uns
 	printf("\n");	
 
 	Wait();
+/*	exit(1);*/
 
 }
 
@@ -3015,6 +3019,9 @@ int main(int argc, char *argv[]){
 				}
 /*				printf("lrec now %d\n",lrec);*/
 				free(rsex);		/* Can be discarded once used to change ancestry */
+				if(event==8){
+				TestTabs(indvs, GType, CTms , TAnc, breaks, NMax, nbreaks);
+				}
 				
 				/* Checking if need to expand tables */
 
