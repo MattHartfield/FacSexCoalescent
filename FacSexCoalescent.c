@@ -1114,7 +1114,7 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 				*((*(breaks + 1)) + mintr + 1) = 0;
 				/* Adding new site to genotype; coalescent time; ancestry table */
 				for(j = 0; j < NMax; j++){
-					for(x = (*nbreaks-1); x >= (int)(mintr); x--){
+					for(x = (*nbreaks-1); x > (int)(mintr); x--){
 						*((*(GType + j)) + x + 1) = *((*(GType + j)) + x);
 						*((*(CTms + j)) + x + 1) = *((*(CTms + j)) + x);
 						*((*(TAnc + j)) + x + 1) = *((*(TAnc + j)) + x);
@@ -1164,14 +1164,15 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 					}
 				}
 				maxtr++;
-			}
+			}			
 				
 			/* ONLY PROCEED IF NOT ALL SITES EMPTY (otherwise alternative regimes used) */
 			printf("gt is %d, rands is %d. mintr, maxtr are %d %d\n",gt,rands,mintr,maxtr);
+			printf("gcsamp1 is %d, gcsamp2 is %d. nbreaks is %d\n",gcsamp,gcsamp2,*nbreaks);
 			printf("Case 1: %d\n",(isallI((*(GType + gcsamp)), (maxtr), (-1), (mintr))));
-			printf("Case 2: %d\n",(isallI((*(GType + gcsamp)), (mintr), (-1), 1)));
+			printf("Case 2: %d\n",(isallI((*(GType + gcsamp)), (mintr+1), (-1), 1)));
 			printf("Case 3: %d\n",(isallI((*(GType + gcsamp)), (*nbreaks+1), (-1), (maxtr))));
-			if((isallI((*(GType + gcsamp)), (maxtr), (-1), (mintr)) != 1) && (isallI((*(GType + gcsamp)), (mintr), (-1), 1) != 1) && (isallI((*(GType + gcsamp)), (*nbreaks+1), (-1), (maxtr)) != 1)){
+			if((isallI((*(GType + gcsamp)), (maxtr), (-1), (mintr)) != 1) && (isallI((*(GType + gcsamp)), (mintr+1), (-1), 1) != 1) && (isallI((*(GType + gcsamp)), (*nbreaks+1), (-1), (maxtr)) != 1)){
 				
 				if(gt == 1){
 					/* Now creating the new sample genotype; updating all other tables */
@@ -1193,7 +1194,7 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 					*((*(indvs + NMax)) + 3) = deme;
 		
 					/* Now creating the new sample genotype; updating all other tables */
-					for(x = (maxtr-1); x >= (int)(mintr); x--){
+					for(x = (maxtr); x > (int)(mintr); x--){
 						*((*(GType + NMax)) + x) = *((*(GType + gcsamp)) + x);
 						*((*(GType + gcsamp)) + x) = (-1);
 						*((*(CTms + NMax)) + x) = *((*(CTms + gcsamp)) + x);
@@ -1202,12 +1203,12 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 						*((*(TAnc + gcsamp)) + x) = (-1);								
 					}
 		
-					for(x = (*nbreaks + 1); x >= (int)(maxtr); x--){
+					for(x = (*nbreaks); x > (int)(maxtr); x--){
 						*((*(GType + NMax)) + x) = (-1);
 						*((*(CTms + NMax)) + x) = (-1);					
 						*((*(TAnc + NMax)) + x) = (-1);
 					}
-					for(x = (mintr-1); x > (int)0; x--){
+					for(x = (mintr); x > (int)0; x--){
 						*((*(GType + NMax)) + x) = (-1);
 						*((*(CTms + NMax)) + x) = (-1);					
 						*((*(TAnc + NMax)) + x) = (-1);
@@ -1745,7 +1746,7 @@ void TestTabs(unsigned int **indvs, int **GType, double **CTms , int **TAnc, uns
 		printf("\n");
 	}
 	printf("\n");
-	/*		
+
 	printf("CTMS TABLE\n");
 	for(j = 0; j < NMax; j++){
 		for(x = 0; x <= nbreaks; x++){
@@ -1763,7 +1764,7 @@ void TestTabs(unsigned int **indvs, int **GType, double **CTms , int **TAnc, uns
 		printf("\n");
 	}
 	printf("\n");
-	*/
+
 	printf("BREAKS TABLE\n");
 	for(j = 0; j < 2; j++){
 		for(x = 0; x < nbreaks; x++){
