@@ -679,6 +679,7 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 	unsigned int NTd = 0; 		/* Tot in deme (ev 8) */	
 	unsigned int mindr = 0;		/* Done choosing min tract point? (event 8) */
 	unsigned int proceed = 0;	/* Proceed with gene conversion? (event 8) */
+	unsigned int maxck = 0;		/* Check if end of bp correctly chosen (event 8) */
 	
 	/* Then further actions based on other event */
 	switch(ex)
@@ -1125,6 +1126,7 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 			}
 			
 			gcln = 0;
+			maxck = 0;
 			while(gcln == 0){
 				gcln = (gsl_ran_geometric(r,(1.0/lambda)));
 			}
@@ -1139,13 +1141,14 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 				}
 				if( *((*(breaks + 0)) + x) > gcend){
 					maxtr = (x-1);
+					maxck = 1;
 					break;
 				}
 			}
-			if(maxtr == 0 && (gcend != nsites)){ 	/* If endpoint not found amongst existing bps, must be at end */
+			if(maxck == 0 && (gcend != nsites)){ 	/* If endpoint not found amongst existing bps, must be at end */
 				printf("It here 1\n");
 				maxtr = ((*nbreaks)-1);
-			}else if(maxtr == 0 && (gcend == nsites)){
+			}else if(maxck == 0 && (gcend == nsites)){
 				printf("It here 2\n");
 				maxtr = ((*nbreaks));
 				isyetbp2 = 1;				
@@ -1155,18 +1158,28 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 			/* Inserting new, end BP if needed */
 			if((isyetbp2 != 1) && (*((*(GType + gcsamp)) + maxtr + 1) != (-1)) ){
 				(*nbreaks)++;
-				for(x = *nbreaks-2; x >= (int)(maxtr+1); x--){
+				for(x = *nbreaks-2; x >= (int)(maxtr + 1); x--){
 					*((*(breaks + 0)) + x + 1) = *((*(breaks + 0)) + x);
 					*((*(breaks + 1)) + x + 1) = *((*(breaks + 1)) + x);						
 				}
-				*((*(breaks + 0)) + maxtr+1) = gcend;
-				*((*(breaks + 1)) + maxtr+1) = 0;
+				*((*(breaks + 0)) + maxtr + 1) = gcend;
+				*((*(breaks + 1)) + maxtr + 1) = 0;
 				/* Adding new site to genotype; coalescent time; ancestry table */
-				for(j = 0; j < NMax; j++){
-					for(x = (*nbreaks-1); x >= (int)(maxtr); x--){
-						*((*(GType + j)) + x + 1) = *((*(GType + j)) + x);
-						*((*(CTms + j)) + x + 1) = *((*(CTms + j)) + x);
-						*((*(TAnc + j)) + x + 1) = *((*(TAnc + j)) + x);
+				if(maxtr != 0){
+					for(j = 0; j < NMax; j++){
+						for(x = (*nbreaks-1); x >= (int)(maxtr); x--){
+							*((*(GType + j)) + x + 1) = *((*(GType + j)) + x);
+							*((*(CTms + j)) + x + 1) = *((*(CTms + j)) + x);
+							*((*(TAnc + j)) + x + 1) = *((*(TAnc + j)) + x);
+						}
+					}
+				}else if(maxtr == 0){
+					for(j = 0; j < NMax; j++){
+						for(x = (*nbreaks-1); x >= 1; x--){
+							*((*(GType + j)) + x + 1) = *((*(GType + j)) + x);
+							*((*(CTms + j)) + x + 1) = *((*(CTms + j)) + x);
+							*((*(TAnc + j)) + x + 1) = *((*(TAnc + j)) + x);
+						}
 					}
 				}
 				maxtr++;
@@ -1261,7 +1274,6 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 				/* Check if tracts have coalesced */
 				*lrec = ccheck(indvs,GType,breaks,nsites,lrec,Ntot,*nbreaks);
 			}
-			TestTabs(indvs, GType, CTms , TAnc, breaks, NMax+1, *nbreaks);			
 			
 			break;
 		case 9:		/* Event 9: Migration of a sample */
@@ -1766,7 +1778,7 @@ void TestTabs(unsigned int **indvs, int **GType, double **CTms , int **TAnc, uns
 		printf("\n");
 	}
 	printf("\n");
-
+	
 	printf("CTMS TABLE\n");
 	for(j = 0; j < NMax; j++){
 		for(x = 0; x <= nbreaks; x++){
@@ -2775,8 +2787,10 @@ int main(int argc, char *argv[]){
 	
 	/* Running the simulation Nreps times */
 	for(i = 0; i < Nreps; i++){
-	
+		
+		printf("\n");
 		printf("Starting Run %d\n",i);
+		printf("\n");		
 
 		/* Setting up type of sex heterogeneity */
 		if(pSTIN == 0){
@@ -3082,6 +3096,12 @@ int main(int argc, char *argv[]){
 			}
 		}
 		
+		/*
+		if(i > 1){
+			TestTabs(indvs, GType, CTms , TAnc, breaks, NMax, nbreaks);
+		}
+		*/
+		
 		for(x = 1; x <= nbreaks; x++){
 			
 			/* Creating ancestry table */
@@ -3095,6 +3115,7 @@ int main(int argc, char *argv[]){
 				}
 			}
 			indv_sortD(TFin,(Itot-1),3,1);
+
 			/*
 			for(j = 0; j < Itot-1; j++){
 				printf("%f %f %f\n",*((*(TFin + j)) + 0),*((*(TFin + j)) + 1),*((*(TFin + j)) + 2));
