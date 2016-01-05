@@ -680,6 +680,7 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 	unsigned int mindr = 0;		/* Done choosing min tract point? (event 8) */
 	unsigned int proceed = 0;	/* Proceed with gene conversion? (event 8) */
 	unsigned int maxck = 0;		/* Check if end of bp correctly chosen (event 8) */
+	unsigned int iscoal = 0;	/* Check if paired GC event leads to coalescence (event 8) */
 	
 	/* Then further actions based on other event */
 	switch(ex)
@@ -1191,7 +1192,9 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 			printf("Case 1: %d\n",(isallI((*(GType + gcsamp)), (maxtr + 1), (-1), (mintr + 1))));
 			printf("Case 2a: %d\n",(isallI((*(GType + gcsamp)), (mintr + 1), (-1), 1)));
 			printf("Case 2b: %d\n",(isallI((*(GType + gcsamp)), (*nbreaks + 1), (-1), (maxtr + 1))));
-			if((isallI((*(GType + gcsamp)), (maxtr + 1), (-1), (mintr + 1)) != 1) && ((isallI((*(GType + gcsamp)), (mintr + 1), (-1), 1) != 1) || (isallI((*(GType + gcsamp)), (*nbreaks + 1), (-1), (maxtr + 1)) != 1))){
+			if(gt == 0 && (isallI((*(GType + gcsamp)), (maxtr + 1), (-1), (mintr + 1)) != 1) && ((isallI((*(GType + gcsamp)), (mintr + 1), (-1), 1) != 1) || (isallI((*(GType + gcsamp)), (*nbreaks + 1), (-1), (maxtr + 1)) != 1))){
+				proceed = 1;
+			}else if(gt == 1){
 				proceed = 1;
 			}
 			
@@ -1208,14 +1211,25 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 			if(proceed == 1){
 				
 				if(gt == 1){
+					iscoal = 1;
 					/* Now creating the new sample genotype; updating all other tables */
-					for(x = (maxtr+1); x >= (int)(mintr+1); x--){
+					for(x = maxtr; x > (int)(mintr); x--){
 						*((*(GType + gcsamp2)) + x) = *((*(GType + gcsamp)) + x);
-						*((*(GType + gcsamp)) + x) = (-1);
 						*((*(CTms + gcsamp2)) + x) = *((*(CTms + gcsamp)) + x);
-						*((*(CTms + gcsamp)) + x) = (-1);
 						*((*(TAnc + gcsamp2)) + x) = *((*(TAnc + gcsamp)) + x);
+						/*
+						*((*(GType + gcsamp)) + x) = (-1);
+						*((*(CTms + gcsamp)) + x) = (-1);						
 						*((*(TAnc + gcsamp)) + x) = (-1);								
+						*/
+					}
+					
+					/* Now checking if samples are equal => coalescence has occurred */
+					for(x = 1; x < (*nbreaks+1); x++){
+						if( (*((*(GType + gcsamp)) + x) != (-1)) && (*((*(GType + gcsamp)) + x) != *((*(GType + gcsamp2)) + x))){
+							iscoal = 0;
+							break;
+						}
 					}
 				}else if(gt == 0){
 					*gcalt = 1;
@@ -1255,7 +1269,8 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 			}
 			
 			/* Coalesce sample if all WH material transferred */
-			if( (gt == 1) && (isallI((*(GType + gcsamp)), mintr, (-1), 1) == 1) && (isallI((*(GType + gcsamp)), (*nbreaks+1), (-1), (maxtr+1)) == 1)){
+/*			if( (gt == 1) && (isallI((*(GType + gcsamp)), (mintr+1), (-1), 1) == 1) && (isallI((*(GType + gcsamp)), (*nbreaks+1), (-1), (maxtr+1)) == 1)){*/
+			if( (gt == 1) && (iscoal == 1)){
 				printf("GC coalescence here\n");
 				*gcalt = 2;
 				csamp = gcsamp;
@@ -1273,7 +1288,9 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 			
 				/* Check if tracts have coalesced */
 				*lrec = ccheck(indvs,GType,breaks,nsites,lrec,Ntot,*nbreaks);
+				
 			}
+			TestTabs(indvs, GType, CTms , TAnc, breaks, NMax+1, *nbreaks);
 			
 			break;
 		case 9:		/* Event 9: Migration of a sample */
@@ -3095,12 +3112,6 @@ int main(int argc, char *argv[]){
 				done = isallUI(*(breaks + 1),nbreaks,1,0);
 			}
 		}
-		
-		/*
-		if(i > 1){
-			TestTabs(indvs, GType, CTms , TAnc, breaks, NMax, nbreaks);
-		}
-		*/
 		
 		for(x = 1; x <= nbreaks; x++){
 			
