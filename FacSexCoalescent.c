@@ -678,6 +678,7 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 	unsigned int NWd = 0; 		/* WH in deme (ev 8) */
 	unsigned int NTd = 0; 		/* Tot in deme (ev 8) */	
 	unsigned int mindr = 0;		/* Done choosing min tract point? (event 8) */
+	unsigned int proceed = 0;	/* Proceed with gene conversion? (event 8) */
 	
 	/* Then further actions based on other event */
 	switch(ex)
@@ -1141,13 +1142,18 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 					break;
 				}
 			}
-			if(maxtr == 0){ 	/* If endpoint not found amongst existing bps, must be at end */
+			if(maxtr == 0 && (gcend != nsites)){ 	/* If endpoint not found amongst existing bps, must be at end */
+				printf("It here 1\n");
 				maxtr = ((*nbreaks)-1);
+			}else if(maxtr == 0 && (gcend == nsites)){
+				printf("It here 2\n");
+				maxtr = ((*nbreaks));
+				isyetbp2 = 1;				
 			}
 			printf("MAXTR %d NBREAKS %d\n",maxtr,*nbreaks);			
 			
 			/* Inserting new, end BP if needed */
-			if((isyetbp != 1) && (*((*(GType + gcsamp)) + maxtr + 1) != (-1)) ){
+			if((isyetbp2 != 1) && (*((*(GType + gcsamp)) + maxtr + 1) != (-1)) ){
 				(*nbreaks)++;
 				for(x = *nbreaks-2; x >= (int)(maxtr+1); x--){
 					*((*(breaks + 0)) + x + 1) = *((*(breaks + 0)) + x);
@@ -1165,14 +1171,28 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 				}
 				maxtr++;
 			}			
-				
+			
 			/* ONLY PROCEED IF NOT ALL SITES EMPTY (otherwise alternative regimes used) */
 			printf("gt is %d, rands is %d. mintr, maxtr are %d %d\n",gt,rands,mintr,maxtr);
-			printf("gcsamp1 is %d, gcsamp2 is %d. nbreaks is %d\n",gcsamp,gcsamp2,*nbreaks);
-			printf("Case 1: %d\n",(isallI((*(GType + gcsamp)), (maxtr), (-1), (mintr))));
-			printf("Case 2: %d\n",(isallI((*(GType + gcsamp)), (mintr+1), (-1), 1)));
-			printf("Case 3: %d\n",(isallI((*(GType + gcsamp)), (*nbreaks+1), (-1), (maxtr))));
-			if((isallI((*(GType + gcsamp)), (maxtr), (-1), (mintr)) != 1) && (isallI((*(GType + gcsamp)), (mintr+1), (-1), 1) != 1) && (isallI((*(GType + gcsamp)), (*nbreaks+1), (-1), (maxtr)) != 1)){
+			printf("gcsamp1 is %d, gcsamp2 is %d. nbreaks is %d. NMAX is %d\n",gcsamp,gcsamp2,*nbreaks,NMax);
+			printf("Case 1: %d\n",(isallI((*(GType + gcsamp)), (maxtr + 1), (-1), (mintr + 1))));
+			printf("Case 2a: %d\n",(isallI((*(GType + gcsamp)), (mintr + 1), (-1), 1)));
+			printf("Case 2b: %d\n",(isallI((*(GType + gcsamp)), (*nbreaks + 1), (-1), (maxtr + 1))));
+			if((isallI((*(GType + gcsamp)), (maxtr + 1), (-1), (mintr + 1)) != 1) && ((isallI((*(GType + gcsamp)), (mintr + 1), (-1), 1) != 1) || (isallI((*(GType + gcsamp)), (*nbreaks + 1), (-1), (maxtr + 1)) != 1))){
+				proceed = 1;
+			}
+			
+			/*
+			else if(mintr == 0){	No need to account for LHS edge effects in this case
+				printf("Case 1A: %d\n",(isallI((*(GType + gcsamp)), (maxtr + 1), (-1), (mintr + 1))));
+				printf("Case 3A: %d\n",(isallI((*(GType + gcsamp)), (*nbreaks + 1), (-1), (maxtr + 1))));
+				if((isallI((*(GType + gcsamp)), (maxtr + 1), (-1), (mintr + 1)) != 1) && (isallI((*(GType + gcsamp)), (*nbreaks + 1), (-1), (maxtr + 1)) != 1)){
+					proceed = 1;
+				}
+			}
+			*/
+			
+			if(proceed == 1){
 				
 				if(gt == 1){
 					/* Now creating the new sample genotype; updating all other tables */
@@ -1241,7 +1261,7 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 				/* Check if tracts have coalesced */
 				*lrec = ccheck(indvs,GType,breaks,nsites,lrec,Ntot,*nbreaks);
 			}
-			TestTabs(indvs, GType, CTms , TAnc, breaks, NMax, *nbreaks);			
+			TestTabs(indvs, GType, CTms , TAnc, breaks, NMax+1, *nbreaks);			
 			
 			break;
 		case 9:		/* Event 9: Migration of a sample */
@@ -1774,8 +1794,8 @@ void TestTabs(unsigned int **indvs, int **GType, double **CTms , int **TAnc, uns
 	}
 	printf("\n");	
 
-/*	Wait();	*/
-	exit(1);
+	Wait();
+/*	exit(1);	*/
 
 }
 
@@ -3016,7 +3036,7 @@ int main(int argc, char *argv[]){
 				indv_sort(indvs, NMax);
 				/* Updating baseline recombinable material depending on number single samples */
 				if(isallUI(*(breaks+1),nbreaks,1,0) == 0){
-					reccal(indvs, GType, breaks, Nbet, Nwith, rsex, esex, nlrec, lrec, nbreaks, NMax, 0,i);
+					reccal(indvs, GType, breaks, Nbet, Nwith, rsex, esex, nlrec, lrec, nbreaks, NMax, 0, i);
 					for(x = 0; x < d; x++){
 						*(nlrec2 + x) = 0;
 					}
