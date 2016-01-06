@@ -1,4 +1,4 @@
-/* FacSexCoalescent.c
+ /* FacSexCoalescent.c
 The facultative sex coalescent program...in C!!!
 
 < Add further preamble here once the program is near release - e.g. runtime instructions, etc. >
@@ -27,7 +27,7 @@ separately from this file.
 
 /* Function prototypes */
 unsigned int isanyUI(unsigned int *vin, unsigned int size_t, unsigned int match);
-unsigned int isanyD(double *vin, unsigned int size_t, double match);
+unsigned int isanyD(double *vin, unsigned int size_t, double match, unsigned int offset);
 unsigned int isallUI(unsigned int *vin, unsigned int size_t, unsigned int match, unsigned int offset);
 unsigned int isallI(int *vin, unsigned int size_t, int match, unsigned int offset);
 unsigned int isallD(double *vin, unsigned int size_t, double match);
@@ -69,7 +69,7 @@ void stchange2(unsigned int ev, unsigned int deme, unsigned int *kin, int *WCH, 
 void sexconv(unsigned int **Tin, unsigned int *rsex, unsigned int nsum, unsigned int Ntot);
 void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, double Ttot, unsigned int *Nwith, unsigned int *Nbet, unsigned int deme, unsigned int *rsex, unsigned int *nsex, unsigned int ex, unsigned int drec, unsigned int e2, unsigned int **breaks, unsigned int nsites, unsigned int *lrec, unsigned int *nbreaks, unsigned int Nmax, double lambda, unsigned int *gcalt, const gsl_rng *r);
 void cchange(unsigned int **indvs, int **GType, double **CTms, int **TAnc, unsigned int *csamp, unsigned int *par, unsigned int lsamp, unsigned int Ntot, unsigned int cst, unsigned int *cend, double Ttot, unsigned int isall);
-unsigned int ccheck(unsigned int **indvs, int **GType, unsigned int **breaks, unsigned int nsites, unsigned int *lrec, unsigned int Ntot, unsigned int nbreaks);
+unsigned int ccheck(unsigned int **indvs, int **GType, double **CTms, unsigned int **breaks, unsigned int nsites, unsigned int *lrec, unsigned int Ntot, unsigned int nbreaks);
 unsigned int coalcalc(unsigned int **breaks, unsigned int nsites, unsigned int nbreaks, unsigned int start);
 void sexsamp(unsigned int **indvs, unsigned int *rsex, unsigned int *nsex, unsigned int *Nwith, unsigned int Ntot, const gsl_rng *r);
 void indv_sort(unsigned int **indvs, unsigned int nrow);
@@ -97,10 +97,10 @@ unsigned int isanyUI(unsigned int *vin, unsigned int size_t, unsigned int match)
 }
 
 /* Function to replicate the 'any' func in R (double) */
-unsigned int isanyD(double *vin, unsigned int size_t, double match){
+unsigned int isanyD(double *vin, unsigned int size_t, double match, unsigned int offset){
 	unsigned int i;
 	unsigned int res = 0;
-	for(i = 0; i < size_t; i++){
+	for(i = offset; i < size_t; i++){
 		if(*(vin + i) == match){
 			res = 1;
 		}
@@ -767,7 +767,7 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 			cchange(indvs, GType, CTms, TAnc, &csamp, &par, 1, Ntot, 0, nbreaks, Ttot, 1);
 			
 			/* Check if tracts have coalesced */
-			*lrec = ccheck(indvs,GType,breaks,nsites,lrec,Ntot,*nbreaks);
+			*lrec = ccheck(indvs,GType,CTms,breaks,nsites,lrec,Ntot,*nbreaks);
 			
 			free(singsamps2);
 			break;
@@ -814,7 +814,7 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 			cchange(indvs, GType, CTms, TAnc, &csamp, &par, 1, Ntot, 0, nbreaks, Ttot, 1);
 			
 			/* Check if tracts have coalesced */
-			*lrec = ccheck(indvs,GType,breaks,nsites,lrec,Ntot,*nbreaks);
+			*lrec = ccheck(indvs,GType,CTms,breaks,nsites,lrec,Ntot,*nbreaks);
 			
 			free(twosamps);
 			free(singsamps3B);
@@ -871,7 +871,7 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 			cchange(indvs, GType, CTms, TAnc, &csamp, &par, 1, Ntot, 0, nbreaks, Ttot, 1);
 			
 			/* Check if tracts have coalesced */
-			*lrec = ccheck(indvs,GType,breaks,nsites,lrec,Ntot,*nbreaks);
+			*lrec = ccheck(indvs,GType,CTms,breaks,nsites,lrec,Ntot,*nbreaks);
 		
 			/* THEN convert WH to BH samples */
 			sexconv(indvs, rsex, nsum, Ntot);
@@ -928,7 +928,7 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 			cchange(indvs, GType, CTms, TAnc, csamp2, parT, 2, Ntot, 0, nbreaks, Ttot, 1);
 			
 			/* Check if tracts have coalesced */
-			*lrec = ccheck(indvs,GType,breaks,nsites,lrec,Ntot,*nbreaks);
+			*lrec = ccheck(indvs,GType,CTms,breaks,nsites,lrec,Ntot,*nbreaks);
 			
 			/* Making sure parent samples are in same individual */
 			for(j = 0; j < Ntot; j++){
@@ -1020,7 +1020,7 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 			cchange(indvs, GType, CTms, TAnc, &csamp, &par, 1, Ntot, 0, nbreaks, Ttot, 1);
 			
 			/* Check if tracts have coalesced */
-			*lrec = ccheck(indvs,GType,breaks,nsites,lrec,Ntot,*nbreaks);
+			*lrec = ccheck(indvs,GType,CTms,breaks,nsites,lrec,Ntot,*nbreaks);
 		
 			free(twosamps7);
 			free(singsamps7);
@@ -1101,7 +1101,9 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 					yesrec = 1;
 				}else if(mindr == 0){		/* GC start past end of current breakpoints, so need to force it */
 					mintr = ((*nbreaks)-1);
-					yesrec = 1;
+					if(*((*(breaks + 1)) + mintr) != 1){
+						yesrec = 1;
+					}
 				}
 			}
 			printf("MINTR %d NBREAKS %d\n",mintr,*nbreaks);
@@ -1213,7 +1215,7 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 					*((*(CTms + NMax)) + x) = *((*(CTms + gcsamp)) + x);
 					*((*(CTms + gcsamp)) + x) = (-1);
 					*((*(TAnc + NMax)) + x) = *((*(TAnc + gcsamp)) + x);
-					*((*(TAnc + gcsamp)) + x) = (-1);								
+					*((*(TAnc + gcsamp)) + x) = (-1);
 				}
 		
 				for(x = (*nbreaks); x > (int)(maxtr); x--){
@@ -1242,9 +1244,16 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 				
 				/* If all extant material transferred, then full coalescence occurs */
 				if((isallI((*(GType + gcsamp)), (mintr+1), (-1), 1) == 1) && (isallI((*(GType + gcsamp)), (*nbreaks+1), (-1), (maxtr+1)) == 1)){
+					iscoal = 1;
+				}else if((isallI((*(GType + gcsamp)), (mintr+1), (-1), 1) != 1) || (isallI((*(GType + gcsamp)), (*nbreaks+1), (-1), (maxtr+1)) != 1)){
+					if((isanyD((*(CTms + gcsamp)), (mintr+1), (-1), 1) == 0) && (isanyD((*(CTms + gcsamp)), (*nbreaks+1), (-1), (maxtr+1)) == 0)){
+						iscoal = 1;
+					}
+				}
+				
+				if(iscoal == 1){
 					printf("GC coalescence here\n");
 					*gcalt = 2;
-					iscoal = 1;
 					/* Making sure remaining sample becomes BH */
 					for(j = 0; j < Ntot; j++){
 						if( *((*(indvs + j)) + 0) == gcsamp2){
@@ -1258,7 +1267,7 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 				cchange(indvs, GType, CTms, TAnc, &csamp, &par, 1, Ntot, mintr, &maxtr, Ttot, iscoal);
 			
 				/* Check if tracts have coalesced */
-				*lrec = ccheck(indvs,GType,breaks,nsites,lrec,Ntot,*nbreaks);
+				*lrec = ccheck(indvs,GType,CTms,breaks,nsites,lrec,Ntot,*nbreaks);
 				
 			}
 			
@@ -1522,13 +1531,13 @@ void cchange(unsigned int **indvs, int **GType, double **CTms, int **TAnc, unsig
 		/* 'csamp' coalesces if ALL parts coalesce (so it's removed from the simulation) */
 		if(isall == 1){
  			*((*(indvs + crow)) + 1) = HUGEVAL;
-			*((*(indvs + crow)) + 2) = 2;		
+			*((*(indvs + crow)) + 2) = 2;
 		}
 		
 		for(x = cst; x < (*cend); x++){
 			
 			/* Updating coalescent time and parental sample */
-			if( (*((*(GType + (*(csamp + i)))) + (x+1))) != (-1) && (*((*(GType + (*(par + i)))) + (x+1))) != (-1)){
+			if( (*((*(GType + (*(csamp + i)))) + (x+1))) != (-1) && (*((*(GType + (*(par + i)))) + (x+1))) != (-1) && (*((*(CTms + (*(csamp + i)))) + (x+1))) == (-1)){
 				*((*(CTms + (*(csamp + i)))) + (x+1)) = Ttot;
 				*((*(TAnc + (*(csamp + i)))) + (x+1)) = (*((*(GType + (*(par + i)))) + (x+1)));
 			}
@@ -1543,16 +1552,19 @@ void cchange(unsigned int **indvs, int **GType, double **CTms, int **TAnc, unsig
 				(*((*(GType + (*(par + i)))) + (x+1))) = (*((*(GType + (*(csamp + i)))) + (x+1)));
 			}
 			
+			/*
 			if(isall == 0){
 				(*((*(GType + (*(csamp + i)))) + (x+1))) = (-1);
 			}
+			*/
+			
 		}
 	}
 	
 }	/* End of 'cchange' function */
 
 /* After coalescence, check if tracts have coalesced */
-unsigned int ccheck(unsigned int **indvs, int **GType, unsigned int **breaks, unsigned int nsites, unsigned int *lrec, unsigned int Ntot, unsigned int nbreaks){
+unsigned int ccheck(unsigned int **indvs, int **GType, double **CTms, unsigned int **breaks, unsigned int nsites, unsigned int *lrec, unsigned int Ntot, unsigned int nbreaks){
 	unsigned int achange = 0;	/* Has there been 'a change'? */
 	unsigned int j, x;
 	unsigned int gcount = 0;	/* count of extant tracts present */
@@ -1573,7 +1585,7 @@ unsigned int ccheck(unsigned int **indvs, int **GType, unsigned int **breaks, un
 			*/
 				if( (*((*(indvs + j)) + 2) != 2 ) ){
 					ridx = *((*(indvs + j)) + 0);
-					if(*((*(GType + ridx)) + (x + 1)) != (-1)){
+					if( (*((*(GType + ridx)) + (x + 1)) != (-1)) && (*((*(CTms + ridx)) + (x + 1)) == (-1)) ){
 						gcount++;
 					}
 				}
@@ -3005,11 +3017,6 @@ int main(int argc, char *argv[]){
 				gcalt = 0;
 				coalesce(indvs, GType, CTms, TAnc, Ttot, Nwith, Nbet, deme, rsex, evsex, event, drec, e2, breaks, nsites, &lrec, &nbreaks, NMax, lambda, &gcalt, r);
 				/* printf("Lrec is %d\n",lrec); */
-				/*
-				if(i > 0 && event == 8){
-					TestTabs(indvs, GType, CTms , TAnc, breaks, NMax+1, nbreaks);
-				}
-				*/
 				
 				/* Based on outcome, altering (non-mig) states accordingly */
 				if(event != 9){		/* Since already done for state = 9 above... */
@@ -3056,6 +3063,10 @@ int main(int argc, char *argv[]){
 				}
 /*				printf("lrec now %d\n",lrec);*/
 				free(rsex);		/* Can be discarded once used to change ancestry */
+		
+				if(i > 0 && event == 8){
+					TestTabs(indvs, GType, CTms , TAnc, breaks, NMax, nbreaks);
+				}
 				
 				/* Checking if need to expand tables */
 
@@ -3107,12 +3118,13 @@ int main(int argc, char *argv[]){
 					count++;
 				}
 			}
-			indv_sortD(TFin,(Itot-1),3,1);
 
 			for(j = 0; j < Itot-1; j++){
 				printf("%f %f %f\n",*((*(TFin + j)) + 0),*((*(TFin + j)) + 1),*((*(TFin + j)) + 2));
 			}
 			printf("\n");
+			
+			indv_sortD(TFin,(Itot-1),3,1);
 
 			/* Using ancestry table to build tree and mutation table */
 			if(x < nbreaks){
@@ -3127,10 +3139,10 @@ int main(int argc, char *argv[]){
 			printf("\n");
 			*/
 			char *ret_tree = treemaker(TFin, theta*(maxd-mind), mind, maxd, Itot, i, r);
-			if(rec == 0){
+			if((rec == 0 && g == 0) || (nsites == 1) ){
 				ofp_tr = fopen("Trees.dat","a+");
 				fprintf(ofp_tr,"%s\n",ret_tree);
-			}else if(rec > 0){
+			}else if((rec > 0 || g > 0) && (nsites != 1)){
 				sprintf(Tout,"Trees/Trees_%d.dat",i);
 				ofp_tr = fopen(Tout,"a+");
 				fprintf(ofp_tr,"%s\n",ret_tree);
