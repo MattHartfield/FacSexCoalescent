@@ -1,4 +1,4 @@
- /* FacSexCoalescent.c
+/* FacSexCoalescent.c
 The facultative sex coalescent program...in C!!!
 
 < Add further preamble here once the program is near release - e.g. runtime instructions, etc. >
@@ -1016,6 +1016,8 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 				}
 			}
 			
+			printf("csamp, par are %d %d\n",csamp,par);
+			
 			/* Now updating coalescent times */
 			cchange(indvs, GType, CTms, TAnc, &csamp, &par, 1, Ntot, 0, nbreaks, Ttot, 1);
 			
@@ -1168,6 +1170,14 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 				*((*(breaks + 0)) + maxtr + 1) = gcend;
 				*((*(breaks + 1)) + maxtr + 1) = 0;
 				/* Adding new site to genotype; coalescent time; ancestry table */
+				for(j = 0; j < NMax; j++){
+					for(x = (*nbreaks-1); x > (int)(maxtr); x--){
+						*((*(GType + j)) + x + 1) = *((*(GType + j)) + x);
+						*((*(CTms + j)) + x + 1) = *((*(CTms + j)) + x);
+						*((*(TAnc + j)) + x + 1) = *((*(TAnc + j)) + x);
+					}
+				}
+				/*
 				if(maxtr != 0){
 					for(j = 0; j < NMax; j++){
 						for(x = (*nbreaks-1); x >= (int)(maxtr); x--){
@@ -1185,6 +1195,7 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 						}
 					}
 				}
+				*/
 				maxtr++;
 			}			
 			
@@ -1537,7 +1548,7 @@ void cchange(unsigned int **indvs, int **GType, double **CTms, int **TAnc, unsig
 		for(x = cst; x < (*cend); x++){
 			
 			/* Updating coalescent time and parental sample */
-			if( (*((*(GType + (*(csamp + i)))) + (x+1))) != (-1) && (*((*(GType + (*(par + i)))) + (x+1))) != (-1) && (*((*(CTms + (*(csamp + i)))) + (x+1))) == (-1)){
+			if( (*((*(GType + (*(csamp + i)))) + (x+1))) != (-1) && (*((*(GType + (*(par + i)))) + (x+1))) != (-1) && ( (*((*(CTms + (*(csamp + i)))) + (x+1))) == (-1) && (*((*(CTms + (*(par + i)))) + (x+1))) == (-1))){
 				*((*(CTms + (*(csamp + i)))) + (x+1)) = Ttot;
 				*((*(TAnc + (*(csamp + i)))) + (x+1)) = (*((*(GType + (*(par + i)))) + (x+1)));
 			}
@@ -1548,7 +1559,7 @@ void cchange(unsigned int **indvs, int **GType, double **CTms, int **TAnc, unsig
 			*/
 			
 			/* Updating genotype table */
-			if( (*((*(GType + (*(csamp + i)))) + (x+1))) != (-1) && (*((*(GType + (*(par + i)))) + (x+1))) == (-1)){
+			if( (*((*(GType + (*(csamp + i)))) + (x+1))) != (-1) && (*((*(GType + (*(par + i)))) + (x+1))) == (-1) && (*((*(CTms + (*(csamp + i)))) + (x+1))) == (-1)){
 				(*((*(GType + (*(par + i)))) + (x+1))) = (*((*(GType + (*(csamp + i)))) + (x+1)));
 			}
 			
@@ -3064,7 +3075,7 @@ int main(int argc, char *argv[]){
 /*				printf("lrec now %d\n",lrec);*/
 				free(rsex);		/* Can be discarded once used to change ancestry */
 		
-				if(i > 0 && event == 8){
+				if(i > 0 && (event == 8 || event == 7)){
 					TestTabs(indvs, GType, CTms , TAnc, breaks, NMax, nbreaks);
 				}
 				
@@ -3105,6 +3116,9 @@ int main(int argc, char *argv[]){
 				done = isallUI(*(breaks + 1),nbreaks,1,0);
 			}
 		}
+		
+		TestTabs(indvs, GType, CTms , TAnc, breaks, NMax, nbreaks);
+	
 		
 		for(x = 1; x <= nbreaks; x++){
 			
