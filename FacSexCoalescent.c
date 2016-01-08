@@ -3120,11 +3120,11 @@ int main(int argc, char *argv[]){
 				}
 /*				printf("lrec now %d\n",lrec);*/
 				free(rsex);		/* Can be discarded once used to change ancestry */
-/*
-				if(i == 1 && (event == 8 || event == 7)){
+
+				if(i == 5 && (event == 8 || event == 7)){
 					TestTabs(indvs, GType, CTms, TAnc, GTBU, breaks, NMax, nbreaks);
 				}
-*/
+
 				/* Checking if need to expand tables */
 
 				if(NMax == (exr+Itot-1)){
@@ -3166,11 +3166,11 @@ int main(int argc, char *argv[]){
 				done = isallUI(*(breaks + 1),nbreaks,1,0);
 			}
 		}
-/*
-		if(i == 1){
+
+		if(i == 5){
 			TestTabs(indvs, GType, CTms, TAnc, GTBU, breaks, NMax, nbreaks);
 		}		
-*/		
+
 		for(x = 1; x <= nbreaks; x++){
 			
 			/* Creating ancestry table */
