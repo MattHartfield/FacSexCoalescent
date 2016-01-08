@@ -1285,7 +1285,11 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, int
 						}
 					}
 				}
-				
+/*				
+				if(gt == 1){
+					TestTabs(indvs, GType, CTms, TAnc, GTBU, breaks, NMax + 1, *nbreaks);
+				}
+*/				
 				/* Now updating coalescent times */
 				cchange(indvs, GType, CTms, TAnc, GTBU, breaks, &csamp, &par, 1, Ntot, mintr, &maxtr, Ttot, iscoal);
 			
@@ -1552,6 +1556,7 @@ void cchange(unsigned int **indvs, int **GType, double **CTms, int **TAnc, int *
 	unsigned int j, i, x;
 	unsigned int crow = 0;
 	unsigned int prow = 0;
+	int tempval = 0;
 	
 	/* Code works on assumption that columns 'align' 
 	(i.e. column with 'csamp' in indvs is same column in other tables) */
@@ -1579,21 +1584,30 @@ void cchange(unsigned int **indvs, int **GType, double **CTms, int **TAnc, int *
 		
 		for(x = cst; x < (*cend); x++){
 			
+			tempval = -1;
+			
 			/* Updating coalescent time and parental sample */
 /*			if( (*((*(breaks + 1)) + x) != 1) && (*((*(GType + (*(csamp + i)))) + (x+1))) != (-1) && (*((*(GType + (*(par + i)))) + (x+1))) != (-1) && (*((*(TAnc + (*(par + i)))) + (x+1))) != *(csamp + i) && ((*((*(CTms + (*(csamp + i)))) + (x+1))) == (-1) || ( (*((*(CTms + (*(csamp + i)))) + (x+1))) != (-1) && (*((*(CTms + (*(par + i)))) + (x+1))) == (-1) && isall != 0))){ */
-			if(  (*((*(GType + (*(csamp + i)))) + (x+1))) != (-1) && (*((*(GType + (*(par + i)))) + (x+1))) != (-1) ){
+			if( (*((*(GType + (*(csamp + i)))) + (x+1))) != (-1) && (*((*(GType + (*(par + i)))) + (x+1))) != (-1) ){
 				if( *((*(CTms + (*(csamp + i)))) + (x+1)) == -1){
 					*((*(CTms + (*(csamp + i)))) + (x+1)) = Ttot;
 					*((*(TAnc + (*(csamp + i)))) + (x+1)) = (*((*(GType + (*(par + i)))) + (x+1)));
 				}else if( *((*(CTms + (*(csamp + i)))) + (x+1)) != -1){
-					*((*(CTms + (*(par + i)))) + (x+1)) = Ttot;
-					*((*(TAnc + (*(par + i)))) + (x+1)) = (*((*(GType + (*(csamp)))) + (x+1)));
+					tempval = *((*(GType + (*(csamp + i)))) + (x+1));
+					*((*(CTms + (tempval))) + (x+1)) = Ttot;
+					*((*(TAnc + (tempval))) + (x+1)) = (*((*(GType + (*(par + i)))) + (x+1)));
 				}
+				/*else if( *((*(CTms + (*(csamp + i)))) + (x+1)) != -1 && isall != 1){
+				}*/
 			}
 			
 			/* Set GC'ed sample as non-anc if need be */
 			if(isall == 0 && (*((*(GType + (*(csamp + i)))) + (x+1))) != (-1)){
-				(*((*(GTBU + (*(csamp + i)))) + (x+1))) = (*((*(GType + (*(csamp + i)))) + (x+1)));
+				if(tempval == -1){
+					(*((*(GTBU + (*(csamp + i)))) + (x+1))) = (*((*(GType + (*(csamp + i)))) + (x+1)));
+				}else if(tempval != -1){
+					(*((*(GTBU + (tempval))) + (x+1))) = (*((*(GType + (*(csamp + i)))) + (x+1)));
+				}
 				(*((*(GType + (*(csamp + i)))) + (x+1))) = (-1);
 			}
 			
@@ -3121,7 +3135,7 @@ int main(int argc, char *argv[]){
 /*				printf("lrec now %d\n",lrec);*/
 				free(rsex);		/* Can be discarded once used to change ancestry */
 
-				if(i == 5 && (event == 8 || event == 7)){
+				if(i == 28 && (event == 8 || event == 7)){
 					TestTabs(indvs, GType, CTms, TAnc, GTBU, breaks, NMax, nbreaks);
 				}
 
@@ -3167,7 +3181,7 @@ int main(int argc, char *argv[]){
 			}
 		}
 
-		if(i == 5){
+		if(i == 28){
 			TestTabs(indvs, GType, CTms, TAnc, GTBU, breaks, NMax, nbreaks);
 		}		
 
