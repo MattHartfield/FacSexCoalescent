@@ -1049,6 +1049,7 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 				
 				/* Sample that undergoes GC */
 				gsl_ran_choose(r,&rands,1,singsamps8,(*(Nbet + deme) + 2*(*(nsex + deme))),sizeof(unsigned int));
+				printf("Rands is %d\n",rands);
 				for(j = 0; j < NMax; j++){
 					if( *((*(GType + j)) + 0) == rands){
 						gcsamp = j;
@@ -1166,7 +1167,7 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 						done = 1;
 					}
 					if(mtrt == mintr){
-						mtrt = mintr + 1;
+						mtrt = mintr;
 						done = 1;
 					}
 				}
@@ -2869,8 +2870,8 @@ int main(int argc, char *argv[]){
 			nosex = powDUI(sexCInv,Nwith,d);				/* Probability of no segregation via sex, accounting for within-deme variation */
 			psum = (1-nosex) + nosex*(sumT_D(pr,11,d));		/* Sum of all event probabilities, for drawing random time */
 			
-			if(i == 17){
-			printf("lrec, y, nlrec is %d %d %d\n",lrec,*(Nbet + 0),*(nlrec + 0));
+			if(i == 48){
+				printf("lrec, y, nlrec is %d %d %d\n",lrec,*(Nbet + 0),*(nlrec + 0));
 				for(x = 0; x < d; x++){
 					for(j = 0; j < 11; j++){
 						printf("%.10lf ",*((*(pr + j)) + x));
@@ -3070,7 +3071,7 @@ int main(int argc, char *argv[]){
 					breaks[1] = (unsigned int *)realloc(*(breaks + 1),exc*sizeof(unsigned int));
 				}
 				
-				if(i == 17 && event == 4){
+				if(i == 48 && event == 8){
 					TestTabs(indvs, GType, CTms, TAnc, breaks, NMax, Itot, nbreaks);
 				}
 				
