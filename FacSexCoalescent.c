@@ -3040,6 +3040,7 @@ int main(int argc, char *argv[]){
 					TestTabs(indvs, GType, CTms, TAnc, breaks, NMax, Itot, nbreaks);
 				}
 */
+			
 				/* Checking if need to expand tables */
 
 				if(NMax == (exr+Itot-1)){
@@ -3056,15 +3057,17 @@ int main(int argc, char *argv[]){
 					}
 				}
 				
-				if(nbreaks == exc){
+				if(nbreaks >= exc-1){
 					exc += INITBR;
 					for(j = 0; j < (Itot+exr); j++){
 						GType[j] = (int *)realloc( *(GType + j) ,(exc + 1)*sizeof(int));
-						CTms[j] = (double *)realloc( *(CTms + j) ,(exc + 1)*sizeof(double));
-						TAnc[j] = (int *)realloc( *(TAnc + j) ,(exc + 1)*sizeof(int));
+						if(j < Itot){
+							CTms[j] = (double *)realloc( *(CTms + j) ,(exc + 1)*sizeof(double));
+							TAnc[j] = (int *)realloc( *(TAnc + j) ,(exc + 1)*sizeof(int));
+						}
 					}
 					breaks[0] = (unsigned int *)realloc(*(breaks + 0),exc*sizeof(unsigned int));
-					breaks[1] = (unsigned int *)realloc(*(breaks + 1),exc*sizeof(unsigned int));\
+					breaks[1] = (unsigned int *)realloc(*(breaks + 1),exc*sizeof(unsigned int));
 				}
 				
 				/* Testing if all sites coalesced or not */
