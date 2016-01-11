@@ -76,7 +76,7 @@ void indv_sort(unsigned int **indvs, unsigned int nrow);
 void indv_sortD(double **Tin, unsigned int nrow, unsigned int ncol, unsigned int tcol);
 void Wait();
 void TestTabs(unsigned int **indvs, int **GType, double **CTms , int **TAnc, unsigned int **breaks, unsigned int NMax, unsigned int Itot, unsigned int nbreaks);
-char * treemaker(double **TFin, double thetain, double mind, double maxd, unsigned int Itot, unsigned int run, const gsl_rng *r);
+char * treemaker(double **TFin, double thetain, double mind, double maxd, unsigned int Itot, unsigned int run, double gc, const gsl_rng *r);
 void reccal(unsigned int **indvs, int **GType, unsigned int **breaks, unsigned int *Nbet, unsigned int *Nwith, unsigned int *rsex, unsigned int esex, unsigned int *lnrec, unsigned int lrec, unsigned int nbreaks, unsigned int NMax, unsigned int sw, unsigned int run);
 
 /* Global variable declaration */
@@ -1018,7 +1018,7 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 				}
 			}
 			
-			printf("Csamp, par is %d %d\n",csamp,par);
+/*			printf("Csamp, par is %d %d\n",csamp,par);*/
 			
 			/* Now updating coalescent times */
 			cchange(indvs, GType, CTms, TAnc, breaks, &csamp, &par, 1, Ntot, 0, nbreaks, Ttot, 1);
@@ -1031,19 +1031,7 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 			free(parsamps7);
 			break;
 		case 8:		/* Event 8: Gene conversion */
-		
-			/*
-			fprintf(stderr,"No gene conversion yet - will implement multiple sites in course.\n");
-			exit(1);
-			
-			mintr = 0;
-			maxtr = 0;
-			isyetbp = 0;
-			isyetbp2 = 0;
-			rands = 0;
-			rands2 = 0;
-			*/
-			
+				
 			/* Converting WH to BH samples */
 			sexconv(indvs, rsex, nsum, Ntot);
 			
@@ -1110,8 +1098,8 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 					}
 				}
 			}
-			printf("MINTR %d NBREAKS %d\n",mintr,*nbreaks);
-			
+/*			printf("MINTR %d NBREAKS %d\n",mintr,*nbreaks);*/
+
 			/* Inserting new, start BP if needed */
 			if((isyetbp != 1) && (*((*(GType + gcsamp)) + mintr + 1) != (-1)) ){
 				(*nbreaks)++;
@@ -1143,7 +1131,7 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 			if(gcend > nsites){
 				gcend = nsites;		/* So doesn't extend past end of tract */
 			}
-			printf("nsites %d, gcst %d, gcln %d, gcend %d\n",nsites,gcst,gcln,gcend);
+/*			printf("nsites %d, gcst %d, gcln %d, gcend %d\n",nsites,gcst,gcln,gcend);*/
 			for(x = 0; x < *nbreaks; x++){
 				if( *((*(breaks + 0)) + x) == gcend){
 					isyetbp2 = 1;
@@ -1155,15 +1143,15 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 				}
 			}
 			if(maxck == 0 && (gcend != nsites)){ 	/* If endpoint not found amongst existing bps, must be at end */
-				printf("It here 1\n");
+/*				printf("It here 1\n");*/
 				maxtr = ((*nbreaks)-1);
 			}else if(maxck == 0 && (gcend == nsites)){
-				printf("It here 2\n");
+/*				printf("It here 2\n");*/
 				maxtr = ((*nbreaks));
 				isyetbp2 = 1;				
 			}
-			printf("MAXTR %d NBREAKS %d\n",maxtr,*nbreaks);			
-			
+/*			printf("MAXTR %d NBREAKS %d\n",maxtr,*nbreaks);			*/
+
 			/* Inserting new, end BP if needed */
 			if((isyetbp2 != 1) && (*((*(GType + gcsamp)) + maxtr + 1) != (-1)) ){
 				(*nbreaks)++;
@@ -1184,14 +1172,16 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 					}
 				}
 				maxtr++;
-			}			
-			
+			}
+
 			/* ONLY PROCEED (in single-sample case) IF NOT ALL SITES EMPTY (otherwise alternative regimes used) */
+			/*
 			printf("gt is %d, rands is %d. mintr, maxtr are %d %d\n",gt,rands,mintr,maxtr);
 			printf("gcsamp1 is %d, gcsamp2 is %d. nbreaks is %d. NMAX is %d\n",gcsamp,gcsamp2,*nbreaks,NMax);
 			printf("Case 1: %d\n",(isallI((*(GType + gcsamp)), (maxtr + 1), (-1), (mintr + 1))));
 			printf("Case 2a: %d\n",(isallI((*(GType + gcsamp)), (mintr + 1), (-1), 1)));
 			printf("Case 2b: %d\n",(isallI((*(GType + gcsamp)), (*nbreaks + 1), (-1), (maxtr + 1))));
+			*/
 			if(gt == 0 && (isallI((*(GType + gcsamp)), (maxtr + 1), (-1), (mintr + 1)) != 1) && ((isallI((*(GType + gcsamp)), (mintr + 1), (-1), 1) != 1) || (isallI((*(GType + gcsamp)), (*nbreaks + 1), (-1), (maxtr + 1)) != 1))){
 				proceed = 1;
 			}
@@ -1242,7 +1232,7 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 				*/
 				
 				if(iscoal == 1){
-					printf("GC coalescence here\n");
+/*					printf("GC coalescence here\n");*/
 					*gcalt = 2;
 					/* Making sure remaining sample becomes BH */
 					for(j = 0; j < Ntot; j++){
@@ -1690,20 +1680,6 @@ void indv_sort(unsigned int **indvs, unsigned int nrow){
 		}
 	}
 	
-	/*
-	for(j = 0; j < nrow; j++){
-		for(i = 0; i < 4; i++){
-			printf("%d ",*((*(indvs + (j) )) + i));
-		}
-		printf("\n");
-	}
-	printf("\n");	
-	
-
-	printf("Press Enter to Continue");
-	while( getchar() != '\n' );
-	*/
-
 }
 
 /* Insertion-sort for double-type tables */
@@ -1788,7 +1764,7 @@ void TestTabs(unsigned int **indvs, int **GType, double **CTms, int **TAnc, unsi
 }
 
 /* Function to reconstruct genealogy and to add mutation to branches */
-char * treemaker(double **TFin, double thetain, double mind, double maxd, unsigned int Itot, unsigned int run, const gsl_rng *r){
+char * treemaker(double **TFin, double thetain, double mind, double maxd, unsigned int Itot, unsigned int run, double gc, const gsl_rng *r){
 	unsigned int i, j, k, a;
 	unsigned int lct = Itot;
 	unsigned int lct2 = lct-1;
@@ -2314,9 +2290,9 @@ char * treemaker(double **TFin, double thetain, double mind, double maxd, unsign
     if(str == NULL) {
     	fprintf(stderr, "Error - unable to allocate required memory\n");
 	}
-    if(rec == 0){
+    if( (rec == 0 && gc == 0) || nsites == 1){
     	strcpy(str,(*(clades + 0)));
-    }else if(rec > 0){
+    }else if((rec > 0 || gc > 0) && nsites > 1){
     	brk = (unsigned int)(mind*nsites);
     	sprintf(brkchar, "%d", brk);
     	strcpy(str,lsq);
@@ -2577,8 +2553,8 @@ int main(int argc, char *argv[]){
 		exit(1);
 	}
 	N = atoi(argv[1]);
-	rec = strtod(argv[2],NULL);
-	nsites = atoi(argv[3]);
+	nsites = atoi(argv[2]);
+	rec = strtod(argv[3],NULL);
 	g = strtod(argv[4],NULL);
 	g = g/(2.0*N*nsites);
 	lambda = strtod(argv[5],NULL);
@@ -2764,9 +2740,7 @@ int main(int argc, char *argv[]){
 	/* Running the simulation Nreps times */
 	for(i = 0; i < Nreps; i++){
 		
-		printf("\n");
-		printf("Starting Run %d\n",i);
-		printf("\n");		
+/*		printf("Starting Run %d\n",i); */
 
 		/* Setting up type of sex heterogeneity */
 		if(pSTIN == 0){
@@ -2907,7 +2881,7 @@ int main(int argc, char *argv[]){
 				pST = npST;
 			}else if (NextT <= (tls + tts)){	/* If next event happens before a switch, draw an action	*/
 				Ttot = NextT;
-				printf("Ttot is %.10lf\n",Ttot);
+/*				printf("Ttot is %.10lf\n",Ttot); */
 
 				/* Determines if sex occurs; if so, which samples are chosen */
 				/* (deme-independent Binomial draws) */
@@ -2957,8 +2931,8 @@ int main(int argc, char *argv[]){
 				gsl_ran_multinomial(r,d,1,(*(pr + event)),draw2);
 				deme = matchUI(draw2,d,1);
 
-				printf("Event is %d\n",event);
 				/*
+				printf("Event is %d\n",event);				
 				printf("%d %d %d %d %d %.10lf %.10lf\n",lrec,*(nlrec+0),*(nlrec+1),*(nlrec2+0),*(nlrec2+1),(*((*(pr + 10)) + 0)),(*((*(pr + 10)) + 1)));
 				*/
 
@@ -3091,12 +3065,12 @@ int main(int argc, char *argv[]){
 					count++;
 				}
 			}
-			
+			/*
 			for(j = 0; j < Itot-1; j++){
 				printf("%f %f %f\n",*((*(TFin + j)) + 0),*((*(TFin + j)) + 1),*((*(TFin + j)) + 2));
 			}
 			printf("\n");
-			
+			*/
 			indv_sortD(TFin,(Itot-1),3,1);
 
 			/* Using ancestry table to build tree and mutation table */
@@ -3111,7 +3085,7 @@ int main(int argc, char *argv[]){
 			printf("For x equal %d: mind, maxd are %lf %lf\n",x,mind,maxd);
 			printf("\n");
 			*/
-			char *ret_tree = treemaker(TFin, theta*(maxd-mind), mind, maxd, Itot, i, r);
+			char *ret_tree = treemaker(TFin, theta*(maxd-mind), mind, maxd, Itot, i, g, r);
 			if((rec == 0 && g == 0) || (nsites == 1) ){
 				ofp_tr = fopen("Trees.dat","a+");
 				fprintf(ofp_tr,"%s\n",ret_tree);
