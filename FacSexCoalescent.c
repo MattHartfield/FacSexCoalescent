@@ -67,15 +67,15 @@ void probset2(unsigned int N, double g, double *sexC, double rec, unsigned int l
 void rate_change(unsigned int N, unsigned int pST,double pLH, double pHL, double *sexH, double *sexL, unsigned int switch1, double *sexCN, double *sexCNInv, double *tts, unsigned int *npST,const gsl_rng *r);
 void stchange2(unsigned int ev, unsigned int deme, unsigned int *kin, int *WCH, int *BCH);
 void sexconv(unsigned int **Tin, unsigned int *rsex, unsigned int nsum, unsigned int Ntot);
-void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, int **GTBU, double Ttot, unsigned int *Nwith, unsigned int *Nbet, unsigned int deme, unsigned int *rsex, unsigned int *nsex, unsigned int ex, unsigned int drec, unsigned int e2, unsigned int **breaks, unsigned int nsites, unsigned int *lrec, unsigned int *nbreaks, unsigned int Nmax, double lambda, unsigned int *gcalt, const gsl_rng *r);
-void cchange(unsigned int **indvs, int **GType, double **CTms, int **TAnc, int **GTBU, unsigned int **breaks, unsigned int *csamp, unsigned int *par, unsigned int lsamp, unsigned int Ntot, unsigned int cst, unsigned int *cend, double Ttot, unsigned int isall);
+void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, double Ttot, unsigned int *Nwith, unsigned int *Nbet, unsigned int deme, unsigned int *rsex, unsigned int *nsex, unsigned int ex, unsigned int drec, unsigned int e2, unsigned int **breaks, unsigned int nsites, unsigned int *lrec, unsigned int *nbreaks, unsigned int Nmax, unsigned int Itot, double lambda, unsigned int *gcalt, const gsl_rng *r);
+void cchange(unsigned int **indvs, int **GType, double **CTms, int **TAnc, unsigned int **breaks, unsigned int *csamp, unsigned int *par, unsigned int lsamp, unsigned int Ntot, unsigned int cst, unsigned int *cend, double Ttot, unsigned int isall);
 unsigned int ccheck(unsigned int **indvs, int **GType, unsigned int **breaks, unsigned int nsites, unsigned int *lrec, unsigned int Ntot, unsigned int nbreaks);
 unsigned int coalcalc(unsigned int **breaks, unsigned int nsites, unsigned int nbreaks, unsigned int start);
 void sexsamp(unsigned int **indvs, unsigned int *rsex, unsigned int *nsex, unsigned int *Nwith, unsigned int Ntot, const gsl_rng *r);
 void indv_sort(unsigned int **indvs, unsigned int nrow);
 void indv_sortD(double **Tin, unsigned int nrow, unsigned int ncol, unsigned int tcol);
 void Wait();
-void TestTabs(unsigned int **indvs, int **GType, double **CTms , int **TAnc, int **GTBU, unsigned int **breaks, unsigned int NMax, unsigned int nbreaks);
+void TestTabs(unsigned int **indvs, int **GType, double **CTms , int **TAnc, unsigned int **breaks, unsigned int NMax, unsigned int Itot, unsigned int nbreaks);
 char * treemaker(double **TFin, double thetain, double mind, double maxd, unsigned int Itot, unsigned int run, const gsl_rng *r);
 void reccal(unsigned int **indvs, int **GType, unsigned int **breaks, unsigned int *Nbet, unsigned int *Nwith, unsigned int *rsex, unsigned int esex, unsigned int *lnrec, unsigned int lrec, unsigned int nbreaks, unsigned int NMax, unsigned int sw, unsigned int run);
 
@@ -640,7 +640,7 @@ void sexconv(unsigned int **Tin, unsigned int *rsex, unsigned int nsum, unsigned
 }
 
 /* Function to change status of samples following event change */
-void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, int **GTBU, double Ttot, unsigned int *Nwith, unsigned int *Nbet, unsigned int deme, unsigned int *rsex, unsigned int *nsex, unsigned int ex, unsigned int drec, unsigned int e2, unsigned int **breaks, unsigned int nsites, unsigned int *lrec, unsigned int *nbreaks, unsigned int NMax, double lambda, unsigned int *gcalt, const gsl_rng *r){
+void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, double Ttot, unsigned int *Nwith, unsigned int *Nbet, unsigned int deme, unsigned int *rsex, unsigned int *nsex, unsigned int ex, unsigned int drec, unsigned int e2, unsigned int **breaks, unsigned int nsites, unsigned int *lrec, unsigned int *nbreaks, unsigned int NMax, unsigned int Itot, double lambda, unsigned int *gcalt, const gsl_rng *r){
 	
 	unsigned int NWtot = 2*sumUI(Nwith,d);
 	unsigned int NBtot = sumUI(Nbet,d);
@@ -764,7 +764,7 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, int
 			}
 			
 			/* Now updating coalescent times */
-			cchange(indvs, GType, CTms, TAnc, GTBU, breaks, &csamp, &par, 1, Ntot, 0, nbreaks, Ttot, 1);
+			cchange(indvs, GType, CTms, TAnc, breaks, &csamp, &par, 1, Ntot, 0, nbreaks, Ttot, 1);
 			
 			/* Check if tracts have coalesced */
 			*lrec = ccheck(indvs,GType,breaks,nsites,lrec,Ntot,*nbreaks);
@@ -811,7 +811,7 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, int
 			}
 		
 			/* Now updating coalescent times */
-			cchange(indvs, GType, CTms, TAnc, GTBU, breaks, &csamp, &par, 1, Ntot, 0, nbreaks, Ttot, 1);
+			cchange(indvs, GType, CTms, TAnc, breaks, &csamp, &par, 1, Ntot, 0, nbreaks, Ttot, 1);
 			
 			/* Check if tracts have coalesced */
 			*lrec = ccheck(indvs,GType,breaks,nsites,lrec,Ntot,*nbreaks);
@@ -868,7 +868,7 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, int
 			/* printf("Csamp, par is %d %d\n",csamp,par); */
 		
 			/* Now updating coalescent times */
-			cchange(indvs, GType, CTms, TAnc, GTBU, breaks, &csamp, &par, 1, Ntot, 0, nbreaks, Ttot, 1);
+			cchange(indvs, GType, CTms, TAnc, breaks, &csamp, &par, 1, Ntot, 0, nbreaks, Ttot, 1);
 			
 			/* Check if tracts have coalesced */
 			*lrec = ccheck(indvs,GType,breaks,nsites,lrec,Ntot,*nbreaks);
@@ -927,7 +927,7 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, int
 /*			printf("Csamp1 %d, par1 %d; Csamp2 %d, par2 %d\n",csamp2[0],parT[0],csamp2[1],parT[1]); */
 			
 			/* Now updating coalescent times */
-			cchange(indvs, GType, CTms, TAnc, GTBU, breaks, csamp2, parT, 2, Ntot, 0, nbreaks, Ttot, 1);
+			cchange(indvs, GType, CTms, TAnc, breaks, csamp2, parT, 2, Ntot, 0, nbreaks, Ttot, 1);
 			
 			/* Check if tracts have coalesced */
 			*lrec = ccheck(indvs,GType,breaks,nsites,lrec,Ntot,*nbreaks);
@@ -1021,7 +1021,7 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, int
 			printf("Csamp, par is %d %d\n",csamp,par);
 			
 			/* Now updating coalescent times */
-			cchange(indvs, GType, CTms, TAnc, GTBU, breaks, &csamp, &par, 1, Ntot, 0, nbreaks, Ttot, 1);
+			cchange(indvs, GType, CTms, TAnc, breaks, &csamp, &par, 1, Ntot, 0, nbreaks, Ttot, 1);
 			
 			/* Check if tracts have coalesced */
 			*lrec = ccheck(indvs,GType,breaks,nsites,lrec,Ntot,*nbreaks);
@@ -1125,9 +1125,10 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, int
 				for(j = 0; j < NMax; j++){
 					for(x = (*nbreaks-1); x > (int)(mintr); x--){
 						*((*(GType + j)) + x + 1) = *((*(GType + j)) + x);
-						*((*(CTms + j)) + x + 1) = *((*(CTms + j)) + x);
-						*((*(TAnc + j)) + x + 1) = *((*(TAnc + j)) + x);
-						*((*(GTBU + j)) + x + 1) = *((*(GTBU + j)) + x);
+						if(j < Itot){
+							*((*(CTms + j)) + x + 1) = *((*(CTms + j)) + x);
+							*((*(TAnc + j)) + x + 1) = *((*(TAnc + j)) + x);
+						}
 					}
 				}
 				mintr++;
@@ -1176,30 +1177,12 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, int
 				for(j = 0; j < NMax; j++){
 					for(x = (*nbreaks-1); x > (int)(maxtr); x--){
 						*((*(GType + j)) + x + 1) = *((*(GType + j)) + x);
-						*((*(CTms + j)) + x + 1) = *((*(CTms + j)) + x);
-						*((*(TAnc + j)) + x + 1) = *((*(TAnc + j)) + x);
-						*((*(GTBU + j)) + x + 1) = *((*(GTBU + j)) + x);						
-					}
-				}
-				/*
-				if(maxtr != 0){
-					for(j = 0; j < NMax; j++){
-						for(x = (*nbreaks-1); x >= (int)(maxtr); x--){
-							*((*(GType + j)) + x + 1) = *((*(GType + j)) + x);
-							*((*(CTms + j)) + x + 1) = *((*(CTms + j)) + x);
-							*((*(TAnc + j)) + x + 1) = *((*(TAnc + j)) + x);
-						}
-					}
-				}else if(maxtr == 0){
-					for(j = 0; j < NMax; j++){
-						for(x = (*nbreaks-1); x >= 1; x--){
-							*((*(GType + j)) + x + 1) = *((*(GType + j)) + x);
+						if(j < Itot){
 							*((*(CTms + j)) + x + 1) = *((*(CTms + j)) + x);
 							*((*(TAnc + j)) + x + 1) = *((*(TAnc + j)) + x);
 						}
 					}
 				}
-				*/
 				maxtr++;
 			}			
 			
@@ -1227,32 +1210,16 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, int
 				for(x = (maxtr); x > (int)(mintr); x--){
 					*((*(GType + NMax)) + x) = *((*(GType + gcsamp)) + x);
 					*((*(GType + gcsamp)) + x) = (-1);
-					*((*(GTBU + NMax)) + x) = *((*(GTBU + gcsamp)) + x);
-					*((*(GTBU + gcsamp)) + x) = (-1);					
-					*((*(CTms + NMax)) + x) = *((*(CTms + gcsamp)) + x);
-					*((*(CTms + gcsamp)) + x) = (-1);
-					*((*(TAnc + NMax)) + x) = *((*(TAnc + gcsamp)) + x);
-					*((*(TAnc + gcsamp)) + x) = (-1);
 				}
 		
 				for(x = (*nbreaks); x > (int)(maxtr); x--){
 					*((*(GType + NMax)) + x) = (-1);
-					*((*(GTBU + NMax)) + x) = (-1);					
-					*((*(CTms + NMax)) + x) = (-1);					
-					*((*(TAnc + NMax)) + x) = (-1);
 				}
 				for(x = (mintr); x > (int)0; x--){
 					*((*(GType + NMax)) + x) = (-1);
-					*((*(GTBU + NMax)) + x) = (-1);					
-					*((*(CTms + NMax)) + x) = (-1);					
-					*((*(TAnc + NMax)) + x) = (-1);
 				}
 			
-				*((*(GType + NMax)) + 0) = NMax;
-				*((*(GTBU + NMax)) + 0) = NMax;				
-				*((*(CTms + NMax)) + 0) = NMax;
-				*((*(TAnc + NMax)) + 0) = NMax;
-				
+				*((*(GType + NMax)) + 0) = NMax;				
 			}
 			
 			/* With paired GC, we have part coalescence instead */
@@ -1287,29 +1254,14 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, int
 				}
 /*				
 				if(gt == 1){
-					TestTabs(indvs, GType, CTms, TAnc, GTBU, breaks, NMax + 1, *nbreaks);
+					TestTabs(indvs, GType, CTms, TAnc, GTBU, breaks, NMax + 1, Itot, *nbreaks);
 				}
 */				
 				/* Now updating coalescent times */
-				cchange(indvs, GType, CTms, TAnc, GTBU, breaks, &csamp, &par, 1, Ntot, mintr, &maxtr, Ttot, iscoal);
+				cchange(indvs, GType, CTms, TAnc, breaks, &csamp, &par, 1, Ntot, mintr, &maxtr, Ttot, iscoal);
 			
 				/* Check if tracts have coalesced */
 				*lrec = ccheck(indvs,GType,breaks,nsites,lrec,Ntot,*nbreaks);
-				
-				/* Combining time/ancestry data in case of complete coalescence and old material transferred  */
-				/* BLANKING OUT FOR NOW - CHECK IF STILL NEEDED NOW I'VE ADDED NEW TABLE */
-				/*
-				if(iscoal == 1){
-					for(x = 0; x < *nbreaks; x++){
-						if(*((*(TAnc + gcsamp2)) + x + 1) == gcsamp){
-							*((*(TAnc + gcsamp)) + x + 1) = gcsamp2;
-							*((*(TAnc + gcsamp2)) + x + 1) = (-1);
-							*((*(CTms + gcsamp)) + x + 1) = *((*(CTms + gcsamp2)) + x + 1);
-							*((*(CTms + gcsamp2)) + x + 1) = (-1);
-						}
-					}
-				}
-				*/
 				
 			}
 			
@@ -1487,9 +1439,10 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, int
 				for(j = 0; j < NMax; j++){
 					for(x = (*nbreaks-1); x >= (int)(maxtr); x--){
 						*((*(GType + j)) + x + 1) = *((*(GType + j)) + x);
-						*((*(GTBU + j)) + x + 1) = *((*(GTBU + j)) + x);						
-						*((*(CTms + j)) + x + 1) = *((*(CTms + j)) + x);
-						*((*(TAnc + j)) + x + 1) = *((*(TAnc + j)) + x);
+						if(j < Itot){
+							*((*(CTms + j)) + x + 1) = *((*(CTms + j)) + x);
+							*((*(TAnc + j)) + x + 1) = *((*(TAnc + j)) + x);
+						}
 					}
 				}
 			}else if((isyetbp == 1) || (*((*(GType + j)) + maxtr) == (-1) )){
@@ -1503,28 +1456,6 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, int
 					for(x = (*nbreaks); x > (int)maxtr; x--){
 						*((*(GType + NMax)) + x) = *((*(GType + j)) + x);
 						*((*(GType + j)) + x) = (-1);
-						*((*(GTBU + NMax)) + x) = *((*(GTBU + j)) + x);
-						*((*(GTBU + j)) + x) = (-1);						
-					}
-					break;
-				}
-			}
-			
-			for(j = 0; j < NMax; j++){
-				if( *((*(CTms + j)) + 0) == rands ){
-					for(x = (*nbreaks); x > (int)maxtr; x--){
-						*((*(CTms + NMax)) + x) = *((*(CTms + j)) + x);
-						*((*(CTms + j)) + x) = (-1);
-					}
-					break;
-				}
-			}
-			
-			for(j = 0; j < NMax; j++){
-				if( *((*(TAnc + j)) + 0) == rands ){
-					for(x = (*nbreaks); x > (int)maxtr; x--){
-						*((*(TAnc + NMax)) + x) = *((*(TAnc + j)) + x);
-						*((*(TAnc + j)) + x) = (-1);
 					}
 					break;
 				}
@@ -1532,14 +1463,8 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, int
 			
 			for(x = maxtr; x > (int)0; x--){
 				*((*(GType + NMax)) + x) = (-1);
-				*((*(GTBU + NMax)) + x) = (-1);				
-				*((*(CTms + NMax)) + x) = (-1);					
-				*((*(TAnc + NMax)) + x) = (-1);
 			}
 			*((*(GType + NMax)) + 0) = NMax;
-			*((*(GTBU + NMax)) + 0) = NMax;			
-			*((*(CTms + NMax)) + 0) = NMax;
-			*((*(TAnc + NMax)) + 0) = NMax;
 			
 			free(singsamps10);
 			break;			
@@ -1552,7 +1477,7 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, int
 }	/* End of coalescent routine */
 
 /* Updating information following coalescent event */
-void cchange(unsigned int **indvs, int **GType, double **CTms, int **TAnc, int **GTBU, unsigned int **breaks, unsigned int *csamp, unsigned int *par, unsigned int lsamp, unsigned int Ntot, unsigned int cst, unsigned int *cend, double Ttot, unsigned int isall){
+void cchange(unsigned int **indvs, int **GType, double **CTms, int **TAnc, unsigned int **breaks, unsigned int *csamp, unsigned int *par, unsigned int lsamp, unsigned int Ntot, unsigned int cst, unsigned int *cend, double Ttot, unsigned int isall){
 	unsigned int j, i, x;
 	unsigned int crow = 0;
 	unsigned int prow = 0;
@@ -1584,36 +1509,23 @@ void cchange(unsigned int **indvs, int **GType, double **CTms, int **TAnc, int *
 		
 		for(x = cst; x < (*cend); x++){
 			
-			tempval = -1;
-			
 			/* Updating coalescent time and parental sample */
 /*			if( (*((*(breaks + 1)) + x) != 1) && (*((*(GType + (*(csamp + i)))) + (x+1))) != (-1) && (*((*(GType + (*(par + i)))) + (x+1))) != (-1) && (*((*(TAnc + (*(par + i)))) + (x+1))) != *(csamp + i) && ((*((*(CTms + (*(csamp + i)))) + (x+1))) == (-1) || ( (*((*(CTms + (*(csamp + i)))) + (x+1))) != (-1) && (*((*(CTms + (*(par + i)))) + (x+1))) == (-1) && isall != 0))){ */
+			tempval = -1;
 			if( (*((*(GType + (*(csamp + i)))) + (x+1))) != (-1) && (*((*(GType + (*(par + i)))) + (x+1))) != (-1) ){
-				if( *((*(CTms + (*(csamp + i)))) + (x+1)) == -1){
-					*((*(CTms + (*(csamp + i)))) + (x+1)) = Ttot;
-					*((*(TAnc + (*(csamp + i)))) + (x+1)) = (*((*(GType + (*(par + i)))) + (x+1)));
-				}else if( *((*(CTms + (*(csamp + i)))) + (x+1)) != -1){
-					tempval = *((*(GType + (*(csamp + i)))) + (x+1));
-					*((*(CTms + (tempval))) + (x+1)) = Ttot;
-					*((*(TAnc + (tempval))) + (x+1)) = (*((*(GType + (*(par + i)))) + (x+1)));
-				}
-				/*else if( *((*(CTms + (*(csamp + i)))) + (x+1)) != -1 && isall != 1){
-				}*/
-			}
-			
-			/* Set GC'ed sample as non-anc if need be */
-			if(isall == 0 && (*((*(GType + (*(csamp + i)))) + (x+1))) != (-1)){
-				if(tempval == -1){
-					(*((*(GTBU + (*(csamp + i)))) + (x+1))) = (*((*(GType + (*(csamp + i)))) + (x+1)));
-				}else if(tempval != -1){
-					(*((*(GTBU + (tempval))) + (x+1))) = (*((*(GType + (*(csamp + i)))) + (x+1)));
-				}
-				(*((*(GType + (*(csamp + i)))) + (x+1))) = (-1);
+				tempval = *((*(GType + (*(csamp + i)))) + (x+1));
+				*((*(CTms + (tempval))) + (x+1)) = Ttot;
+				*((*(TAnc + (tempval))) + (x+1)) = (*((*(GType + (*(par + i)))) + (x+1)));
 			}
 			
 			/* Updating genotype table */
 			if( (*((*(GType + (*(csamp + i)))) + (x+1))) != (-1) && (*((*(GType + (*(par + i)))) + (x+1))) == (-1)){
 				(*((*(GType + (*(par + i)))) + (x+1))) = (*((*(GType + (*(csamp + i)))) + (x+1)));
+			}
+			
+			/* If coal event was via GC, then making coal'ed sample non-ancestral */
+			if(isall == 0 && (*((*(GType + (*(csamp + i)))) + (x+1))) != (-1)){
+				(*((*(GType + (*(csamp + i)))) + (x+1))) = (-1);
 			}
 			
 		}
@@ -1821,7 +1733,7 @@ void Wait(){
 	printf("\n");	
 }
 
-void TestTabs(unsigned int **indvs, int **GType, double **CTms , int **TAnc, int **GTBU, unsigned int **breaks, unsigned int NMax, unsigned int nbreaks){
+void TestTabs(unsigned int **indvs, int **GType, double **CTms, int **TAnc, unsigned int **breaks, unsigned int NMax, unsigned int Itot, unsigned int nbreaks){
 
 	unsigned int j, x;
 	
@@ -1844,7 +1756,7 @@ void TestTabs(unsigned int **indvs, int **GType, double **CTms , int **TAnc, int
 	printf("\n");
 	
 	printf("CTMS TABLE\n");
-	for(j = 0; j < NMax; j++){
+	for(j = 0; j < Itot; j++){
 		for(x = 0; x <= nbreaks; x++){
 			printf("%lf ",*((*(CTms + j)) + x));
 		}
@@ -1853,7 +1765,7 @@ void TestTabs(unsigned int **indvs, int **GType, double **CTms , int **TAnc, int
 	printf("\n");
 	
 	printf("TANC TABLE\n");
-	for(j = 0; j < NMax; j++){
+	for(j = 0; j < Itot; j++){
 		for(x = 0; x <= nbreaks; x++){
 			printf("%d ",*((*(TAnc + j)) + x));
 		}
@@ -1861,15 +1773,6 @@ void TestTabs(unsigned int **indvs, int **GType, double **CTms , int **TAnc, int
 	}
 	printf("\n");
 	
-	printf("GTBU TABLE\n");
-	for(j = 0; j < NMax; j++){
-		for(x = 0; x <= nbreaks; x++){
-			printf("%d ",*((*(GTBU + j)) + x));
-		}
-		printf("\n");
-	}
-	printf("\n");	
-
 	printf("BREAKS TABLE\n");
 	for(j = 0; j < 2; j++){
 		for(x = 0; x < nbreaks; x++){
@@ -2902,16 +2805,16 @@ int main(int argc, char *argv[]){
 		int **TAnc = calloc(Itot+exr,sizeof(int *));							/* Table of ancestors for each sample */
 		unsigned int **breaks = calloc(2,sizeof(unsigned int *));			/* Table of breakpoints created in the simulation */
 		double **TFin = calloc((Itot-1),sizeof(double *));					/* Final ancestry table, for tree reconstruction */
-		int **GTBU = calloc(Itot+exr,sizeof(int *));						/* Backup table if sample replaced by gene conversion */		
 		for(j = 0; j < (Itot+exr); j++){										/* Assigning space for each genome sample */
 			indvs[j] = calloc(4,sizeof(unsigned int));
 			GType[j] = calloc(exc+1,sizeof(int));
-			CTms[j] = calloc(exc+1,sizeof(double));
-			TAnc[j] = calloc(exc+1,sizeof(int));
-			if(j < (Itot - 1)){
-				TFin[j] = calloc(3,sizeof(double));
+			if(j < Itot){
+				CTms[j] = calloc(exc+1,sizeof(double));
+				TAnc[j] = calloc(exc+1,sizeof(int));
+				if(j < (Itot - 1)){
+					TFin[j] = calloc(3,sizeof(double));
+				}
 			}
-			GTBU[j] = calloc(exc+1,sizeof(int));			
 		}
 		breaks[0] = calloc(exc,sizeof(unsigned int));
 		breaks[1] = calloc(exc,sizeof(unsigned int));
@@ -2923,8 +2826,6 @@ int main(int argc, char *argv[]){
 			*((*(indvs + j)) + 0) = j;
 			*((*(GType + j)) + 0) = j;
 			*((*(GType + j)) + 1) = j;
-			*((*(GTBU + j)) + 0) = j;
-			*((*(GTBU + j)) + 1) = -1;			
 			*((*(CTms + j)) + 0) = j;
 			*((*(CTms + j)) + 1) = -1;			
 			*((*(TAnc + j)) + 0) = j;
@@ -3086,7 +2987,7 @@ int main(int argc, char *argv[]){
 				/* Changing ancestry accordingly */
 				/* MOVED CODE HERE TO AVOID ERRORS WHEN NUMBER OF SAMPLES MISMATCH */
 				gcalt = 0;
-				coalesce(indvs, GType, CTms, TAnc, GTBU, Ttot, Nwith, Nbet, deme, rsex, evsex, event, drec, e2, breaks, nsites, &lrec, &nbreaks, NMax, lambda, &gcalt, r);
+				coalesce(indvs, GType, CTms, TAnc, Ttot, Nwith, Nbet, deme, rsex, evsex, event, drec, e2, breaks, nsites, &lrec, &nbreaks, NMax, Itot, lambda, &gcalt, r);
 				/* printf("Lrec is %d\n",lrec); */
 				
 				/* Based on outcome, altering (non-mig) states accordingly */
@@ -3134,33 +3035,24 @@ int main(int argc, char *argv[]){
 				}
 /*				printf("lrec now %d\n",lrec);*/
 				free(rsex);		/* Can be discarded once used to change ancestry */
-
-				if(i == 28 && (event == 8 || event == 7)){
-					TestTabs(indvs, GType, CTms, TAnc, GTBU, breaks, NMax, nbreaks);
+/*
+				if(i == 2 && (event == 8 || event == 7)){
+					TestTabs(indvs, GType, CTms, TAnc, breaks, NMax, Itot, nbreaks);
 				}
-
+*/
 				/* Checking if need to expand tables */
 
 				if(NMax == (exr+Itot-1)){
 					exr += INITBR;
 					indvs = (unsigned int **)realloc(indvs,(Itot+exr)*sizeof(unsigned int *));
 					GType = (int **)realloc(GType, (Itot+exr)*sizeof(int *));
-					CTms = (double **)realloc(CTms, (Itot+exr)*sizeof(double *));
-					TAnc = (int **)realloc(TAnc, (Itot+exr)*sizeof(int *));
-					GTBU = (int **)realloc(GTBU, (Itot+exr)*sizeof(int *));					
 					for(j = 0; j < (Itot+exr-INITBR); j++){
 						indvs[j] = (unsigned int *)realloc(*(indvs + j),4*sizeof(unsigned int));					
 						GType[j] = (int *)realloc( *(GType + j) ,(exc + 1)*sizeof(int));
-						CTms[j] = (double *)realloc( *(CTms + j) ,(exc + 1)*sizeof(double));
-						TAnc[j] = (int *)realloc( *(TAnc + j) ,(exc + 1)*sizeof(int));
-						GTBU[j] = (int *)realloc( *(GTBU + j) ,(exc + 1)*sizeof(int));						
 					}
 					for(j = (Itot+exr-INITBR); j < (Itot+exr); j++){
 						indvs[j] = (unsigned int *)calloc(4,sizeof(unsigned int));					
-						GType[j] = (int *)calloc((exc + 1),sizeof(int));
-						CTms[j] = (double *)calloc((exc + 1),sizeof(double));
-						TAnc[j] = (int *)calloc((exc + 1),sizeof(int));												
-						GTBU[j] = (int *)calloc((exc + 1),sizeof(int));						
+						GType[j] = (int *)calloc((exc + 1),sizeof(int));	
 					}
 				}
 				
@@ -3170,7 +3062,6 @@ int main(int argc, char *argv[]){
 						GType[j] = (int *)realloc( *(GType + j) ,(exc + 1)*sizeof(int));
 						CTms[j] = (double *)realloc( *(CTms + j) ,(exc + 1)*sizeof(double));
 						TAnc[j] = (int *)realloc( *(TAnc + j) ,(exc + 1)*sizeof(int));
-						GTBU[j] = (int *)realloc( *(GTBU + j) ,(exc + 1)*sizeof(int));						
 					}
 					breaks[0] = (unsigned int *)realloc(*(breaks + 0),exc*sizeof(unsigned int));
 					breaks[1] = (unsigned int *)realloc(*(breaks + 1),exc*sizeof(unsigned int));\
@@ -3180,24 +3071,18 @@ int main(int argc, char *argv[]){
 				done = isallUI(*(breaks + 1),nbreaks,1,0);
 			}
 		}
-
-		if(i == 28){
-			TestTabs(indvs, GType, CTms, TAnc, GTBU, breaks, NMax, nbreaks);
+/*
+		if(i == 2){
+			TestTabs(indvs, GType, CTms, TAnc, breaks, NMax, Itot, nbreaks);
 		}		
-
+*/
 		for(x = 1; x <= nbreaks; x++){
 			
 			/* Creating ancestry table */
 			count = 0;
-			for(j = 0; j < NMax; j++){
+			for(j = 0; j < Itot; j++){
 				if((*((*(CTms + j)) + x)) != (-1.0)){
-					if(*((*(GType + j)) + x) != (-1.0) && *((*(GTBU + j)) + x) == (-1.0) ) {
-						*((*(TFin + count)) + 0) = *((*(GType + j)) + x);
-					}else if(*((*(GType + j)) + x) != (-1.0) && *((*(GTBU + j)) + x) != (-1.0) ) {
-						*((*(TFin + count)) + 0) = *((*(GTBU + j)) + x);
-					}else if(*((*(GType + j)) + x) == (-1.0) ) {
-						*((*(TFin + count)) + 0) = *((*(GTBU + j)) + x);
-					}
+					*((*(TFin + count)) + 0) = *((*(CTms + j)) + 0);
 					*((*(TFin + count)) + 1) = *((*(CTms + j)) + x);
 					*((*(TFin + count)) + 2) = *((*(TAnc + j)) + x);
 					count++;
@@ -3240,18 +3125,18 @@ int main(int argc, char *argv[]){
 		free(breaks[1]);
 		free(breaks[0]);
 		for(j = 0; j < (Itot + exr); j++){
-			if(j < (Itot - 1)){
-				free(TFin[j]);
+			if(j < Itot){
+				free(TAnc[j]);
+				free(CTms[j]);
+				if(j < (Itot - 1)){
+					free(TFin[j]);
+				}
 			}
-			free(GTBU[j]);			
-			free(TAnc[j]);
-			free(CTms[j]);
 			free(GType[j]);
 			free(indvs[j]);
 		}
 		free(TFin);
 		free(breaks);
-		free(GTBU);		
 		free(TAnc);
 		free(CTms);
 		free(GType);
