@@ -681,6 +681,7 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 	unsigned int proceed = 0;	/* Proceed with gene conversion? (event 8) */
 	unsigned int maxck = 0;		/* Check if end of bp correctly chosen (event 8) */
 	unsigned int iscoal = 0;	/* Check if paired GC event leads to coalescence (event 8) */
+	unsigned int mtrt = 0;
 	
 	/* Then further actions based on other event */
 	switch(ex)
@@ -1147,10 +1148,30 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 				maxtr = ((*nbreaks)-1);
 			}else if(maxck == 0 && (gcend == nsites)){
 /*				printf("It here 2\n");*/
-				maxtr = ((*nbreaks));
+				maxtr = (*nbreaks);
 				isyetbp2 = 1;				
 			}
 /*			printf("MAXTR %d NBREAKS %d\n",maxtr,*nbreaks);			*/
+
+			/* Some kind of correction needed if end point is coalesced? */
+			mtrt = maxtr;
+			if(mtrt == (*nbreaks)){
+				mtrt--;
+			}
+			if(*((*(breaks + 1)) + mtrt) == 1){
+				done = 0;
+				while(done == 0){
+					mtrt--;
+					if(*((*(breaks + 1)) + mtrt) == 1){
+						done = 1;
+					}
+					if(mtrt == mintr){
+						mtrt = mintr + 1;
+						done = 1;
+					}
+				}
+				maxtr = mtrt;
+			}
 
 			/* Inserting new, end BP if needed */
 			if((isyetbp2 != 1) && (*((*(GType + gcsamp)) + maxtr + 1) != (-1)) ){
@@ -1730,7 +1751,7 @@ void TestTabs(unsigned int **indvs, int **GType, double **CTms, int **TAnc, unsi
 		printf("\n");
 	}
 	printf("\n");
-	
+/*	
 	printf("CTMS TABLE\n");
 	for(j = 0; j < Itot; j++){
 		for(x = 0; x <= nbreaks; x++){
@@ -1748,7 +1769,7 @@ void TestTabs(unsigned int **indvs, int **GType, double **CTms, int **TAnc, unsi
 		printf("\n");
 	}
 	printf("\n");
-	
+*/	
 	printf("BREAKS TABLE\n");
 	for(j = 0; j < 2; j++){
 		for(x = 0; x < nbreaks; x++){
@@ -1758,7 +1779,7 @@ void TestTabs(unsigned int **indvs, int **GType, double **CTms, int **TAnc, unsi
 	}
 	printf("\n");	
 
-	Wait();
+/*	Wait();		*/
 /*	exit(1);	*/
 
 }
@@ -2848,6 +2869,16 @@ int main(int argc, char *argv[]){
 			nosex = powDUI(sexCInv,Nwith,d);				/* Probability of no segregation via sex, accounting for within-deme variation */
 			psum = (1-nosex) + nosex*(sumT_D(pr,11,d));		/* Sum of all event probabilities, for drawing random time */
 			
+			if(i == 17){
+			printf("lrec, y, nlrec is %d %d %d\n",lrec,*(Nbet + 0),*(nlrec + 0));
+				for(x = 0; x < d; x++){
+					for(j = 0; j < 11; j++){
+						printf("%.10lf ",*((*(pr + j)) + x));
+					}
+				}
+				printf("\n");
+			}
+			
 			/* Intermediate error checking */
 			if(psum > 1){
 				fprintf(stderr,"Summed probabilities exceed one, you need to double-check your algebra (or probability inputs).\n");
@@ -2858,7 +2889,7 @@ int main(int argc, char *argv[]){
 				exit(1);
 			}
 			if(isanylessD_2D(pr,11,d,0) == 1){
-				fprintf(stderr,"A negative probability exists, you need to double-check your algebra (or probability inputs).\n");
+				fprintf(stderr,"A negative probability exists, you need to double-check your algebra (or probability inputs) - esex 0.\n");
 				exit(1);				
 			}
 			
@@ -2917,7 +2948,7 @@ int main(int argc, char *argv[]){
 					/* Then recalculating probability of events */				
 					probset2(N, g, sexC, rec, lrec, nlrec, nlrec2, mig, Nwith, Nbet, evsex, 1, pr);
 					if(isanylessD_2D(pr,11,d,0) == 1){
-						fprintf(stderr,"A negative probability exists, you need to double-check your algebra (or probability inputs).\n");
+						fprintf(stderr,"A negative probability exists, you need to double-check your algebra (or probability inputs) - esex 1.\n");
 						exit(1);				
 					}
 				}
@@ -2931,8 +2962,8 @@ int main(int argc, char *argv[]){
 				gsl_ran_multinomial(r,d,1,(*(pr + event)),draw2);
 				deme = matchUI(draw2,d,1);
 
+				printf("Event is %d\n",event);
 				/*
-				printf("Event is %d\n",event);				
 				printf("%d %d %d %d %d %.10lf %.10lf\n",lrec,*(nlrec+0),*(nlrec+1),*(nlrec2+0),*(nlrec2+1),(*((*(pr + 10)) + 0)),(*((*(pr + 10)) + 1)));
 				*/
 
@@ -3009,11 +3040,6 @@ int main(int argc, char *argv[]){
 				}
 /*				printf("lrec now %d\n",lrec);*/
 				free(rsex);		/* Can be discarded once used to change ancestry */
-/*
-				if(i == 2 && (event == 8 || event == 7)){
-					TestTabs(indvs, GType, CTms, TAnc, breaks, NMax, Itot, nbreaks);
-				}
-*/
 			
 				/* Checking if need to expand tables */
 
@@ -3042,6 +3068,10 @@ int main(int argc, char *argv[]){
 					}
 					breaks[0] = (unsigned int *)realloc(*(breaks + 0),exc*sizeof(unsigned int));
 					breaks[1] = (unsigned int *)realloc(*(breaks + 1),exc*sizeof(unsigned int));
+				}
+				
+				if(i == 17 && event == 4){
+					TestTabs(indvs, GType, CTms, TAnc, breaks, NMax, Itot, nbreaks);
 				}
 				
 				/* Testing if all sites coalesced or not */
