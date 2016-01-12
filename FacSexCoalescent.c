@@ -681,7 +681,7 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 	unsigned int proceed = 0;	/* Proceed with gene conversion? (event 8) */
 	unsigned int maxck = 0;		/* Check if end of bp correctly chosen (event 8) */
 	unsigned int iscoal = 0;	/* Check if paired GC event leads to coalescence (event 8) */
-	unsigned int mtrt = 0;
+	int mtrt = -1;
 	
 	/* Then further actions based on other event */
 	switch(ex)
@@ -1049,10 +1049,10 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 				
 				/* Sample that undergoes GC */
 				gsl_ran_choose(r,&rands,1,singsamps8,(*(Nbet + deme) + 2*(*(nsex + deme))),sizeof(unsigned int));
-				printf("Rands is %d\n",rands);
 				for(j = 0; j < NMax; j++){
 					if( *((*(GType + j)) + 0) == rands){
 						gcsamp = j;
+/*						printf("gcsamp is %d\n",gcsamp);*/
 						break;
 					}
 				}
@@ -1124,6 +1124,8 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 				mintr++;
 			}
 			
+/*			printf("Mintr is %d\n",*((*(breaks + 0)) + mintr));*/
+			
 			gcln = 0;
 			maxck = 0;
 			while(gcln == 0){
@@ -1154,24 +1156,31 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 			}
 /*			printf("MAXTR %d NBREAKS %d\n",maxtr,*nbreaks);			*/
 
-			/* Some kind of correction needed if end point is coalesced? */
+/*			TestTabs(indvs, GType, CTms, TAnc, breaks, NMax + 1, Itot, *nbreaks);*/
+
+			/* Some kind of correction needed if end point lies in coalesced material? */
 			mtrt = maxtr;
 			if(mtrt == (*nbreaks)){
 				mtrt--;
 			}
 			if(*((*(breaks + 1)) + mtrt) == 1){
 				done = 0;
+/*				printf("INITIAL MTRT %d, GT IS %d\n",mtrt,*((*(GType + gcsamp)) + mtrt));*/
 				while(done == 0){
 					mtrt--;
+/*					printf("MTRT %d (%d), GT IS %d, MINTR %d\n",mtrt,*((*(breaks + 0)) + mtrt),*((*(GType + gcsamp)) + mtrt),mintr);*/
 					if(*((*(breaks + 1)) + mtrt) == 1){
+						gcend = *((*(breaks + 0)) + mtrt + 1);
 						done = 1;
 					}
 					if(mtrt == mintr){
 						mtrt = mintr;
+						gcend = *((*(breaks + 0)) + mtrt + 1);
 						done = 1;
 					}
 				}
 				maxtr = mtrt;
+				isyetbp2 = 1;
 			}
 
 			/* Inserting new, end BP if needed */
@@ -1195,6 +1204,11 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 				}
 				maxtr++;
 			}
+			
+			/*
+			printf("Maxtr is %d\n",*((*(breaks + 0)) + maxtr));
+			printf("gcst is %d, end is %d\n",gcst,gcend);
+			*/
 
 			/* ONLY PROCEED (in single-sample case) IF NOT ALL SITES EMPTY (otherwise alternative regimes used) */
 			/*
@@ -1264,11 +1278,7 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 						}
 					}
 				}
-/*				
-				if(gt == 1){
-					TestTabs(indvs, GType, CTms, TAnc, GTBU, breaks, NMax + 1, Itot, *nbreaks);
-				}
-*/				
+				
 				/* Now updating coalescent times */
 				cchange(indvs, GType, CTms, TAnc, breaks, &csamp, &par, 1, Ntot, mintr, &maxtr, Ttot, iscoal);
 			
@@ -1461,8 +1471,7 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 				maxtr--;
 			}
 			
-			/* Now creating the new sample genotype; updating all other tables */
-			/* (If it turns out these tables 'align', change code to combine loops?) */
+			/* Now creating the new sample genotype */
 			for(j = 0; j < NMax; j++){
 				if( *((*(GType + j)) + 0) == rands ){
 					for(x = (*nbreaks); x > (int)maxtr; x--){
@@ -2762,7 +2771,11 @@ int main(int argc, char *argv[]){
 	/* Running the simulation Nreps times */
 	for(i = 0; i < Nreps; i++){
 		
-/*		printf("Starting Run %d\n",i); */
+		/*
+		if(i%100 == 0){
+		printf("Starting Run %d\n",i);
+		}
+		*/
 
 		/* Setting up type of sex heterogeneity */
 		if(pSTIN == 0){
@@ -2869,17 +2882,7 @@ int main(int argc, char *argv[]){
 			probset2(N, g, sexC, rec, lrec, nlrec, zeros, mig, Nwith, Nbet, zeros, 0, pr);
 			nosex = powDUI(sexCInv,Nwith,d);				/* Probability of no segregation via sex, accounting for within-deme variation */
 			psum = (1-nosex) + nosex*(sumT_D(pr,11,d));		/* Sum of all event probabilities, for drawing random time */
-			
-			if(i == 48){
-				printf("lrec, y, nlrec is %d %d %d\n",lrec,*(Nbet + 0),*(nlrec + 0));
-				for(x = 0; x < d; x++){
-					for(j = 0; j < 11; j++){
-						printf("%.10lf ",*((*(pr + j)) + x));
-					}
-				}
-				printf("\n");
-			}
-			
+				
 			/* Intermediate error checking */
 			if(psum > 1){
 				fprintf(stderr,"Summed probabilities exceed one, you need to double-check your algebra (or probability inputs).\n");
@@ -2963,8 +2966,8 @@ int main(int argc, char *argv[]){
 				gsl_ran_multinomial(r,d,1,(*(pr + event)),draw2);
 				deme = matchUI(draw2,d,1);
 
-				printf("Event is %d\n",event);
 				/*
+				printf("Event is %d\n",event);
 				printf("%d %d %d %d %d %.10lf %.10lf\n",lrec,*(nlrec+0),*(nlrec+1),*(nlrec2+0),*(nlrec2+1),(*((*(pr + 10)) + 0)),(*((*(pr + 10)) + 1)));
 				*/
 
@@ -3070,11 +3073,11 @@ int main(int argc, char *argv[]){
 					breaks[0] = (unsigned int *)realloc(*(breaks + 0),exc*sizeof(unsigned int));
 					breaks[1] = (unsigned int *)realloc(*(breaks + 1),exc*sizeof(unsigned int));
 				}
-				
-				if(i == 48 && event == 8){
+/*
+				if(i == 513 && event == 8){
 					TestTabs(indvs, GType, CTms, TAnc, breaks, NMax, Itot, nbreaks);
 				}
-				
+*/
 				/* Testing if all sites coalesced or not */
 				done = isallUI(*(breaks + 1),nbreaks,1,0);
 			}
