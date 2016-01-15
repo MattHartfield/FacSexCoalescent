@@ -55,15 +55,16 @@ unsigned int last_neI(int *vin, unsigned int size_t, int target, unsigned int of
 unsigned int last_neUI(unsigned int *vin, unsigned int size_t, unsigned int target, unsigned int offset);
 
 unsigned int trig(unsigned int x);
+double KQ(double Q);
 double P23(unsigned int y, unsigned int k, unsigned int Na);
 double P4(unsigned int x, unsigned int k, unsigned int Na);
 double P56(unsigned int y, unsigned int Na);
 double P7(unsigned int x, unsigned int k, unsigned int Na);
 double P8(unsigned int x, unsigned int y, unsigned int k, unsigned int Na);
-double P9(unsigned int x, unsigned int y, unsigned int k, double gee, unsigned int lrec);
+double P9(unsigned int x, unsigned int y, unsigned int k, double gee, unsigned int lrec, double Q);
 double P10(unsigned int x, unsigned int y, unsigned int k, double mee);
 double P11(unsigned int y, unsigned int k, double sexC, double ree, unsigned int lrec, unsigned int nlrec, unsigned int nlrec2);
-void probset2(unsigned int N, double g, double *sexC, double rec, unsigned int lrec, unsigned int *nlrec, unsigned int *nlrec2, double mig, unsigned int *Nwith, unsigned int *Nbet, unsigned int *kin, unsigned int sw, double **pr);
+void probset2(unsigned int N, double g, double *sexC, double rec, double Q, unsigned int lrec, unsigned int *nlrec, unsigned int *nlrec2, double mig, unsigned int *Nwith, unsigned int *Nbet, unsigned int *kin, unsigned int sw, double **pr);
 void rate_change(unsigned int N, unsigned int pST,double pLH, double pHL, double *sexH, double *sexL, unsigned int switch1, double *sexCN, double *sexCNInv, double *tts, unsigned int *npST,const gsl_rng *r);
 void stchange2(unsigned int ev, unsigned int deme, unsigned int *kin, int *WCH, int *BCH);
 void sexconv(unsigned int **Tin, unsigned int *rsex, unsigned int nsum, unsigned int Ntot);
@@ -407,6 +408,11 @@ unsigned int trig(unsigned int x){
 	return (x*(x-1))/2.0;
 }
 
+double KQ(double Q){
+	/* For GC calculations */
+	return 1.0 - (1.0 - exp(-Q))/Q;
+}
+
 /* Functions of each transition probability calculation */
 double P23(unsigned int y, unsigned int k, unsigned int Na){
 	/* One of the paired samples is recreated: (x,y) -> (x-k+1, y + 2(k-1)). 
@@ -434,9 +440,9 @@ double P8(unsigned int x, unsigned int y, unsigned int k, unsigned int Na){
 	diff = x-k;
 	return (diff*y)/(1.0*Na);
 }
-double P9(unsigned int x, unsigned int y, unsigned int k, double gee, unsigned int lrec){
+double P9(unsigned int x, unsigned int y, unsigned int k, double gee, unsigned int lrec, double Q){
 	/* Gene conversion event */
-	return gee*(lrec)*((x-k) + y + 2*k);
+	return gee*(lrec)*(2-KQ(Q))*((x-k) + y + 2*k);
 }
 double P10(unsigned int x, unsigned int y, unsigned int k, double mee){
 	/* A sample migrates to another deme */
@@ -454,7 +460,7 @@ double P11(unsigned int y, unsigned int k, double sexC, double ree, unsigned int
 }
 
 /* Calculate probability change vectors each time OVER EACH DEME */
-void probset2(unsigned int N, double g, double *sexC, double rec, unsigned int lrec, unsigned int *nlrec, unsigned int *nlrec2, double mig, unsigned int *Nwith, unsigned int *Nbet, unsigned int *kin, unsigned int sw, double **pr){
+void probset2(unsigned int N, double g, double *sexC, double rec, double Q, unsigned int lrec, unsigned int *nlrec, unsigned int *nlrec2, double mig, unsigned int *Nwith, unsigned int *Nbet, unsigned int *kin, unsigned int sw, double **pr){
 	unsigned int x;				/* Deme counter */
 	unsigned int ksum = 0;		/* Total number of segregating events */
 	
@@ -469,7 +475,7 @@ void probset2(unsigned int N, double g, double *sexC, double rec, unsigned int l
 		*((*(pr + 5)) + x) = P56(*(Nbet + x),N);
 		*((*(pr + 6)) + x) = P7(*(Nwith + x),*(kin + x),N);
 		*((*(pr + 7)) + x) = P8(*(Nwith + x),*(Nbet + x),*(kin + x),N);
-		*((*(pr + 8)) + x) = P9(*(Nwith + x),*(Nbet + x),*(kin + x),g,lrec);
+		*((*(pr + 8)) + x) = P9(*(Nwith + x),*(Nbet + x),*(kin + x),g,lrec,Q);
 		*((*(pr + 9)) + x) = P10(*(Nwith + x),*(Nbet + x),*(kin + x),mig);
 		*((*(pr + 10)) + x) = P11(*(Nbet + x),*(kin + x),*(sexC + x),rec,lrec,*(nlrec + x),*(nlrec2 + x));
 		
@@ -636,7 +642,7 @@ void sexconv(unsigned int **Tin, unsigned int *rsex, unsigned int nsum, unsigned
 				break;
 			}
 		}
-	}	
+	}
 }
 
 /* Function to change status of samples following event change */
@@ -671,7 +677,7 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 	unsigned int mintr = 0;		/* Start of GC event (event 8) */	
 	unsigned int gt = 0;		/* GC acting on single or paired sample? (event 8) */
 	unsigned int gcst = 0;		/* GC start point (event 8) */
-	unsigned int gcend = 0; 	/* GC end point (event 8) */
+	int gcend = 0; 				/* GC end point (event 8) */
 	unsigned int gcsamp = 0;	/* Index of GC'ed sample (event 8) */
 	unsigned int gcsamp2 = 0;	/* Index of GC'ed sample if paired sample involved (event 8) */	
 	unsigned int gcln = 0;		/* Length of GC event (event 8) */
@@ -681,6 +687,7 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 	unsigned int proceed = 0;	/* Proceed with gene conversion? (event 8) */
 	unsigned int maxck = 0;		/* Check if end of bp correctly chosen (event 8) */
 	unsigned int iscoal = 0;	/* Check if paired GC event leads to coalescence (event 8) */
+	unsigned int gcdir = 0;		/* Direction of GC event (event 8) */
 	int mtrt = -1;
 	
 	/* Then further actions based on other event */
@@ -1032,7 +1039,7 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 			free(parsamps7);
 			break;
 		case 8:		/* Event 8: Gene conversion */
-				
+
 			/* Converting WH to BH samples */
 			sexconv(indvs, rsex, nsum, Ntot);
 			
@@ -1076,7 +1083,7 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 				free(parsamps8);
 			}
 			
-			/* Then drawing startpoint, length of GC event */
+			/* Then drawing startpoint */
 			yesrec = 0;
 			while(yesrec != 1){
 				mindr = 0;
@@ -1126,16 +1133,32 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 			
 /*			printf("Mintr is %d\n",*((*(breaks + 0)) + mintr));*/
 			
+			/* Now drawing endpoint */
+			/*
+			yesrec2 = 0;
+			while(yesrec2 != 1){
+			*/
+			gcdir = 0;
 			gcln = 0;
 			maxck = 0;
+			gcdir = (gsl_ran_bernoulli(r,0.5) + 1);	/* 1 = go LEFT; 2 = go RIGHT */
+			
 			while(gcln == 0){
 				gcln = (gsl_ran_geometric(r,(1.0/lambda)));
 			}
-			gcend = gcst + gcln;
-			if(gcend > nsites){
-				gcend = nsites;		/* So doesn't extend past end of tract */
+			if(gcdir == 2){
+				gcend = gcst + gcln;
+				if(gcend > nsites){
+					gcend = nsites;		/* So doesn't extend past end of tract */
+				}
 			}
-/*			printf("nsites %d, gcst %d, gcln %d, gcend %d\n",nsites,gcst,gcln,gcend);*/
+			if(gcdir == 1){
+				gcend = gcst - gcln;
+				if(gcend < 0){
+					gcend = 0;			/* So doesn't extend past end of tract */
+				}
+			}
+			
 			for(x = 0; x < *nbreaks; x++){
 				if( *((*(breaks + 0)) + x) == gcend){
 					isyetbp2 = 1;
@@ -1146,18 +1169,33 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 					break;
 				}
 			}
-			if(maxck == 0 && (gcend != nsites)){ 	/* If endpoint not found amongst existing bps, must be at end */
-/*				printf("It here 1\n");*/
+			/*
+			if(maxck == 1 & *((*(breaks + 1)) + maxtr) != 1){
+				yesrec2 = 1;
+			}else 
+			*/
+			if(maxck == 0 && (gcend != nsites) && (gcend != 0)){ 		/* If endpoint not found amongst existing bps, must be at end */
+/*					printf("It here 1\n");*/
 				maxtr = ((*nbreaks)-1);
+				/*
+				if(*((*(breaks + 1)) + maxtr) != 1){
+					yesrec2 = 1;
+				}
+				*/
 			}else if(maxck == 0 && (gcend == nsites)){
-/*				printf("It here 2\n");*/
+/*					printf("It here 2\n");*/
 				maxtr = (*nbreaks);
-				isyetbp2 = 1;				
+				isyetbp2 = 1;
+				/*
+				if(*((*(breaks + 1)) + maxtr - 1) != 1){
+					yesrec2 = 1;
+				}
+				*/
 			}
-/*			printf("MAXTR %d NBREAKS %d\n",maxtr,*nbreaks);			*/
-
-/*			TestTabs(indvs, GType, CTms, TAnc, breaks, NMax + 1, Itot, *nbreaks);*/
-
+				/*
+			}
+			*/
+			
 			/* Some kind of correction needed if end point lies in coalesced material? */
 			mtrt = maxtr;
 			if(mtrt == (*nbreaks)){
@@ -1167,7 +1205,11 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 				done = 0;
 /*				printf("INITIAL MTRT %d, GT IS %d\n",mtrt,*((*(GType + gcsamp)) + mtrt));*/
 				while(done == 0){
-					mtrt--;
+					if(gcdir == 2){
+						mtrt--;
+					}else if(gcdir == 1){
+						mtrt++;
+					}
 /*					printf("MTRT %d (%d), GT IS %d, MINTR %d\n",mtrt,*((*(breaks + 0)) + mtrt),*((*(GType + gcsamp)) + mtrt),mintr);*/
 					if(*((*(breaks + 1)) + mtrt) == 1){
 						gcend = *((*(breaks + 0)) + mtrt + 1);
@@ -1182,6 +1224,12 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 				maxtr = mtrt;
 				isyetbp2 = 1;
 			}
+			
+/*			printf("nsites %d, gcst %d, gcln %d, gcend %d\n",nsites,gcst,gcln,gcend);*/
+			
+/*			printf("MAXTR %d NBREAKS %d\n",maxtr,*nbreaks);			*/
+
+/*			TestTabs(indvs, GType, CTms, TAnc, breaks, NMax + 1, Itot, *nbreaks);*/
 
 			/* Inserting new, end BP if needed */
 			if((isyetbp2 != 1) && (*((*(GType + gcsamp)) + maxtr + 1) != (-1)) ){
@@ -1203,6 +1251,13 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 					}
 				}
 				maxtr++;
+			}
+			
+			/* Now swapping min, max if going leftwards */
+			if(gcdir == 1){
+				mtrt = mintr;
+				mintr = maxtr;
+				maxtr = mtrt;				
 			}
 			
 			/*
@@ -2570,6 +2625,7 @@ int main(int argc, char *argv[]){
 	double theta = 0;			/* Scaled mutation rate, 4Nmu */	
 	double mig = 0;				/* Migration rate between demes */	
 	double lambda = 0;			/* Average length of GC event */
+	double bigQ = 0;			/* Relative length of lambda (for GC prob calculations) */	
 	char Tout[32];				/* String to hold filename in (Trees) */
 	FILE *ofp_tr;				/* Pointer for tree output */
 	FILE *ofp_sd;				/* Pointer for seed output */	
@@ -2589,6 +2645,7 @@ int main(int argc, char *argv[]){
 	g = strtod(argv[4],NULL);
 	g = g/(2.0*N*nsites);
 	lambda = strtod(argv[5],NULL);
+	bigQ = nsites/(1.0*lambda);
 	theta = strtod(argv[6],NULL);
 	pSTIN = atoi(argv[7]);
 	pLH = strtod(argv[8],NULL);
@@ -2879,7 +2936,7 @@ int main(int argc, char *argv[]){
 /*			printf("nlrec, nlrec2 is %d %d\n",*(nlrec + 0),*(nlrec2 + 0));		*/
 			
 			/* Setting up vector of state-change probabilities *without sex* */
-			probset2(N, g, sexC, rec, lrec, nlrec, zeros, mig, Nwith, Nbet, zeros, 0, pr);
+			probset2(N, g, sexC, rec, bigQ, lrec, nlrec, zeros, mig, Nwith, Nbet, zeros, 0, pr);
 			nosex = powDUI(sexCInv,Nwith,d);				/* Probability of no segregation via sex, accounting for within-deme variation */
 			psum = (1-nosex) + nosex*(sumT_D(pr,11,d));		/* Sum of all event probabilities, for drawing random time */
 				
@@ -2950,7 +3007,7 @@ int main(int argc, char *argv[]){
 					/* (Add reccal code here? Pipe in sex event info?) */
 					reccal(indvs, GType, breaks, Nbet, Nwith, rsex, esex, nlrec2, lrec, nbreaks, NMax, 1,i);
 					/* Then recalculating probability of events */				
-					probset2(N, g, sexC, rec, lrec, nlrec, nlrec2, mig, Nwith, Nbet, evsex, 1, pr);
+					probset2(N, g, sexC, rec, bigQ, lrec, nlrec, nlrec2, mig, Nwith, Nbet, evsex, 1, pr);
 					if(isanylessD_2D(pr,11,d,0) == 1){
 						fprintf(stderr,"A negative probability exists, you need to double-check your algebra (or probability inputs) - esex 1.\n");
 						exit(1);				
@@ -3074,7 +3131,7 @@ int main(int argc, char *argv[]){
 					breaks[1] = (unsigned int *)realloc(*(breaks + 1),exc*sizeof(unsigned int));
 				}
 /*
-				if(i == 513 && event == 8){
+				if(i == 55 && event == 8){
 					TestTabs(indvs, GType, CTms, TAnc, breaks, NMax, Itot, nbreaks);
 				}
 */
