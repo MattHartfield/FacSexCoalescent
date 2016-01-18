@@ -425,7 +425,7 @@ double P4(unsigned int x, unsigned int k, unsigned int Na){
 }
 double P56(unsigned int y, unsigned int Na){
 	/* Two pre-existing unique samples re-create a paired sample: (x,y) -> (x - k + 1, y + 2(k-1)). 
-	OR Two pre-existing paired samples coalesce: (x,y) -> (x - k, y + 2k-1) */
+	OR Two pre-existing unique samples coalesce: (x,y) -> (x - k, y + 2k-1) */
 	return trig(y)/(2.0*Na);
 }
 double P7(unsigned int x, unsigned int k, unsigned int Na){
@@ -1141,7 +1141,7 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 			gcdir = 0;
 			gcln = 0;
 			maxck = 0;
-			gcdir = (gsl_ran_bernoulli(r,0.5) + 1);	/* 1 = go LEFT; 2 = go RIGHT */
+			gcdir = (gsl_ran_bernoulli(r,0.5) + 1);		/* 1 = go LEFT; 2 = go RIGHT */
 			
 			while(gcln == 0){
 				gcln = (gsl_ran_geometric(r,(1.0/lambda)));
@@ -1159,6 +1159,8 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 				}
 			}
 			
+/*			printf("STATS: GCST %d, gcdir %d, gcln %d, gcend %d\n",gcst,gcdir,gcln,gcend);*/
+			
 			for(x = 0; x < *nbreaks; x++){
 				if( *((*(breaks + 0)) + x) == gcend){
 					isyetbp2 = 1;
@@ -1175,7 +1177,7 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 			}else 
 			*/
 			if(maxck == 0 && (gcend != nsites) && (gcend != 0)){ 		/* If endpoint not found amongst existing bps, must be at end */
-/*					printf("It here 1\n");*/
+/*				printf("It here 1\n");*/
 				maxtr = ((*nbreaks)-1);
 				/*
 				if(*((*(breaks + 1)) + maxtr) != 1){
@@ -1183,7 +1185,7 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 				}
 				*/
 			}else if(maxck == 0 && (gcend == nsites)){
-/*					printf("It here 2\n");*/
+/*				printf("It here 2\n");*/
 				maxtr = (*nbreaks);
 				isyetbp2 = 1;
 				/*
@@ -1211,13 +1213,22 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 						mtrt++;
 					}
 /*					printf("MTRT %d (%d), GT IS %d, MINTR %d\n",mtrt,*((*(breaks + 0)) + mtrt),*((*(GType + gcsamp)) + mtrt),mintr);*/
-					if(*((*(breaks + 1)) + mtrt) == 1){
-						gcend = *((*(breaks + 0)) + mtrt + 1);
+					if(*((*(breaks + 1)) + mtrt) != 1){
+						if(gcdir == 2){
+							gcend = *((*(breaks + 0)) + mtrt + 1);
+						}else if(gcdir == 1){
+							gcend = *((*(breaks + 0)) + mtrt);						
+						}
 						done = 1;
 					}
 					if(mtrt == mintr){
-						mtrt = mintr;
-						gcend = *((*(breaks + 0)) + mtrt + 1);
+						if(gcdir == 2){
+							mtrt = mintr + 1;
+							gcend = *((*(breaks + 0)) + mtrt + 1);
+						}else if(gcdir == 1){
+							mtrt = mintr;
+							gcend = *((*(breaks + 0)) + mtrt);
+						}
 						done = 1;
 					}
 				}
@@ -1310,8 +1321,16 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 				csamp = gcsamp;
 				par = gcsamp2;
 				
-				/* If all extant material transferred, then full coalescence occurs */
-				if((isallI((*(GType + gcsamp)), (mintr+1), (-1), 1) == 1) && (isallI((*(GType + gcsamp)), (*nbreaks+1), (-1), (maxtr+1)) == 1)){
+				/* If all extant material transferred, then full coalescence occurs
+				printf("csamp, par %d %d\n",csamp,par);	
+				printf("mintr, maxtr %d %d\n",mintr,maxtr);
+				printf("Stats 1 are %d %d\n",isallI((*(GType + gcsamp)), (mintr+1), (-1), 1),isallI((*(GType + gcsamp)), (*nbreaks+1), (-1), (maxtr+1)));
+				printf("Stats 2 are %d %d\n",(isallUI((*(breaks + 1)), mintr, 1, 0) == 1),isallUI((*(breaks + 1)), *nbreaks, 1, maxtr));				
+				*/
+				if(
+				( (isallI((*(GType + gcsamp)), (mintr+1), (-1), 1) == 1) || (isallUI((*(breaks + 1)), mintr, 1, 0) == 1) )
+				&& ( (isallI((*(GType + gcsamp)), (*nbreaks+1), (-1), (maxtr+1)) == 1) || (isallUI((*(breaks + 1)), *nbreaks, 1, maxtr) == 1) )
+				){
 					iscoal = 1;
 				}
 				/*
@@ -1323,7 +1342,6 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 				*/
 				
 				if(iscoal == 1){
-/*					printf("GC coalescence here\n");*/
 					*gcalt = 2;
 					/* Making sure remaining sample becomes BH */
 					for(j = 0; j < Ntot; j++){
@@ -1844,7 +1862,7 @@ void TestTabs(unsigned int **indvs, int **GType, double **CTms, int **TAnc, unsi
 	}
 	printf("\n");	
 
-/*	Wait();		*/
+	Wait();		
 /*	exit(1);	*/
 
 }
@@ -2677,10 +2695,19 @@ int main(int argc, char *argv[]){
 		fprintf(stderr,"Rate of gene conversion has to lie between 0 and 1.\n");
 		exit(1);
 	}
+	
+	/*
 	if(g > (10.0/(1.0*N))){
 		printf("WARNING: Analytical transitions assume gene conversion is weak.\n");
 		printf("Current input is much larger than O(1/NT) - transitions may be inaccurate.\n");
 	}
+	*/
+	
+	if(lambda < 1 && g != 0){
+		fprintf(stderr,"With gene conversion, average length (lambda) has to be at least 1.\n");
+		exit(1);
+	}
+	
 	if(theta < 0){
 		fprintf(stderr,"Mutation rate must be a positive (or zero) value.\n");
 		exit(1);
@@ -2829,9 +2856,7 @@ int main(int argc, char *argv[]){
 	for(i = 0; i < Nreps; i++){
 		
 		/*
-		if(i%100 == 0){
 		printf("Starting Run %d\n",i);
-		}
 		*/
 
 		/* Setting up type of sex heterogeneity */
@@ -3131,7 +3156,7 @@ int main(int argc, char *argv[]){
 					breaks[1] = (unsigned int *)realloc(*(breaks + 1),exc*sizeof(unsigned int));
 				}
 /*
-				if(i == 55 && event == 8){
+				if(event == 8){
 					TestTabs(indvs, GType, CTms, TAnc, breaks, NMax, Itot, nbreaks);
 				}
 */
