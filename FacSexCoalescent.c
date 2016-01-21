@@ -64,6 +64,7 @@ double P8(unsigned int x, unsigned int y, unsigned int k, unsigned int Na);
 double P9(unsigned int x, unsigned int y, unsigned int k, double gee, unsigned int lrec, double Q);
 double P10(unsigned int x, unsigned int y, unsigned int k, double mee);
 double P11(unsigned int y, unsigned int k, double sexC, double ree, unsigned int lrec, unsigned int nlrec, unsigned int nlrec2);
+double P12(unsigned int x, unsigned int k, double gee, double Q);
 void probset2(unsigned int N, double g, double *sexC, double rec, double Q, unsigned int lrec, unsigned int *nlrec, unsigned int *nlrec2, double mig, unsigned int *Nwith, unsigned int *Nbet, unsigned int *kin, unsigned int sw, double **pr);
 void rate_change(unsigned int N, unsigned int pST,double pLH, double pHL, double *sexH, double *sexL, unsigned int switch1, double *sexCN, double *sexCNInv, double *tts, unsigned int *npST,const gsl_rng *r);
 void stchange2(unsigned int ev, unsigned int deme, unsigned int *kin, int *WCH, int *BCH);
@@ -442,7 +443,7 @@ double P8(unsigned int x, unsigned int y, unsigned int k, unsigned int Na){
 }
 double P9(unsigned int x, unsigned int y, unsigned int k, double gee, unsigned int lrec, double Q){
 	/* Gene conversion event */
-	return gee*(lrec)*(2-KQ(Q))*((x-k) + y + 2*k);
+	return gee*(lrec-1)*(2.0-KQ(Q))*((x-k) + y + 2*k);
 }
 double P10(unsigned int x, unsigned int y, unsigned int k, double mee){
 	/* A sample migrates to another deme */
@@ -457,6 +458,10 @@ double P11(unsigned int y, unsigned int k, double sexC, double ree, unsigned int
 	}
 	*/
 	return (sexC*rec*((lrec - 1)*(y) - nlrec) + rec*((lrec - 1)*(2*k) - nlrec2));
+}
+double P12(unsigned int x, unsigned int k, double gee, double Q){
+	/* Complete gene conversion, coalesces paired sample into single sample */
+	return (gee*(x-k)*exp(-Q)); /*/(1.0*Q); */
 }
 
 /* Calculate probability change vectors each time OVER EACH DEME */
@@ -478,6 +483,7 @@ void probset2(unsigned int N, double g, double *sexC, double rec, double Q, unsi
 		*((*(pr + 8)) + x) = P9(*(Nwith + x),*(Nbet + x),*(kin + x),g,lrec,Q);
 		*((*(pr + 9)) + x) = P10(*(Nwith + x),*(Nbet + x),*(kin + x),mig);
 		*((*(pr + 10)) + x) = P11(*(Nbet + x),*(kin + x),*(sexC + x),rec,lrec,*(nlrec + x),*(nlrec2 + x));
+		*((*(pr + 11)) + x) = P12(*(Nwith + x),*(kin + x),g,Q);
 		
 		/* Only activate the first three events if need to consider segregation via sex 
 		(fourth is 'split pairs remain split') */
@@ -492,7 +498,7 @@ void probset2(unsigned int N, double g, double *sexC, double rec, double Q, unsi
 
 			/* Last entry is simply 1-(sum all other probs) */
 			if(x == 0){
-				*((*(pr + 0)) + x) = (1-sumT_D(pr,11,d));
+				*((*(pr + 0)) + x) = (1-sumT_D(pr,12,d));
 			}
 			
 		}else if(sw == 0){
@@ -614,6 +620,10 @@ void stchange2(unsigned int ev, unsigned int deme, unsigned int *kin, int *WCH, 
 			*(oo3 + 0) = 0;
 			*(oo3 + 1) = 1;
 			break;
+		case 11:
+			*(oo3 + 0) = -1;
+			*(oo3 + 1) = 1;
+			break;			
 		default:	/* If none of these cases chosen, exit with error message */
 			fprintf(stderr,"Error: Non-standard coalescent case selected ('stchange2').\n");
 			exit(1);
@@ -637,7 +647,7 @@ void sexconv(unsigned int **Tin, unsigned int *rsex, unsigned int nsum, unsigned
 		for(j = 0; j < Ntot; j++){
 			if( *((*(Tin + j)) + 1) == *(rsex + count) ){
 				*((*(Tin + j)) + 2) = 1;
-				*((*(Tin + j + 1)) + 2) = 1;					/* Since other paired sample also split */
+				*((*(Tin + j + 1)) + 2) = 1;	/* Since other paired sample also split */
 				count++;
 				break;
 			}
@@ -1038,7 +1048,7 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 			free(singsamps7);
 			free(parsamps7);
 			break;
-		case 8:		/* Event 8: Gene conversion */
+		case 8:		/* Event 8: (Partial) Gene conversion */
 
 			/* Converting WH to BH samples */
 			sexconv(indvs, rsex, nsum, Ntot);
@@ -1087,7 +1097,7 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 			yesrec = 0;
 			while(yesrec != 1){
 				mindr = 0;
-				gcst = (unsigned int)gsl_ran_flat(r, 0, nsites);
+				gcst = (unsigned int)gsl_ran_flat(r, 1, nsites);
 				for(x = 0; x < *nbreaks; x++){
 					if( *((*(breaks + 0)) + x) == gcst){
 						isyetbp = 1;
@@ -1098,11 +1108,17 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 						break;
 					}
 				}
-				if( mindr == 1 && *((*(breaks + 1)) + mintr) != 1){
-					yesrec = 1;
+				if( mindr == 1 ){
+					if((isyetbp != 1) && *((*(breaks + 1)) + mintr) != 1){
+						yesrec = 1;
+					}else if((isyetbp == 1) && ( *((*(breaks + 1)) + mintr) != 1 || *((*(breaks + 1)) + mintr - 1) != 1) ){
+						yesrec = 1;
+					}
 				}else if(mindr == 0){		/* GC start past end of current breakpoints, so need to force it */
 					mintr = ((*nbreaks)-1);
-					if(*((*(breaks + 1)) + mintr) != 1){
+					if(isyetbp != 1 && *((*(breaks + 1)) + mintr) != 1){
+						yesrec = 1;
+					}else if( (isyetbp == 1) && (*((*(breaks + 1)) + mintr) != 1 || *((*(breaks + 1)) + mintr - 1) != 1) ){
 						yesrec = 1;
 					}
 				}
@@ -1159,7 +1175,7 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 				}
 			}
 			
-/*			printf("STATS: GCST %d, gcdir %d, gcln %d, gcend %d\n",gcst,gcdir,gcln,gcend);*/
+/*			printf("STATS: GCST %d, gcdir %d, gcln %d, gcend %d\n",gcst,gcdir,gcln,gcend); */
 			
 			for(x = 0; x < *nbreaks; x++){
 				if( *((*(breaks + 0)) + x) == gcend){
@@ -1240,7 +1256,7 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 			
 /*			printf("MAXTR %d NBREAKS %d\n",maxtr,*nbreaks);			*/
 
-/*			TestTabs(indvs, GType, CTms, TAnc, breaks, NMax + 1, Itot, *nbreaks);*/
+/*			TestTabs(indvs, GType, CTms, TAnc, breaks, NMax + 1, Itot, *nbreaks); */
 
 			/* Inserting new, end BP if needed */
 			if((isyetbp2 != 1) && (*((*(GType + gcsamp)) + maxtr + 1) != (-1)) ){
@@ -1561,7 +1577,37 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 			*((*(GType + NMax)) + 0) = NMax;
 			
 			free(singsamps10);
-			break;			
+			break;
+		case 11:
+			/* Converting WH to BH samples */
+			sexconv(indvs, rsex, nsum, Ntot);
+
+			/* For storing WH indvs */
+			unsigned int *parsamps11 = calloc((*(Nwith + deme) - *(nsex + deme)),sizeof(unsigned int));
+			sselect_UI(indvs, parsamps11, Ntot, 2, 1, 0, 3, deme);
+						
+			/* A paired sample involved in coalescence */
+			gsl_ran_choose(r,&WHsel,1,parsamps11,(*(Nwith + deme) - *(nsex + deme)),sizeof(unsigned int));
+			nos = gsl_ran_bernoulli(r,0.5);		/* Which side involved in event */
+			/* Finding sample */
+			for(j = 0; j < Ntot; j++){
+				if(*((*(indvs + j)) + 1) == WHsel){
+					csamp = *((*(indvs + j + nos)) + 0);
+					par = *((*(indvs + j + (nos+1)%2)) + 0);
+					*((*(indvs + j + (nos+1)%2)) + 2) = 1;	/* Setting 'par' as BH */
+					break;
+				}
+			}
+			
+			/* Now updating coalescent times */
+			cchange(indvs, GType, CTms, TAnc, breaks, &csamp, &par, 1, Ntot, 0, nbreaks, Ttot, 1);
+			
+			/* Check if tracts have coalesced */
+			*lrec = ccheck(indvs,GType,breaks,nsites,lrec,Ntot,*nbreaks);
+		
+			free(parsamps11);
+		
+			break;	
 		default:	/* If none of these cases chosen, exit with error message */
 			fprintf(stderr,"Error: Non-standard coalescent case selected ('coalesce').\n");
 			exit(1);
@@ -1862,7 +1908,7 @@ void TestTabs(unsigned int **indvs, int **GType, double **CTms, int **TAnc, unsi
 	}
 	printf("\n");	
 
-	Wait();		
+/*	Wait();		*/
 /*	exit(1);	*/
 
 }
@@ -2660,8 +2706,8 @@ int main(int argc, char *argv[]){
 	N = atoi(argv[1]);
 	nsites = atoi(argv[2]);
 	rec = strtod(argv[3],NULL);
+	rec = rec/(2.0*(nsites-1)*N);
 	g = strtod(argv[4],NULL);
-	g = g/(2.0*N*nsites);
 	lambda = strtod(argv[5],NULL);
 	bigQ = nsites/(1.0*lambda);
 	theta = strtod(argv[6],NULL);
@@ -2671,15 +2717,14 @@ int main(int argc, char *argv[]){
 	mig = strtod(argv[10],NULL);
 	d = atoi(argv[11]);
 	mig = mig/(2.0*N);
+	
 	if(d == 1){
 		mig = 0;	/* Set migration to zero if only one deme, as a precaution */
 	}
 	if(rec == 0 && g == 0){
 		nsites = 1; /* Set no sites to 1 if no recombination OR gc, as a precaution */
 	}
-	if(rec != 0){
-		rec = rec/(2.0*(nsites-1)*N);
-	}
+	
 	if(N%d != 0){
 		fprintf(stderr,"Population size must be a multiple of deme number.\n");
 		exit(1);
@@ -2691,6 +2736,16 @@ int main(int argc, char *argv[]){
 		fprintf(stderr,"Total Population size N is zero or negative, not allowed.\n");
 		exit(1);
 	}
+	if(nsites <= 0){
+		fprintf(stderr,"Total number of sites is zero or negative, not allowed.\n");
+		exit(1);
+	}
+	
+	g = g/(2.0*N*nsites);
+	if(nsites == 1){
+		rec = 0;
+	}
+	
 	if(g < 0){
 		fprintf(stderr,"Rate of gene conversion has to lie between 0 and 1.\n");
 		exit(1);
@@ -2819,7 +2874,7 @@ int main(int argc, char *argv[]){
 	unsigned int *nlrec2 = calloc(d,sizeof(unsigned int));			/* Non-recombinable samples 2 */
 	unsigned int *evsex = calloc(d,sizeof(unsigned int));			/* Number of sex events per deme */
 	unsigned int *csex = calloc(2,sizeof(unsigned int));			/* Does sex occur or not? */
-	unsigned int *draw = calloc(11,sizeof(unsigned int));			/* Event that happens */
+	unsigned int *draw = calloc(12,sizeof(unsigned int));			/* Event that happens */
 	unsigned int *draw2 = calloc(d,sizeof(unsigned int));			/* Deme in which event happens */
 	unsigned int *draw3 = calloc(2,sizeof(unsigned int));			/* Which type of sample migrates */	
 	double *Nsamps = calloc(2,sizeof(double));						/* Within and between-indv samples in deme */
@@ -2828,9 +2883,9 @@ int main(int argc, char *argv[]){
 	double *sexC = calloc(d,sizeof(double));						/* Current rates of sex per deme */	
 	double *sexCInv = calloc(d,sizeof(double));						/* Inverse of current rates of sex (1-sexC) */
 	double *psex = calloc(2,sizeof(double));						/* Individual probabilities if individuals undergo sex or not */
-	double *pr_rsums = calloc(11,sizeof(double));					/* Rowsums of probs (for event choosing) */
-	double **pr = calloc(11,sizeof(double *));						/* Probability matrix per deme */
-	for (j = 0; j < 11; j++){										/* Assigning space for each population within each deme */
+	double *pr_rsums = calloc(12,sizeof(double));					/* Rowsums of probs (for event choosing) */
+	double **pr = calloc(12,sizeof(double *));						/* Probability matrix per deme */
+	for (j = 0; j < 12; j++){										/* Assigning space for each population within each deme */
 		pr[j] = calloc(d,sizeof(double));
 	}
 	  
@@ -2963,7 +3018,17 @@ int main(int argc, char *argv[]){
 			/* Setting up vector of state-change probabilities *without sex* */
 			probset2(N, g, sexC, rec, bigQ, lrec, nlrec, zeros, mig, Nwith, Nbet, zeros, 0, pr);
 			nosex = powDUI(sexCInv,Nwith,d);				/* Probability of no segregation via sex, accounting for within-deme variation */
-			psum = (1-nosex) + nosex*(sumT_D(pr,11,d));		/* Sum of all event probabilities, for drawing random time */
+			psum = (1-nosex) + nosex*(sumT_D(pr,12,d));		/* Sum of all event probabilities, for drawing random time */
+			
+/*
+			for(j = 0; j < 12; j++){
+				for(x = 0; x < d; x++){			
+					printf("%0.10lf ",(*((*(pr + j)) + x)));
+				}
+				printf("\n");
+			}
+			printf("\n");			
+*/
 				
 			/* Intermediate error checking */
 			if(psum > 1){
@@ -2974,7 +3039,7 @@ int main(int argc, char *argv[]){
 				fprintf(stderr,"Summed probabilites are zero or negative, you need to double-check your algebra (or probability inputs).\n");
 				exit(1);
 			}
-			if(isanylessD_2D(pr,11,d,0) == 1){
+			if(isanylessD_2D(pr,12,d,0) == 1){
 				fprintf(stderr,"A negative probability exists, you need to double-check your algebra (or probability inputs) - esex 0.\n");
 				exit(1);				
 			}
@@ -3005,7 +3070,7 @@ int main(int argc, char *argv[]){
 				esex = 0;
 				CsexS = 0;
 				vcopyUI(evsex,zeros,d);
-				*(psex + 0) = nosex*(sumT_D(pr,11,d));
+				*(psex + 0) = nosex*(sumT_D(pr,12,d));
 				*(psex + 1) = 1-nosex;
 				gsl_ran_multinomial(r,2,1,psex,csex);
 				if(*(csex + 1) == 1){				/* Working out number of sex events IF it does occur */
@@ -3033,7 +3098,7 @@ int main(int argc, char *argv[]){
 					reccal(indvs, GType, breaks, Nbet, Nwith, rsex, esex, nlrec2, lrec, nbreaks, NMax, 1,i);
 					/* Then recalculating probability of events */				
 					probset2(N, g, sexC, rec, bigQ, lrec, nlrec, nlrec2, mig, Nwith, Nbet, evsex, 1, pr);
-					if(isanylessD_2D(pr,11,d,0) == 1){
+					if(isanylessD_2D(pr,12,d,0) == 1){
 						fprintf(stderr,"A negative probability exists, you need to double-check your algebra (or probability inputs) - esex 1.\n");
 						exit(1);				
 					}
@@ -3042,14 +3107,14 @@ int main(int argc, char *argv[]){
 				/* Given event happens, what is that event? 
 				Weighted average based on above probabilities. 
 				Then drawing deme of event. */
-				rowsumD(pr,11,d,pr_rsums);
-				gsl_ran_multinomial(r,11,1,pr_rsums,draw);			
-				event = matchUI(draw,11,1);
+				rowsumD(pr,12,d,pr_rsums);
+				gsl_ran_multinomial(r,12,1,pr_rsums,draw);			
+				event = matchUI(draw,12,1);
 				gsl_ran_multinomial(r,d,1,(*(pr + event)),draw2);
 				deme = matchUI(draw2,d,1);
 
 				/*
-				printf("Event is %d\n",event);
+				printf("Event is %d\n",event);				
 				printf("%d %d %d %d %d %.10lf %.10lf\n",lrec,*(nlrec+0),*(nlrec+1),*(nlrec2+0),*(nlrec2+1),(*((*(pr + 10)) + 0)),(*((*(pr + 10)) + 1)));
 				*/
 
@@ -3248,7 +3313,7 @@ int main(int argc, char *argv[]){
 	
 	/* Freeing memory and wrapping up */
  	gsl_rng_free(r);
- 	for(x = 0; x < 11; x++){
+ 	for(x = 0; x < 12; x++){
 		free(pr[x]);
 	}
 	free(pr);
