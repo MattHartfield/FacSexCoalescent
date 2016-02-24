@@ -1114,10 +1114,12 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 						break;
 					}
 				}
+				
 				if( mindr == 1 ){
 					if((isyetbp != 1) && *((*(breaks + 1)) + mintr) != 1){
 						yesrec = 1;
-					}else if((isyetbp == 1) && ( *((*(breaks + 1)) + mintr) != 1 || *((*(breaks + 1)) + mintr - 1) != 1) ){
+					}else if((isyetbp == 1) && ((mintr != 0 && (*((*(breaks + 1)) + mintr) != 1 || *((*(breaks + 1)) + mintr - 1) != 1)) || (mintr == 0 && *((*(breaks + 1)) + mintr) != 1))
+					){
 						yesrec = 1;
 					}
 				}else if(mindr == 0){		/* GC start past end of current breakpoints, so need to force it */
@@ -1222,6 +1224,7 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 			
 			/* Some kind of correction needed if end point lies in coalesced material */
 			mtrt = maxtr;
+/*			printf("mtrt init is %d, gcend is %d; mintr is %d, gcstart is %d\n", mtrt,gcend,mintr,gcst);*/
 			if(mtrt == (*nbreaks)){
 				mtrt--;
 			}
@@ -1229,19 +1232,23 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 				done = 0;
 /*				printf("INITIAL MTRT %d, GT IS %d\n",mtrt,*((*(GType + gcsamp)) + mtrt));*/
 				while(done == 0){
-					if(gcdir == 2){
-						mtrt--;
-					}else if(gcdir == 1){
-						mtrt++;
-					}
-/*					printf("MTRT %d (%d), GT IS %d, MINTR %d\n",mtrt,*((*(breaks + 0)) + mtrt),*((*(GType + gcsamp)) + mtrt),mintr);*/
-					if(*((*(breaks + 1)) + mtrt) != 1){
+/*					printf("a change? gcdir %d\n",gcdir);*/
+					if(mtrt != mintr){
 						if(gcdir == 2){
-							gcend = *((*(breaks + 0)) + mtrt + 1);
+							mtrt--;
 						}else if(gcdir == 1){
-							gcend = *((*(breaks + 0)) + mtrt);						
+							mtrt++;
 						}
-						done = 1;
+/*						printf("MTRT %d (%d), GT IS %d, MINTR %d\n",mtrt,*((*(breaks + 0)) + mtrt),*((*(GType + gcsamp)) + mtrt),mintr);*/
+/*						printf("nbreaks is %d, mtrt is %d\n",*nbreaks, mtrt);*/
+						if(*((*(breaks + 1)) + mtrt) != 1){
+							if(gcdir == 2){
+								gcend = *((*(breaks + 0)) + mtrt + 1);
+							}else if(gcdir == 1){
+								gcend = *((*(breaks + 0)) + mtrt);						
+							}
+							done = 1;
+						}
 					}
 					if(mtrt == mintr){
 						if(gcdir == 2){
@@ -1261,9 +1268,9 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 /*			printf("nsites %d, gcst %d, gcln %d, gcend %d\n",nsites,gcst,gcln,gcend);*/
 			
 /*			printf("MAXTR %d NBREAKS %d\n",maxtr,*nbreaks);			*/
-
-/*			TestTabs(indvs, GType, CTms, TAnc, breaks, NMax + 1, Itot, *nbreaks); */
-
+			
+/*			TestTabs(indvs, GType, CTms, TAnc, breaks, NMax + 1, Itot, *nbreaks);	*/
+			
 			/* Inserting new, end BP if needed */
 			if((isyetbp2 != 1) && (*((*(GType + gcsamp)) + maxtr + 1) != (-1)) ){
 				(*nbreaks)++;
@@ -2934,9 +2941,7 @@ int main(int argc, char *argv[]){
 	/* Running the simulation Nreps times */
 	for(i = 0; i < Nreps; i++){
 		
-		/*
-		printf("Starting Run %d\n",i);
-		*/
+/*		printf("Starting Run %d\n",i);	*/
 
 		/* Setting up type of sex heterogeneity */
 		if(pSTIN == 0){
