@@ -68,7 +68,7 @@ double P12(unsigned int x, unsigned int k, double gee, double Q);
 void probset2(unsigned int N, double g, double *sexC, double rec, double Q, unsigned int lrec, unsigned int *nlrec, unsigned int *nlrec2, double mig, unsigned int *Nwith, unsigned int *Nbet, unsigned int *kin, unsigned int sw, double **pr);
 void rate_change(unsigned int N, unsigned int pST,double pLH, double pHL, double *sexH, double *sexL, unsigned int switch1, double *sexCN, double *sexCNInv, double *tts, unsigned int *npST,const gsl_rng *r);
 void stchange2(unsigned int ev, unsigned int deme, unsigned int *kin, int *WCH, int *BCH);
-void sexconv(unsigned int **Tin, unsigned int *rsex, unsigned int nsum, unsigned int Ntot);
+void sexconv(unsigned int **Tin, unsigned int *rsex, unsigned int nsum, unsigned int Ntot, unsigned int Nid, unsigned int ex);
 void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, double Ttot, unsigned int *Nwith, unsigned int *Nbet, unsigned int deme, unsigned int *rsex, unsigned int *nsex, unsigned int ex, unsigned int drec, unsigned int e2, unsigned int **breaks, unsigned int nsites, unsigned int *lrec, unsigned int *nbreaks, unsigned int Nmax, unsigned int Itot, double lambda, unsigned int *gcalt, const gsl_rng *r, unsigned int ei);
 void cchange(unsigned int **indvs, int **GType, double **CTms, int **TAnc, unsigned int **breaks, unsigned int *csamp, unsigned int *par, unsigned int lsamp, unsigned int Ntot, unsigned int cst, unsigned int *cend, double Ttot, unsigned int isall);
 unsigned int ccheck(unsigned int **indvs, int **GType, unsigned int **breaks, unsigned int nsites, unsigned int *lrec, unsigned int Ntot, unsigned int nbreaks);
@@ -627,7 +627,7 @@ void stchange2(unsigned int ev, unsigned int deme, unsigned int *kin, int *WCH, 
 		default:	/* If none of these cases chosen, exit with error message */
 			fprintf(stderr,"Error: Non-standard coalescent case selected ('stchange2').\n");
 			exit(1);
-            break;			
+            break;
 	}
 	
 	*(WCH + deme) += *(oo3 + 0);
@@ -640,15 +640,19 @@ void stchange2(unsigned int ev, unsigned int deme, unsigned int *kin, int *WCH, 
 }	/* End of 'stchange' function */
 
 /* For converting WH to BH */
-void sexconv(unsigned int **Tin, unsigned int *rsex, unsigned int nsum, unsigned int Ntot){
+void sexconv(unsigned int **Tin, unsigned int *rsex, unsigned int nsum, unsigned int Ntot, unsigned int Nid, unsigned int ex){
 	unsigned int j;
 	unsigned int count = 0;
+	unsigned int npc = 0;	
 	while(count < nsum){
 		for(j = 0; j < Ntot; j++){
 			if( *((*(Tin + j)) + 1) == *(rsex + count) ){
 				*((*(Tin + j)) + 2) = 1;
-				*((*(Tin + j + 1)) + 2) = 1;	/* Since other paired sample also split */
-				*((*(Tin + j + 1)) + 1) = Ntot + count;
+				*((*(Tin + j + 1)) + 2) = 1;				/* Since other paired sample also split */
+				if(ex == 8 || ex == 10){
+					*((*(Tin + j + 1)) + 1) = Nid + npc;		/* Placing sample in new individual */
+					npc++;
+				}
 				count++;
 				break;
 			}
@@ -706,7 +710,7 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 	switch(ex)
 	{
 		case 0:		/* Event 0: 2k new samples created from paired samples. Nothing else to be done */
-			sexconv(indvs, rsex, nsum, Ntot);
+			sexconv(indvs, rsex, nsum, Ntot, Nindv, ex);
 			break;
 		case 1:		/* Event 1: One of the paired samples is recreated, no coalescence */
 			/* First choose sample that does not split fully */
@@ -758,7 +762,7 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 			break;
 		case 2:		/* Event 2: One of the unique samples coaleses with another unique one (either pre-existing or new) */
 			done = 0;
-			sexconv(indvs, rsex, nsum, Ntot);
+			sexconv(indvs, rsex, nsum, Ntot, Nindv, ex);
 			
 			unsigned int *singsamps2 = calloc((*(Nbet + deme) + 2*(*(nsex + deme))),sizeof(unsigned int));					/* For storing BH samples */
 			sselect_UI(indvs, singsamps2, Ntot, 2, 0, 1, 3, deme);
@@ -793,7 +797,7 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 			break;
 		case 3:		/* Event 3: A paired sample coaleses with new unique sample */
 			
-			sexconv(indvs, rsex, nsum, Ntot);
+			sexconv(indvs, rsex, nsum, Ntot, Nindv, ex);
 			unsigned int *singsamps3N = calloc(2*(*(nsex + deme)),sizeof(unsigned int));			/* For storing new BH samples */
 			unsigned int *singsamps3B = calloc( 2*((*(Nwith + deme) - (*(nsex + deme)))) ,sizeof(unsigned int));			/* For storing WH samples */
 			unsigned int *twosamps = calloc(2,sizeof(unsigned int));		/* Two samples in coalescence */
@@ -870,7 +874,7 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 			}
 			
 			/* THEN convert WH to BH samples */
-			sexconv(indvs, rsex, nsum, Ntot);
+			sexconv(indvs, rsex, nsum, Ntot, Nindv, ex);
 			
 			free(twosing);
 			free(singsamps4);
@@ -894,13 +898,13 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 			*lrec = ccheck(indvs,GType,breaks,nsites,lrec,Ntot,*nbreaks);
 		
 			/* THEN convert WH to BH samples */
-			sexconv(indvs, rsex, nsum, Ntot);
+			sexconv(indvs, rsex, nsum, Ntot, Nindv, ex);
 			
 			free(singsamps5);
 			break;
 		case 6:			/* Event 6: Two remaining paired samples doubly coalesce asexually. */
 			/* Converting WH to BH samples */
-			sexconv(indvs, rsex, nsum, Ntot);
+			sexconv(indvs, rsex, nsum, Ntot, Nindv, ex);
 			
 			unsigned int *parsamps6 = calloc((*(Nwith + deme) - *(nsex + deme)),sizeof(unsigned int));			/* For storing WH indvs */
 			unsigned int *twopars6 = calloc(2,sizeof(unsigned int));
@@ -978,7 +982,7 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 			/* Converting WH to BH samples 
 			(idea being that I later check if chosen BH originated from WH 
 			- discard if so) */
-			sexconv(indvs, rsex, nsum, Ntot);
+			sexconv(indvs, rsex, nsum, Ntot, Nindv, ex);
 
 			/* For storing WH indvs */
 			unsigned int *parsamps7 = calloc((*(Nwith + deme) - *(nsex + deme)),sizeof(unsigned int));
@@ -1053,7 +1057,7 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 		case 8:		/* Event 8: (Partial) Gene conversion */
 
 			/* Converting WH to BH samples */
-			sexconv(indvs, rsex, nsum, Ntot);
+			sexconv(indvs, rsex, nsum, Ntot, Nindv, ex);
 			
 			/* First, is it a paired or single sample that is affected? */
 			NWd = (*(Nwith + deme) - *(nsex + deme));
@@ -1310,9 +1314,9 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 			
 				*gcalt = 1;
 				
-				/* First, checking parent number of existing sample, setting at paired */
+				/* First, checking parent number of existing sample, setting as paired */
 				for(j = 0; j < Ntot; j++){
-					if( *((*(indvs + j)) + 0) == rands){
+					if( *((*(indvs + j)) + 0) == gcsamp){
 						rpar = *((*(indvs + j)) + 1);
 						*((*(indvs + j)) + 2) = 0;
 						break;
@@ -1391,7 +1395,7 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 		case 9:		/* Event 9: Migration of a sample */
 		
 			/* Converting WH to BH samples  */
-			sexconv(indvs, rsex, nsum, Ntot);
+			sexconv(indvs, rsex, nsum, Ntot, Nindv, ex);
 			
 			if(e2 == 0){		/* WH sample migrates */
 				/* For storing WH indvs */
@@ -1437,7 +1441,7 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 		case 10:	/* Event 10: Recombination - splitting a sample to create a new one */
 			
 			/* Converting WH to BH samples  */
-			sexconv(indvs, rsex, nsum, Ntot);
+			sexconv(indvs, rsex, nsum, Ntot, Nindv, ex);
 			
 			/* Choosing individual for splitting by recombination
 			Only proceed with actual recombination algorithm if BOTH new samples 
@@ -1600,7 +1604,7 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 			break;
 		case 11:
 			/* Converting WH to BH samples */
-			sexconv(indvs, rsex, nsum, Ntot);
+			sexconv(indvs, rsex, nsum, Ntot, Nindv, ex);
 
 			/* For storing WH indvs */
 			unsigned int *parsamps11 = calloc((*(Nwith + deme) - *(nsex + deme)),sizeof(unsigned int));
@@ -1928,7 +1932,7 @@ void TestTabs(unsigned int **indvs, int **GType, double **CTms, int **TAnc, unsi
 	}
 	printf("\n");	
 
-/*	Wait();		*/
+	Wait();		
 /*	exit(1);	*/
 
 }
@@ -2761,7 +2765,7 @@ int main(int argc, char *argv[]){
 		exit(1);
 	}
 	
-	g = g/(2.0*N*nsites);
+	g = g/(2.0*N*d*nsites);
 	if(nsites == 1){
 		rec = 0;
 	}
@@ -3166,6 +3170,12 @@ int main(int argc, char *argv[]){
 				gcalt = 0;
 				coalesce(indvs, GType, CTms, TAnc, Ttot, Nwith, Nbet, deme, rsex, evsex, event, drec, e2, breaks, nsites, &lrec, &nbreaks, NMax, Itot, lambda, &gcalt, r, i);
 				/* printf("Lrec is %d\n",lrec); */
+				/*
+				if(esex > 0 && event == 5){
+					printf("event %d, esex %d, first %d\n",event,esex,*(rsex + 0));
+					TestTabs(indvs, GType, CTms, TAnc, breaks, NMax, Itot, nbreaks);
+				}
+				*/
 				
 				/* Based on outcome, altering (non-mig) states accordingly */
 				if(event != 9){		/* Since already done for state = 9 above... */
