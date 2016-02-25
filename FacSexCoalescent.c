@@ -56,20 +56,22 @@ unsigned int last_neUI(unsigned int *vin, unsigned int size_t, unsigned int targ
 
 unsigned int trig(unsigned int x);
 double KQ(double Q);
+double singGC(unsigned int y, unsigned int k, double geemi, double geeme, double Qmi, double Qme, double sexC);
+double pairGC(unsigned int x, unsigned int k, double geemi, double Qmi);
 double P23(unsigned int y, unsigned int k, unsigned int Na);
 double P4(unsigned int x, unsigned int k, unsigned int Na);
 double P56(unsigned int y, unsigned int Na);
 double P7(unsigned int x, unsigned int k, unsigned int Na);
 double P8(unsigned int x, unsigned int y, unsigned int k, unsigned int Na);
-double P9(unsigned int x, unsigned int y, unsigned int k, double gee, unsigned int lrec, double Q);
+double P9(unsigned int x, unsigned int y, unsigned int k, double geemi, double geeme, unsigned int lrec, double Qmi, double Qme, double sexC);
 double P10(unsigned int x, unsigned int y, unsigned int k, double mee);
 double P11(unsigned int y, unsigned int k, double sexC, double ree, unsigned int lrec, unsigned int nlrec, unsigned int nlrec2);
-double P12(unsigned int x, unsigned int k, double gee, double Q);
-void probset2(unsigned int N, double g, double *sexC, double rec, double Q, unsigned int lrec, unsigned int *nlrec, unsigned int *nlrec2, double mig, unsigned int *Nwith, unsigned int *Nbet, unsigned int *kin, unsigned int sw, double **pr);
+double P12(unsigned int x, unsigned int k, double geemi, double Qmi);
+void probset2(unsigned int N, double gmi, double gme, double *sexC, double rec, double Qmi, double Qme, unsigned int lrec, unsigned int *nlrec, unsigned int *nlrec2, double mig, unsigned int *Nwith, unsigned int *Nbet, unsigned int *kin, unsigned int sw, double **pr);
 void rate_change(unsigned int N, unsigned int pST,double pLH, double pHL, double *sexH, double *sexL, unsigned int switch1, double *sexCN, double *sexCNInv, double *tts, unsigned int *npST,const gsl_rng *r);
 void stchange2(unsigned int ev, unsigned int deme, unsigned int *kin, int *WCH, int *BCH);
 void sexconv(unsigned int **Tin, unsigned int *rsex, unsigned int nsum, unsigned int Ntot, unsigned int Nid, unsigned int ex);
-void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, double Ttot, unsigned int *Nwith, unsigned int *Nbet, unsigned int deme, unsigned int *rsex, unsigned int *nsex, unsigned int ex, unsigned int drec, unsigned int e2, unsigned int **breaks, unsigned int nsites, unsigned int *lrec, unsigned int *nbreaks, unsigned int Nmax, unsigned int Itot, double lambda, unsigned int *gcalt, const gsl_rng *r, unsigned int ei);
+void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, double Ttot, unsigned int *Nwith, unsigned int *Nbet, unsigned int deme, unsigned int *rsex, unsigned int *nsex, unsigned int ex, unsigned int drec, unsigned int e2, unsigned int **breaks, unsigned int nsites, unsigned int *lrec, unsigned int *nbreaks, unsigned int NMax, unsigned int Itot, double lambdami, double lambdame, double gmi, double gme, double Qmi, double Qme, unsigned int *gcalt, double *sexC, const gsl_rng *r, unsigned int ei);
 void cchange(unsigned int **indvs, int **GType, double **CTms, int **TAnc, unsigned int **breaks, unsigned int *csamp, unsigned int *par, unsigned int lsamp, unsigned int Ntot, unsigned int cst, unsigned int *cend, double Ttot, unsigned int isall);
 unsigned int ccheck(unsigned int **indvs, int **GType, unsigned int **breaks, unsigned int nsites, unsigned int *lrec, unsigned int Ntot, unsigned int nbreaks);
 unsigned int coalcalc(unsigned int **breaks, unsigned int nsites, unsigned int nbreaks, unsigned int start);
@@ -78,7 +80,7 @@ void indv_sort(unsigned int **indvs, unsigned int nrow);
 void indv_sortD(double **Tin, unsigned int nrow, unsigned int ncol, unsigned int tcol);
 void Wait();
 void TestTabs(unsigned int **indvs, int **GType, double **CTms , int **TAnc, unsigned int **breaks, unsigned int NMax, unsigned int Itot, unsigned int nbreaks);
-char * treemaker(double **TFin, double thetain, double mind, double maxd, unsigned int Itot, unsigned int run, double gc, const gsl_rng *r);
+char * treemaker(double **TFin, double thetain, double mind, double maxd, unsigned int Itot, unsigned int run, double gmi, double gme, const gsl_rng *r);
 void reccal(unsigned int **indvs, int **GType, unsigned int **breaks, unsigned int *Nbet, unsigned int *Nwith, unsigned int *rsex, unsigned int esex, unsigned int *lnrec, unsigned int lrec, unsigned int nbreaks, unsigned int NMax, unsigned int sw, unsigned int run);
 
 /* Global variable declaration */
@@ -409,9 +411,18 @@ unsigned int trig(unsigned int x){
 	return (x*(x-1))/2.0;
 }
 
+/* 'K' function, for GC calculations */
 double KQ(double Q){
-	/* For GC calculations */
 	return 1.0 - (1.0 - exp(-Q))/Q;
+}
+
+/* Partial GC prob calculations. For calculating overall GC prob, and subprobs of different events */
+double singGC(unsigned int y, unsigned int k, double geemi, double geeme, double Qmi, double Qme, double sexC){
+	return y*(geemi*(2.0-KQ(Qmi)) + sexC*geeme*(2.0-KQ(Qme))) + 2*k*(geemi*(2.0-KQ(Qmi)) + geeme*(2.0-KQ(Qme)));
+}
+
+double pairGC(unsigned int x, unsigned int k, double geemi, double Qmi){
+	return geemi*(2.0-KQ(Qmi))*(x-k);
 }
 
 /* Functions of each transition probability calculation */
@@ -441,9 +452,9 @@ double P8(unsigned int x, unsigned int y, unsigned int k, unsigned int Na){
 	diff = x-k;
 	return (diff*y)/(1.0*Na);
 }
-double P9(unsigned int x, unsigned int y, unsigned int k, double gee, unsigned int lrec, double Q){
+double P9(unsigned int x, unsigned int y, unsigned int k, double geemi, double geeme, unsigned int lrec, double Qmi, double Qme, double sexC){
 	/* 'Disruptive' gene conversion event (I.e. where at least one bp is in sampled material) */
-	return gee*(lrec-1)*(2.0-KQ(Q))*((x-k) + y + 2*k);
+	return (lrec-1)*(pairGC(x, k, geemi, Qmi) + singGC(y, k, geemi, geeme, Qmi, Qme, sexC));
 }
 double P10(unsigned int x, unsigned int y, unsigned int k, double mee){
 	/* A sample migrates to another deme */
@@ -459,13 +470,13 @@ double P11(unsigned int y, unsigned int k, double sexC, double ree, unsigned int
 	*/
 	return (sexC*rec*((lrec - 1)*(y) - nlrec) + rec*((lrec - 1)*(2*k) - nlrec2));
 }
-double P12(unsigned int x, unsigned int k, double gee, double Q){
+double P12(unsigned int x, unsigned int k, double geemi, double Qmi){
 	/* Complete gene conversion, coalesces paired sample into single sample */
-	return (gee*(x-k)*exp(-Q)); /*/(1.0*Q); */
+	return (geemi*(x-k)*exp(-Qmi));
 }
 
 /* Calculate probability change vectors each time OVER EACH DEME */
-void probset2(unsigned int N, double g, double *sexC, double rec, double Q, unsigned int lrec, unsigned int *nlrec, unsigned int *nlrec2, double mig, unsigned int *Nwith, unsigned int *Nbet, unsigned int *kin, unsigned int sw, double **pr){
+void probset2(unsigned int N, double gmi, double gme, double *sexC, double rec, double Qmi, double Qme, unsigned int lrec, unsigned int *nlrec, unsigned int *nlrec2, double mig, unsigned int *Nwith, unsigned int *Nbet, unsigned int *kin, unsigned int sw, double **pr){
 	unsigned int x;				/* Deme counter */
 	unsigned int ksum = 0;		/* Total number of segregating events */
 	
@@ -480,10 +491,10 @@ void probset2(unsigned int N, double g, double *sexC, double rec, double Q, unsi
 		*((*(pr + 5)) + x) = P56(*(Nbet + x),N);
 		*((*(pr + 6)) + x) = P7(*(Nwith + x),*(kin + x),N);
 		*((*(pr + 7)) + x) = P8(*(Nwith + x),*(Nbet + x),*(kin + x),N);
-		*((*(pr + 8)) + x) = P9(*(Nwith + x),*(Nbet + x),*(kin + x),g,lrec,Q);
+		*((*(pr + 8)) + x) = P9(*(Nwith + x),*(Nbet + x),*(kin + x),gmi,gme,lrec,Qmi,Qme,*(sexC + x));
 		*((*(pr + 9)) + x) = P10(*(Nwith + x),*(Nbet + x),*(kin + x),mig);
 		*((*(pr + 10)) + x) = P11(*(Nbet + x),*(kin + x),*(sexC + x),rec,lrec,*(nlrec + x),*(nlrec2 + x));
-		*((*(pr + 11)) + x) = P12(*(Nwith + x),*(kin + x),g,Q);
+		*((*(pr + 11)) + x) = P12(*(Nwith + x),*(kin + x),gmi,Qmi);
 		
 		/* Only activate the first three events if need to consider segregation via sex 
 		(fourth is 'split pairs remain split') */
@@ -661,7 +672,7 @@ void sexconv(unsigned int **Tin, unsigned int *rsex, unsigned int nsum, unsigned
 }
 
 /* Function to change status of samples following event change */
-void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, double Ttot, unsigned int *Nwith, unsigned int *Nbet, unsigned int deme, unsigned int *rsex, unsigned int *nsex, unsigned int ex, unsigned int drec, unsigned int e2, unsigned int **breaks, unsigned int nsites, unsigned int *lrec, unsigned int *nbreaks, unsigned int NMax, unsigned int Itot, double lambda, unsigned int *gcalt, const gsl_rng *r, unsigned int ei){
+void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, double Ttot, unsigned int *Nwith, unsigned int *Nbet, unsigned int deme, unsigned int *rsex, unsigned int *nsex, unsigned int ex, unsigned int drec, unsigned int e2, unsigned int **breaks, unsigned int nsites, unsigned int *lrec, unsigned int *nbreaks, unsigned int NMax, unsigned int Itot, double lambdami, double lambdame, double gmi, double gme, double Qmi, double Qme, unsigned int *gcalt, double *sexC, const gsl_rng *r, unsigned int ei){
 	
 	unsigned int NWtot = 2*sumUI(Nwith,d);
 	unsigned int NBtot = sumUI(Nbet,d);
@@ -696,8 +707,11 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 	unsigned int gcsamp = 0;	/* Index of GC'ed sample (event 8) */
 	unsigned int gcsamp2 = 0;	/* Index of GC'ed sample if paired sample involved (event 8) */	
 	unsigned int gcln = 0;		/* Length of GC event (event 8) */
-	unsigned int NWd = 0; 		/* WH in deme (ev 8) */
-	unsigned int NTd = 0; 		/* Tot in deme (ev 8) */	
+	double NWd = 0; 			/* Weighted WH sample chosen (event 8) */
+	double NTd = 0; 			/* Total GC prob (ev 8) */	
+	double lambda = 0;			/* Assignment of lambda after choosing GC type (event 8) */
+	double gcMI = 0;			/* Probability that single samp GC event is mitotic (event 8) */
+	unsigned int gcS = 0;		/* Type of GC evening on unpaired samples (event 8) */
 	unsigned int mindr = 0;		/* Done choosing min tract point? (event 8) */
 	unsigned int proceed = 0;	/* Proceed with gene conversion? (event 8) */
 	unsigned int maxck = 0;		/* Check if end of bp correctly chosen (event 8) */
@@ -1060,8 +1074,8 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 			sexconv(indvs, rsex, nsum, Ntot, Nindv, ex);
 			
 			/* First, is it a paired or single sample that is affected? */
-			NWd = (*(Nwith + deme) - *(nsex + deme));
-			NTd = (*(Nbet + deme) + *(Nwith + deme) + *(nsex + deme));
+			NWd = pairGC(*(Nwith + deme), *(nsex + deme), gmi, Qmi);
+			NTd = NWd + singGC(*(Nbet + deme), *(nsex + deme), gmi, gme, Qmi, Qme, *(sexC + deme));
 			gt = gsl_ran_bernoulli(r,(NWd/(1.0*NTd)));
 			
 			if(gt == 0){	/* Acts on single sample */
@@ -1079,8 +1093,18 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 						break;
 					}
 				}
+				
+				/* Then choosing type of event */
+				gcMI = ((gmi*(2.0-KQ(Qmi))*((*(Nbet + deme)) + 2*(*(nsex + deme))))/(1.0*singGC(*(Nbet + deme), *(nsex + deme), gmi, gme, Qmi, Qme, *(sexC + deme))));
+				gcS = gsl_ran_bernoulli(r,gcMI);
+				if(gcS == 0){
+					lambda = lambdame;
+				}else if(gcS == 1){
+					lambda = lambdami;
+				}
 				free(singsamps8);
 			}else if(gt == 1){
+				lambda = lambdami;
 				unsigned int *parsamps8 = calloc((*(Nwith + deme) - *(nsex + deme)),sizeof(unsigned int));
 				
 				/* Obtaining list of samples to choose from */
@@ -1118,8 +1142,7 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 				if( mindr == 1 ){
 					if((isyetbp != 1) && *((*(breaks + 1)) + mintr) != 1){
 						yesrec = 1;
-					}else if((isyetbp == 1) && ((mintr != 0 && (*((*(breaks + 1)) + mintr) != 1 || *((*(breaks + 1)) + mintr - 1) != 1)) || (mintr == 0 && *((*(breaks + 1)) + mintr) != 1))
-					){
+					}else if((isyetbp == 1) && ((mintr != 0 && (*((*(breaks + 1)) + mintr) != 1 || *((*(breaks + 1)) + mintr - 1) != 1)) || (mintr == 0 && *((*(breaks + 1)) + mintr) != 1)) ){
 						yesrec = 1;
 					}
 				}else if(mindr == 0){		/* GC start past end of current breakpoints, so need to force it */
@@ -1945,7 +1968,7 @@ void TestTabs(unsigned int **indvs, int **GType, double **CTms, int **TAnc, unsi
 }
 
 /* Function to reconstruct genealogy and to add mutation to branches */
-char * treemaker(double **TFin, double thetain, double mind, double maxd, unsigned int Itot, unsigned int run, double gc, const gsl_rng *r){
+char * treemaker(double **TFin, double thetain, double mind, double maxd, unsigned int Itot, unsigned int run, double gmi, double gme, const gsl_rng *r){
 	unsigned int i, j, k, a;
 	unsigned int lct = Itot;
 	unsigned int lct2 = lct-1;
@@ -2471,9 +2494,9 @@ char * treemaker(double **TFin, double thetain, double mind, double maxd, unsign
     if(str == NULL) {
     	fprintf(stderr, "Error - unable to allocate required memory\n");
 	}
-    if( (rec == 0 && gc == 0) || nsites == 1){
+    if( (rec == 0 && gmi == 0 && gme == 0) || nsites == 1){
     	strcpy(str,(*(clades + 0)));
-    }else if((rec > 0 || gc > 0) && nsites > 1){
+    }else if((rec > 0 || gmi > 0 || gme > 0) && nsites > 1){
     	brk = (unsigned int)(mind*nsites);
     	sprintf(brkchar, "%d", brk);
     	strcpy(str,lsq);
@@ -2716,11 +2739,14 @@ int main(int argc, char *argv[]){
 	double tjump = 0;			/* Time until next event */
 	double mind = 0;			/* Min tract dist */
 	double maxd = 0;			/* Max tract dist */
-	double g = 0;				/* Broad-scale gene conversion */		
+	double gmi = 0;				/* MITOTIC gene conversion probability */
+	double gme = 0;				/* MEIOTIC gene conversion probability */	
 	double theta = 0;			/* Scaled mutation rate, 4Nmu */	
 	double mig = 0;				/* Migration rate between demes */	
-	double lambda = 0;			/* Average length of GC event */
-	double bigQ = 0;			/* Relative length of lambda (for GC prob calculations) */	
+	double lambdami = 0;		/* Average length of MITOTIC GC event */
+	double lambdame = 0;		/* Average length of MEIOTIC GC event */	
+	double bigQmi = 0;			/* Relative length of lambdami (for GC prob calculations) */	
+	double bigQme = 0;			/* Relative length of lambdame (for GC prob calculations) */		
 	char Tout[32];				/* String to hold filename in (Trees) */
 	FILE *ofp_tr;				/* Pointer for tree output */
 	FILE *ofp_sd;				/* Pointer for seed output */	
@@ -2730,7 +2756,7 @@ int main(int argc, char *argv[]){
 	gsl_rng * r;
 	
 	/* Reading in data from command line */
-	if(argc < 17){
+	if(argc < 19){
 		fprintf(stderr,"At least 16 inputs are needed (see accompanying README file).\n");
 		exit(1);
 	}
@@ -2738,21 +2764,24 @@ int main(int argc, char *argv[]){
 	nsites = atoi(argv[2]);
 	rec = strtod(argv[3],NULL);
 	rec = rec/(2.0*(nsites-1)*N);
-	g = strtod(argv[4],NULL);
-	lambda = strtod(argv[5],NULL);
-	bigQ = nsites/(1.0*lambda);
-	theta = strtod(argv[6],NULL);
-	pSTIN = atoi(argv[7]);
-	pLH = strtod(argv[8],NULL);
-	pHL = strtod(argv[9],NULL);
-	mig = strtod(argv[10],NULL);
-	d = atoi(argv[11]);
+	gme = strtod(argv[4],NULL);
+	lambdame = strtod(argv[5],NULL);
+	bigQme = nsites/(1.0*lambdame);
+	gmi = strtod(argv[6],NULL);
+	lambdami = strtod(argv[7],NULL);
+	bigQmi = nsites/(1.0*lambdami);
+	theta = strtod(argv[8],NULL);
+	pSTIN = atoi(argv[9]);
+	pLH = strtod(argv[10],NULL);
+	pHL = strtod(argv[11],NULL);
+	mig = strtod(argv[12],NULL);
+	d = atoi(argv[13]);
 	mig = mig/(2.0*N);
 	
 	if(d == 1){
 		mig = 0;	/* Set migration to zero if only one deme, as a precaution */
 	}
-	if(rec == 0 && g == 0){
+	if(rec == 0 && gmi == 0 && gme == 0){
 		nsites = 1; /* Set number of sites to 1 if no recombination OR gc, as a precaution */
 	}
 	
@@ -2772,12 +2801,13 @@ int main(int argc, char *argv[]){
 		exit(1);
 	}
 	
-	g = g/(2.0*N*d*nsites);
+	gmi = gmi/(2.0*N*d*nsites);
+	gme = gme/(2.0*N*d*nsites);	
 	if(nsites == 1){
 		rec = 0;
 	}
 	
-	if(g < 0){
+	if(gmi < 0 || gme < 0){
 		fprintf(stderr,"Rate of gene conversion has to lie between 0 and 1.\n");
 		exit(1);
 	}
@@ -2789,8 +2819,13 @@ int main(int argc, char *argv[]){
 	}
 	*/
 	
-	if(lambda < 1 && g != 0){
-		fprintf(stderr,"With gene conversion, average length (lambda) has to be at least 1.\n");
+	if(lambdami < 1 && gmi != 0){
+		fprintf(stderr,"With gene conversion (mitotic), average length (lambda) has to be at least 1.\n");
+		exit(1);
+	}
+	
+	if(lambdame < 1 && gme != 0){
+		fprintf(stderr,"With gene conversion (meiotic), average length (lambda) has to be at least 1.\n");
 		exit(1);
 	}
 	
@@ -2855,10 +2890,10 @@ int main(int argc, char *argv[]){
 	double *sexH = calloc(d,sizeof(double));					/* High-sex rates */
 	
 	for(x = 0; x < d; x++){
-		*(Iwith + x) = atoi(argv[12 + (4*x + 0)]);
-		*(Ibet + x) = atoi(argv[12 + (4*x + 1)]);
-		*(sexL + x) = strtod(argv[12 + (4*x + 2)],NULL);
-		*(sexH + x) = strtod(argv[12 + (4*x + 3)],NULL);
+		*(Iwith + x) = atoi(argv[14 + (4*x + 0)]);
+		*(Ibet + x) = atoi(argv[14 + (4*x + 1)]);
+		*(sexL + x) = strtod(argv[14 + (4*x + 2)],NULL);
+		*(sexH + x) = strtod(argv[14 + (4*x + 3)],NULL);
 		*(zeros + x) = 0;
 		*(demes + x) = x;
 		IwithT += (*(Iwith + x));
@@ -2888,7 +2923,7 @@ int main(int argc, char *argv[]){
 	}
 	
 	/* Number of samples/reps to take */
-	Nreps = atoi(argv[4*d + 12]);
+	Nreps = atoi(argv[4*d + 14]);
 	
 	/* Final Error Checking */
 	if(Itot <= 1){
@@ -2933,7 +2968,7 @@ int main(int argc, char *argv[]){
 	fclose(ofp_sd);
 	
 	/* Creating necessary directories */
-	if((rec > 0 || g > 0) && (nsites != 1)){
+	if((rec > 0 || gmi > 0 || gme > 0) && (nsites != 1)){
 		mkdir("Trees/", 0777);
 	}
 	mkdir("Mutations/", 0777);
@@ -3045,7 +3080,7 @@ int main(int argc, char *argv[]){
 /*			printf("nlrec, nlrec2 is %d %d\n",*(nlrec + 0),*(nlrec2 + 0));		*/
 			
 			/* Setting up vector of state-change probabilities *without sex* */
-			probset2(N, g, sexC, rec, bigQ, lrec, nlrec, zeros, mig, Nwith, Nbet, zeros, 0, pr);
+			probset2(N, gmi, gme, sexC, rec, bigQmi, bigQme, lrec, nlrec, zeros, mig, Nwith, Nbet, zeros, 0, pr);
 			nosex = powDUI(sexCInv,Nwith,d);				/* Probability of no segregation via sex, accounting for within-deme variation */
 			psum = (1-nosex) + nosex*(sumT_D(pr,12,d));		/* Sum of all event probabilities, for drawing random time */
 			
@@ -3125,8 +3160,8 @@ int main(int argc, char *argv[]){
 					sexsamp(indvs, rsex, evsex, Nwith, Ntot, r);
 					/* (Add reccal code here? Pipe in sex event info?) */
 					reccal(indvs, GType, breaks, Nbet, Nwith, rsex, esex, nlrec2, lrec, nbreaks, NMax, 1,i);
-					/* Then recalculating probability of events */				
-					probset2(N, g, sexC, rec, bigQ, lrec, nlrec, nlrec2, mig, Nwith, Nbet, evsex, 1, pr);
+					/* Then recalculating probability of events */
+					probset2(N, gmi, gme, sexC, rec, bigQmi, bigQme, lrec, nlrec, nlrec2, mig, Nwith, Nbet, evsex, 1, pr);
 					if(isanylessD_2D(pr,12,d,0) == 1){
 						fprintf(stderr,"A negative probability exists, you need to double-check your algebra (or probability inputs) - esex 1.\n");
 						exit(1);				
@@ -3173,7 +3208,7 @@ int main(int argc, char *argv[]){
 				/* Changing ancestry accordingly */
 				/* MOVED CODE HERE TO AVOID ERRORS WHEN NUMBER OF SAMPLES MISMATCH */
 				gcalt = 0;
-				coalesce(indvs, GType, CTms, TAnc, Ttot, Nwith, Nbet, deme, rsex, evsex, event, drec, e2, breaks, nsites, &lrec, &nbreaks, NMax, Itot, lambda, &gcalt, r, i);
+				coalesce(indvs, GType, CTms, TAnc, Ttot, Nwith, Nbet, deme, rsex, evsex, event, drec, e2, breaks, nsites, &lrec, &nbreaks, NMax, Itot, lambdami, lambdame, gmi, gme, bigQmi, bigQme, &gcalt, sexC, r, i);
 				/* printf("Lrec is %d\n",lrec); */
 				/*
 				if(esex > 0 && event == 5){
@@ -3308,11 +3343,11 @@ int main(int argc, char *argv[]){
 			printf("For x equal %d: mind, maxd are %lf %lf\n",x,mind,maxd);
 			printf("\n");
 			*/
-			char *ret_tree = treemaker(TFin, theta*(maxd-mind), mind, maxd, Itot, i, g, r);
-			if((rec == 0 && g == 0) || (nsites == 1) ){
+			char *ret_tree = treemaker(TFin, theta*(maxd-mind), mind, maxd, Itot, i, gmi, gme, r);
+			if((rec == 0 && gmi == 0 && gme == 0) || (nsites == 1) ){
 				ofp_tr = fopen("Trees.dat","a+");
 				fprintf(ofp_tr,"%s\n",ret_tree);
-			}else if((rec > 0 || g > 0) && (nsites != 1)){
+			}else if((rec > 0 || gmi > 0 || gme > 0) && (nsites != 1)){
 				sprintf(Tout,"Trees/Trees_%d.dat",i);
 				ofp_tr = fopen(Tout,"a+");
 				fprintf(ofp_tr,"%s\n",ret_tree);
