@@ -2708,9 +2708,9 @@ fprintf(stderr,"\n");
 fprintf(stderr,"Command: FacSexCoalescent <Population Size> <Paired Samples> <Single Samples> <Rate of Sex> <Theta> <Reps> <Other parameters>\n");
 fprintf(stderr,"'Other parameters' are optional and are as follows:\n");
 fprintf(stderr," -T: print out individuals trees to file\n");
-fprintf(stderr," -r: nsites 2Nr to specify recombination\n");
-fprintf(stderr," -c: 2N(g_me) lambda_me specifies rate and mean length of MEIOTIC gene conversion\n");
-fprintf(stderr," -m: 2N(g_mi) lambda_mi specifies rate and mean length of MITOTIC gene conversion\n");
+fprintf(stderr," -r: [2Nr nsites] to specify recombination\n");
+fprintf(stderr," -c: [2N(g_me) lambda_me] specifies rate and mean length of MEIOTIC gene conversion\n");
+fprintf(stderr," -m: [2N(g_mi) lambda_mi] specifies rate and mean length of MITOTIC gene conversion\n");
 fprintf(stderr," (For -c, -m, need to first use -r to specify number of sites)\n");
 fprintf(stderr," -I: d [Paired_j Single_j]...[2Nm] for defining island model.\n");
 fprintf(stderr,"     d is number of demes: [Paired_j Single_j] are d pairs of samples per deme;\n");
@@ -2860,12 +2860,18 @@ int main(int argc, char *argv[]){
 	if(argc > 7){
 		while(argx < argc){
 			if(argv[argx][0] != '-'){
-				fprintf(stderr,"Further arguments should be of form -%s\n", argv[argx]);
+				fprintf(stderr,"Further arguments should be of form -C, for C a defined character.\n");
 				usage();
 			}
 			switch ( argv[argx][1] ){
 				case 'r':		/* Defining recombination (cross over) */
 					isrec = 1;
+					argx++;
+					rec = strtod(argv[argx],NULL);
+					if(rec < 0){
+						fprintf(stderr,"Must define a positive recombination rate.\n");
+						usage();
+					}
 					argx++;
 					nsites = atoi(argv[argx]);
 					if(nsites < 2){
@@ -2873,12 +2879,6 @@ int main(int argc, char *argv[]){
 						usage();
 					}
 					argx++;
-					rec = strtod(argv[argx],NULL);
-					rec = rec/(2.0*(nsites-1)*N);
-					if(rec < 0){
-						fprintf(stderr,"Must define a positive recombination rate.\n");
-						usage();
-					}
 					break;
 				case 'T': 		/* Print trees? */
 					argx++;
@@ -2891,7 +2891,6 @@ int main(int argc, char *argv[]){
 					}
 					argx++;
 					gme = strtod(argv[argx],NULL);
-					gme = gme/(2.0*N*nsites);
 					if(gme < 0){
 						fprintf(stderr,"Must define a positive meiotic gene conversion rate.\n");
 						usage();
@@ -2903,6 +2902,7 @@ int main(int argc, char *argv[]){
 						usage();
 					}
 					bigQme = nsites/(1.0*lambdame);
+					argx++;
 					break;
 				case 'm':		/* MITOTIC gene conversion */
 					if(isrec == 0){
@@ -2911,7 +2911,6 @@ int main(int argc, char *argv[]){
 					}
 					argx++;
 					gmi = strtod(argv[argx],NULL);
-					gmi = gmi/(2.0*N*nsites);
 					if(gmi < 0){
 						fprintf(stderr,"Must define a positive mitotic gene conversion rate.\n");
 						usage();
@@ -2923,6 +2922,7 @@ int main(int argc, char *argv[]){
 						usage();
 					}
 					bigQmi = nsites/(1.0*lambdami);
+					argx++;
 					break;
 				case 'I':		/* Population subdivision (Island model) */
 					ismig = 1;
@@ -2950,9 +2950,9 @@ int main(int argc, char *argv[]){
 	
 						for(x = 0; x < d; x++){
 							argx++;
-							*(Iwith + x) = strtod(argv[argx],NULL);
+							*(Iwith + x) = atoi(argv[argx]);
 							argx++;
-							*(Ibet + x) = strtod(argv[argx],NULL);
+							*(Ibet + x) = atoi(argv[argx]);
 							*(sexL + x) = bsex;
 							*(sexH + x) = 0;
 							*(zeros + x) = 0;
@@ -2968,6 +2968,8 @@ int main(int argc, char *argv[]){
 							fprintf(stderr,"Sum of unpaired per-deme samples should equal total samples.\n");
 							usage();
 						}
+					}else if(d == 1){
+						argx += 2;
 					}
 					argx++;
 					mig = strtod(argv[argx],NULL);
@@ -2980,6 +2982,7 @@ int main(int argc, char *argv[]){
 						fprintf(stderr,"Migration rate cannot be zero with multiple demes.\n");
 						usage();
 					}
+					argx++;
 					break;	
 				case 'H':
 					if(ismig == 0){
@@ -3029,6 +3032,7 @@ int main(int argc, char *argv[]){
 							usage();
 						}
 					}
+					argx++;
 					break;
 					default:	/* If none of these cases chosen, exit with error message */
 						fprintf(stderr,"Error: Non-standard input given.\n");
@@ -3036,6 +3040,12 @@ int main(int argc, char *argv[]){
 						break;
 			}
 		}
+	}
+	
+	if(isrec == 1){
+		rec = rec/(2.0*(nsites-1)*N*d);
+		gme = gme/(2.0*N*(nsites-1)*d);		
+		gmi = gmi/(2.0*N*(nsites-1)*d);
 	}
 	
 	if(d == 1){
