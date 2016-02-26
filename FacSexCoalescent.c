@@ -85,8 +85,8 @@ void reccal(unsigned int **indvs, int **GType, unsigned int **breaks, unsigned i
 
 /* Global variable declaration */
 double rec = 0;				/* Per-site recombination rate */
-unsigned int nsites = 0;	/* Number of sites (for recombination) */
-unsigned int d = 0;			/* Number of demes */
+unsigned int nsites = 1;	/* Number of sites (for recombination) */
+unsigned int d = 1;			/* Number of demes */
 
 /* Function to replicate the 'any' func in R (unsigned int) */
 unsigned int isanyUI(unsigned int *vin, unsigned int size_t, unsigned int match){
@@ -1154,7 +1154,11 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 					}
 				}
 			}
-/*			printf("MINTR %d NBREAKS %d\n",mintr,*nbreaks);*/
+			/*
+			if(ei == 2 && gcst == 577){
+				TestTabs(indvs, GType, CTms, TAnc, breaks, NMax + 1, Itot, *nbreaks);
+			}
+			*/
 
 			/* Inserting new, start BP if needed */
 			if((isyetbp != 1) && (*((*(GType + gcsamp)) + mintr + 1) != (-1)) ){
@@ -1291,8 +1295,6 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 /*			printf("nsites %d, gcst %d, gcln %d, gcend %d\n",nsites,gcst,gcln,gcend);*/
 			
 /*			printf("MAXTR %d NBREAKS %d\n",maxtr,*nbreaks);			*/
-			
-/*			TestTabs(indvs, GType, CTms, TAnc, breaks, NMax + 1, Itot, *nbreaks);	*/
 			
 			/* Inserting new, end BP if needed */
 			if((isyetbp2 != 1) && (*((*(GType + gcsamp)) + maxtr + 1) != (-1)) ){
@@ -2478,16 +2480,18 @@ char * treemaker(double **TFin, double thetain, double mind, double maxd, unsign
 	
 	/* Printing out Mutations to file */
 	indv_sortD(MTab,nmut,(Itot+1),0);
-	n = sprintf(Mout,"Mutations/Muts_%d.dat",run);
-	ofp_mut = fopen(Mout,"a");
-	for(j = 0; j < nmut; j++){
-		fprintf(ofp_mut,"%lf ",*((*(MTab + j)) + 0));
-		for(a = 1; a < (Itot + 1); a++){
-			fprintf(ofp_mut,"%d ",(unsigned int)(*((*(MTab + j)) + a)));
+	if(thetain > 0){
+		n = sprintf(Mout,"Mutations/Muts_%d.dat",run);
+		ofp_mut = fopen(Mout,"a");
+		for(j = 0; j < nmut; j++){
+			fprintf(ofp_mut,"%lf ",*((*(MTab + j)) + 0));
+			for(a = 1; a < (Itot + 1); a++){
+				fprintf(ofp_mut,"%d ",(unsigned int)(*((*(MTab + j)) + a)));
+			}
+			fprintf(ofp_mut,"\n");
 		}
-		fprintf(ofp_mut,"\n");
+		fclose(ofp_mut);
 	}
-	fclose(ofp_mut);
 	
 	strcat((*(clades + 0)),scln);
     char *str = malloc(clen * sizeof(char));
@@ -2706,7 +2710,9 @@ int main(int argc, char *argv[]){
 	unsigned int Ntot = 0;		/* Total number of samples at time */
 	unsigned int Nindv = 0;		/* Total number of individuals */
 	unsigned int IwithT = 0;	/* Total within individual samples */
-	unsigned int IbetT = 0;		/* Total between individual samples */	
+	unsigned int IbetT = 0;		/* Total between individual samples */
+	unsigned int IwithT2 = 0;	/* Sum for checking structured population case */
+	unsigned int IbetT2 = 0;	/* Sum for checking structured population case */
 	unsigned int IwithC = 0;	/* Cumulative Iwith sum */
 	unsigned int IbetC = 0;		/* Cumulative Ibet sum */
 	unsigned int esex = 0;		/* Total sex events (segregation of paired samples) */
@@ -2725,9 +2731,14 @@ int main(int argc, char *argv[]){
 	unsigned int Iindv = 0;		/* Number of initial individuals */
 	unsigned int Itot = 0;		/* Number of initial samples */	
 	unsigned int Nreps = 0;		/* Number of simulation replicates */	
-	unsigned int pSTIN = 0;		/* Determine type of heterogeneity (0 = fluctuating sex, 1 = stepwise change, 2 = constant sex) */
+	unsigned int pSTIN = 2;		/* Determine type of heterogeneity (0 = fluctuating sex, 1 = stepwise change, 2 = constant sex) */
 	unsigned int N = 0;			/* Population Size */
-	unsigned int gcalt = 0;				/* How to alter number samples following GC event */
+	unsigned int gcalt = 0;		/* How to alter number samples following GC event */
+	unsigned int argx = 0;		/* Extra command line inputs, for parameter definitions */
+	unsigned int prtrees = 0;	/* Print out trees to file */
+	unsigned int isrec = 0;		/* Has rec been defined? */
+	unsigned int ismig = 0;		/* Has population structure been defined? */	
+	double bsex = 0;			/* Baseline rate of sex (for initial inputting) */
 	double pLH = 0;				/* Prob of low-sex to high-sex transition, OR time of transition if stepwise change */
 	double pHL = 0;				/* Prob of high-sex to low-sex transition */
 	double Ttot = 0;			/* Time in past, initiate at zero */
@@ -2745,130 +2756,47 @@ int main(int argc, char *argv[]){
 	double mig = 0;				/* Migration rate between demes */	
 	double lambdami = 0;		/* Average length of MITOTIC GC event */
 	double lambdame = 0;		/* Average length of MEIOTIC GC event */	
-	double bigQmi = 0;			/* Relative length of lambdami (for GC prob calculations) */	
-	double bigQme = 0;			/* Relative length of lambdame (for GC prob calculations) */		
+	double bigQmi = 1/(1.0*0);	/* Relative length of lambdami (for GC prob calculations) */	
+	double bigQme = 1/(1.0*0);	/* Relative length of lambdame (for GC prob calculations) */		
 	char Tout[32];				/* String to hold filename in (Trees) */
 	FILE *ofp_tr;				/* Pointer for tree output */
-	FILE *ofp_sd;				/* Pointer for seed output */	
+	FILE *ofp_sd;				/* Pointer for seed output */
 	
 	/* GSL random number definitions */
-	const gsl_rng_type * T; 
+	const gsl_rng_type * T;
 	gsl_rng * r;
 	
 	/* Reading in data from command line */
-	if(argc < 19){
-		fprintf(stderr,"At least 16 inputs are needed (see accompanying README file).\n");
+	if(argc < 6){
+		fprintf(stderr,"At least 5 inputs are needed (see accompanying README file).\n");
 		exit(1);
 	}
+	
 	N = atoi(argv[1]);
-	nsites = atoi(argv[2]);
-	rec = strtod(argv[3],NULL);
-	rec = rec/(2.0*(nsites-1)*N);
-	gme = strtod(argv[4],NULL);
-	lambdame = strtod(argv[5],NULL);
-	bigQme = nsites/(1.0*lambdame);
-	gmi = strtod(argv[6],NULL);
-	lambdami = strtod(argv[7],NULL);
-	bigQmi = nsites/(1.0*lambdami);
-	theta = strtod(argv[8],NULL);
-	pSTIN = atoi(argv[9]);
-	pLH = strtod(argv[10],NULL);
-	pHL = strtod(argv[11],NULL);
-	mig = strtod(argv[12],NULL);
-	d = atoi(argv[13]);
-	mig = mig/(2.0*N);
-	
-	if(d == 1){
-		mig = 0;	/* Set migration to zero if only one deme, as a precaution */
-	}
-	if(rec == 0 && gmi == 0 && gme == 0){
-		nsites = 1; /* Set number of sites to 1 if no recombination OR gc, as a precaution */
-	}
-	
-	if(N%d != 0){
-		fprintf(stderr,"Population size must be a multiple of deme number.\n");
-		exit(1);
-	}
-	N = (unsigned int)(N/(d*1.0));	/* Scaling NT to a demetic size, for more consistent use in calculations */
-	
-	/* Initial Error checking */
 	if(N <= 0){
 		fprintf(stderr,"Total Population size N is zero or negative, not allowed.\n");
 		exit(1);
 	}
-	if(nsites <= 0){
-		fprintf(stderr,"Total number of sites is zero or negative, not allowed.\n");
+	
+	IwithT = atoi(argv[2]);
+	IbetT = atoi(argv[3]);
+	Itot = 2*IwithT + IbetT;
+	Iindv = IwithT + IbetT;
+	if(Itot <= 1){
+		fprintf(stderr,"More than one sample must be initially present to execute the simulation.\n");
+		exit(1);		
+	}
+	
+	bsex = strtod(argv[4],NULL);
+	if( bsex < 0 || bsex > 1){
+		fprintf(stderr,"Baseline rate of sexual reproduction has to lie between 0 and 1.\n");
 		exit(1);
 	}
 	
-	gmi = gmi/(2.0*N*d*nsites);
-	gme = gme/(2.0*N*d*nsites);	
-	if(nsites == 1){
-		rec = 0;
-	}
-	
-	if(gmi < 0 || gme < 0){
-		fprintf(stderr,"Rate of gene conversion has to lie between 0 and 1.\n");
-		exit(1);
-	}
-	
-	/*
-	if(g > (10.0/(1.0*N))){
-		printf("WARNING: Analytical transitions assume gene conversion is weak.\n");
-		printf("Current input is much larger than O(1/NT) - transitions may be inaccurate.\n");
-	}
-	*/
-	
-	if(lambdami < 1 && gmi != 0){
-		fprintf(stderr,"With gene conversion (mitotic), average length (lambda) has to be at least 1.\n");
-		exit(1);
-	}
-	
-	if(lambdame < 1 && gme != 0){
-		fprintf(stderr,"With gene conversion (meiotic), average length (lambda) has to be at least 1.\n");
-		exit(1);
-	}
-	
-	if(theta < 0){
-		fprintf(stderr,"Mutation rate must be a positive (or zero) value.\n");
-		exit(1);
-	}
-	if(rec < 0){
-		fprintf(stderr,"Recombination rate must be a positive (or zero) value.\n");
-		exit(1);
-	}
-	if(nsites <= 0){
-		fprintf(stderr,"Number of sites must be a positive integer.\n");
-		exit(1);
-	}
-	if(mig < 0){
-		fprintf(stderr,"Migration rate must be a positive (or zero) value.\n");
-		exit(1);
-	}
-	if(mig > (10.0/(1.0*N))){
-		printf("WARNING: Analytical transitions assume migration is weak.\n");
-		printf("Current input is much larger than O(1/NT) - transitions may be inaccurate.\n");
-	}
-	if(d <= 0){
-		fprintf(stderr,"Number of demes has to be a positive integer.\n");
-		exit(1);
-	}
-	if((d > 1) && (mig == 0)){
-		fprintf(stderr,"Migration rate cannot be zero with multiple demes.\n");
-		exit(1);
-	}
-	if(pSTIN != 1){
-		if(pHL < 0 || pHL > 1 || pLH < 0 || pLH > 1){
-			fprintf(stderr,"Sex transition probabilities have to lie between 0 and 1 (if there is no stepwise change in sex).\n");
-			exit(1);
-		}
-	}
-	if( (pHL == 0 || pLH == 0 ) && pSTIN == 0){
-		fprintf(stderr,"Sex transition probabilities have to lie between 0 and 1.\n");
-		exit(1);
-	}
-	if(pSTIN != 0 && pSTIN != 1 && pSTIN != 2){
-		fprintf(stderr,"pSTIN has to equal 0, 1, or 2.\n");
+	/* Number of samples/reps to take */
+	Nreps = atoi(argv[5]);
+	if(Nreps <= 0){
+		fprintf(stderr,"Must set positive number of repetitions.\n");
 		exit(1);
 	}
 	
@@ -2880,59 +2808,221 @@ int main(int argc, char *argv[]){
 	THEN sexL[i], sexH[i] = low-sex, high-sex rate in each deme
 	*/
 	
-	unsigned int *Iwith = calloc(d,sizeof(unsigned int));		/* Within-individual samples */
-	unsigned int *Ibet = calloc(d,sizeof(unsigned int));		/* Between-individual samples */
-	unsigned int *Nwith = calloc(d,sizeof(unsigned int));		/* To be used in individual rep */
-	unsigned int *Nbet = calloc(d,sizeof(unsigned int));		/* To be used in individual rep */
-	unsigned int *zeros = calloc(d,sizeof(unsigned int));		/* Placeholder array of zeros */
-	unsigned int *demes = calloc(d,sizeof(unsigned int));		/* Indices of demes (for sampling) */
-	double *sexL = calloc(d,sizeof(double));					/* Low-sex rates */	
-	double *sexH = calloc(d,sizeof(double));					/* High-sex rates */
+	unsigned int *Iwith = calloc(1,sizeof(unsigned int));		/* Within-individual samples */
+	unsigned int *Ibet = calloc(1,sizeof(unsigned int));		/* Between-individual samples */
+	unsigned int *Nwith = calloc(1,sizeof(unsigned int));		/* To be used in individual rep */
+	unsigned int *Nbet = calloc(1,sizeof(unsigned int));		/* To be used in individual rep */
+	unsigned int *zeros = calloc(1,sizeof(unsigned int));		/* Placeholder array of zeros */
+	unsigned int *demes = calloc(1,sizeof(unsigned int));		/* Indices of demes (for sampling) */
+	double *sexL = calloc(1,sizeof(double));					/* Low-sex rates */	
+	double *sexH = calloc(1,sizeof(double));					/* High-sex rates */
 	
-	for(x = 0; x < d; x++){
-		*(Iwith + x) = atoi(argv[14 + (4*x + 0)]);
-		*(Ibet + x) = atoi(argv[14 + (4*x + 1)]);
-		*(sexL + x) = strtod(argv[14 + (4*x + 2)],NULL);
-		*(sexH + x) = strtod(argv[14 + (4*x + 3)],NULL);
-		*(zeros + x) = 0;
-		*(demes + x) = x;
-		IwithT += (*(Iwith + x));
-		IbetT += (*(Ibet + x));
-		Itot += 2*(*(Iwith + x)) + (*(Ibet + x));
-		Iindv += (*(Iwith + x)) + (*(Ibet + x));
-		
-		/* More error checking as inputting */
-		if( *(sexL + x) < 0 || *(sexL + x) > 1 || *(sexH + x) < 0 || *(sexH + x) > 1){
-			fprintf(stderr,"Rate of sexual reproduction has to lie between 0 and 1.\n");
-			exit(1);
+	*(Iwith + 0) = IwithT;
+	*(Ibet + 0) = IbetT;
+	*(sexL + 0) = bsex;
+	*(sexH + 0) = 0;
+	*(zeros + 0) = 0;
+	*(demes + 0) = 0;
+	
+	/* Now moving onto case-by-case parameter setting */
+	if(argc > 6){
+		argx = 6;
+		while(argx < argc){
+			if(argv[argx][0] != '-'){
+				fprintf(stderr,"Further arguments should be of form -%s\n", argv[argx]);
+				exit(1);
+			}
+			switch ( argv[argx][1] ){
+				case 'r':		/* Defining recombination (cross over) */
+					isrec = 1;
+					argx++;
+					nsites = atoi(argv[argx]);
+					if(nsites < 2){
+						fprintf(stderr,"Must define at least two sites with recombination.\n");
+						exit(1);
+					}
+					argx++;
+					rec = strtod(argv[argx],NULL);
+					rec = rec/(2.0*(nsites-1)*N);
+					if(rec < 0){
+						fprintf(stderr,"Must define a positive recombination rate.\n");
+						exit(1);
+					}
+					break;
+				case 't':		/* Defining mutation rate */
+					argx++;
+					theta = strtod(argv[argx],NULL);
+					if(theta < 0){
+						fprintf(stderr,"Mutation rate must be a positive (or zero) value.\n");
+						exit(1);
+					}
+					break;
+				case 'T': 		/* Print trees? */
+					argx++;
+					prtrees = 1;
+					break;
+				case 'c':		/* MEIOTIC gene conversion */
+					if(isrec == 0){
+						fprintf(stderr,"Have to define number of sites first (using -r) before defining conversion rates.\n");
+						exit(1);
+					}
+					argx++;
+					gme = strtod(argv[argx],NULL);
+					gme = gme/(2.0*N*nsites);
+					if(gme < 0){
+						fprintf(stderr,"Must define a positive meiotic gene conversion rate.\n");
+						exit(1);
+					}
+					argx++;
+					lambdame = strtod(argv[argx],NULL);
+					if(lambdame < 1){
+						fprintf(stderr,"With meiotic gene conversion, average length (lambda) has to be at least 1.\n");
+						exit(1);
+					}
+					bigQme = nsites/(1.0*lambdame);
+					break;
+				case 'm':		/* MITOTIC gene conversion */
+					if(isrec == 0){
+						fprintf(stderr,"Have to define number of sites first (using -r) before defining conversion rates.\n");
+						exit(1);
+					}
+					argx++;
+					gmi = strtod(argv[argx],NULL);
+					gmi = gmi/(2.0*N*nsites);
+					if(gmi < 0){
+						fprintf(stderr,"Must define a positive mitotic gene conversion rate.\n");
+						exit(1);
+					}
+					argx++;
+					lambdami = strtod(argv[argx],NULL);
+					if(lambdami < 1){
+						fprintf(stderr,"With mitotic gene conversion, average length (lambda) has to be at least 1.\n");
+						exit(1);
+					}
+					bigQmi = nsites/(1.0*lambdami);
+					break;
+				case 'I':		/* Population subdivision (Island model) */
+					ismig = 1;
+					argx++;
+					d = atoi(argv[argx]);
+					if(N%d != 0){
+						fprintf(stderr,"Population size must be a multiple of deme number.\n");
+						exit(1);
+					}
+					if(d <= 0){
+						fprintf(stderr,"Number of demes has to be a positive integer.\n");
+						exit(1);
+					}
+					N = (unsigned int)(N/(d*1.0));	/* Scaling NT to a demetic size, for more consistent use in calculations */
+					if(d > 1){		/*	Assigning per-deme samples */
+					
+						Iwith = (unsigned int *)realloc(Iwith,d*sizeof(unsigned int));
+						Ibet = (unsigned int *)realloc(Ibet,d*sizeof(unsigned int));
+						Nwith = (unsigned int *)realloc(Nwith,d*sizeof(unsigned int));
+						Nbet = (unsigned int *)realloc(Nbet,d*sizeof(unsigned int));
+						zeros = (unsigned int *)realloc(zeros,d*sizeof(unsigned int));
+						demes = (unsigned int *)realloc(demes,d*sizeof(unsigned int));
+						sexL = (double *)realloc(sexL,d*sizeof(double));
+						sexH = (double *)realloc(sexH,d*sizeof(double));
+	
+						for(x = 0; x < d; x++){
+							argx++;
+							*(Iwith + x) = strtod(argv[argx],NULL);
+							argx++;
+							*(Ibet + x) = strtod(argv[argx],NULL);
+							*(sexL + x) = bsex;
+							*(sexH + x) = 0;
+							*(zeros + x) = 0;
+							*(demes + x) = x;
+							IwithT2 += (*(Iwith + x));
+							IbetT2 += (*(Ibet + x));
+						}
+						if( IwithT2 != IwithT ){
+							fprintf(stderr,"Sum of paired per-deme samples should equal total samples.\n");
+							exit(1);
+						}
+						if( IbetT2 != IbetT ){
+							fprintf(stderr,"Sum of unpaired per-deme samples should equal total samples.\n");
+							exit(1);
+						}
+					}
+					argx++;
+					mig = strtod(argv[argx],NULL);
+					mig = mig/(2.0*N*d);
+					if(mig < 0){
+						fprintf(stderr,"Migration rate must be a positive (or zero) value.\n");
+						exit(1);
+					}
+					if((d > 1) && (mig == 0)){
+						fprintf(stderr,"Migration rate cannot be zero with multiple demes.\n");
+						exit(1);
+					}
+					break;	
+				case 'H':
+					if(ismig == 0){
+						fprintf(stderr,"Have to define number of demes first (using -I) before defining heterogeneity.\n");
+						exit(1);
+					}
+					
+					/* Defining type of heterogeneity */
+					argx++;
+					pSTIN = atoi(argv[argx]);
+					argx++;
+					pLH = strtod(argv[argx],NULL);
+					argx++;
+					pHL = strtod(argv[argx],NULL);
+					
+					if(pSTIN != 1){
+						if(pHL < 0 || pHL > 1 || pLH < 0 || pLH > 1){
+							fprintf(stderr,"Sex transition probabilities have to lie between 0 and 1 (if there is no stepwise change in sex).\n");
+							exit(1);
+						}
+					}
+					if( (pHL == 0 || pLH == 0 ) && pSTIN == 0){
+						fprintf(stderr,"Sex transition probabilities have to lie between 0 and 1 with fluctuating sex.\n");
+						exit(1);
+					}
+					if(pSTIN != 0 && pSTIN != 1){
+						fprintf(stderr,"pSTIN has to equal 0 or 1.\n");
+						exit(1);
+					}
+					
+					for(x = 0; x < d; x++){
+						argx++;
+						*(sexL + x) = strtod(argv[argx],NULL);
+						argx++;						
+						*(sexH + x) = strtod(argv[argx],NULL);
+
+						if( *(sexL + x) < 0 || *(sexL + x) > 1 || *(sexH + x) < 0 || *(sexH + x) > 1){
+							fprintf(stderr,"Rate of sexual reproduction has to lie between 0 and 1.\n");
+							exit(1);
+						}
+						if( *(sexH + x) == 0 ){
+							fprintf(stderr,"With fluctuating sex, high rate cannot be zero.\n");
+							exit(1);
+						}
+						if((*(sexL + x) > *(sexH + x)) && pSTIN == 0){
+							fprintf(stderr,"All low-sex values must be less than or equal to high-sex values. Please re-check.\n");
+							exit(1);
+						}
+					}
+					break;
+					default:	/* If none of these cases chosen, exit with error message */
+						fprintf(stderr,"Error: Non-standard input given.\n");
+						exit(1);
+						break;
+			}
 		}
-		if((*(sexH + x) == 0) && (pSTIN != 2)){
-			fprintf(stderr,"Rate of sexual reproduction has to lie between 0 and 1.\n");
-			exit(1);
-		}
-		if((*(sexL + x) > *(sexH + x)) && pSTIN == 0){
-			fprintf(stderr,"All low-sex values must be less than or equal to high-sex values. Please re-check.\n");
-			exit(1);
-		}
-		/*
-		if( (*(Iwith + x) < 0) || (*(Ibet + x) < 0) ){
-			fprintf(stderr,"Number of within- and between-host samples has to be positive.\n");
-			exit(1);
-		}
-		*/
 	}
 	
-	/* Number of samples/reps to take */
-	Nreps = atoi(argv[4*d + 14]);
-	
-	/* Final Error Checking */
-	if(Itot <= 1){
-		fprintf(stderr,"More than one sample must be initially present to execute the simulation.\n");
-		exit(1);		
+	if(d == 1){
+		mig = 0;	/* Set migration to zero if only one deme, as a precaution */
 	}
-	if(Nreps <= 0){
-		fprintf(stderr,"Must set positive number of repetitions.\n");
-		exit(1);
+	if(rec == 0 && gmi == 0 && gme == 0){
+		nsites = 1; /* Set number of sites to 1 if no recombination OR gc, as a precaution */
+	}
+	if(nsites == 1){
+		rec = 0;
 	}
 	
 	/* Arrays definition and memory assignment */
@@ -2968,15 +3058,19 @@ int main(int argc, char *argv[]){
 	fclose(ofp_sd);
 	
 	/* Creating necessary directories */
-	if((rec > 0 || gmi > 0 || gme > 0) && (nsites != 1)){
+	if((rec > 0 || gmi > 0 || gme > 0) && (nsites != 1) && (prtrees == 1) ){
 		mkdir("Trees/", 0777);
 	}
-	mkdir("Mutations/", 0777);
+	if(theta != 0){
+		mkdir("Mutations/", 0777);
+	}
 	
 	/* Running the simulation Nreps times */
 	for(i = 0; i < Nreps; i++){
 		
-/*		printf("Starting Run %d\n",i);	*/
+		/*
+		printf("Starting Run %d\n",i);
+		*/
 
 		/* Setting up type of sex heterogeneity */
 		if(pSTIN == 0){
@@ -3084,15 +3178,15 @@ int main(int argc, char *argv[]){
 			nosex = powDUI(sexCInv,Nwith,d);				/* Probability of no segregation via sex, accounting for within-deme variation */
 			psum = (1-nosex) + nosex*(sumT_D(pr,12,d));		/* Sum of all event probabilities, for drawing random time */
 			
-/*
+			/*
 			for(j = 0; j < 12; j++){
 				for(x = 0; x < d; x++){			
 					printf("%0.10lf ",(*((*(pr + j)) + x)));
 				}
 				printf("\n");
 			}
-			printf("\n");			
-*/
+			printf("\n");
+			*/
 				
 			/* Intermediate error checking */
 			if(psum > 1){
@@ -3344,15 +3438,17 @@ int main(int argc, char *argv[]){
 			printf("\n");
 			*/
 			char *ret_tree = treemaker(TFin, theta*(maxd-mind), mind, maxd, Itot, i, gmi, gme, r);
-			if((rec == 0 && gmi == 0 && gme == 0) || (nsites == 1) ){
-				ofp_tr = fopen("Trees.dat","a+");
-				fprintf(ofp_tr,"%s\n",ret_tree);
-			}else if((rec > 0 || gmi > 0 || gme > 0) && (nsites != 1)){
-				sprintf(Tout,"Trees/Trees_%d.dat",i);
-				ofp_tr = fopen(Tout,"a+");
-				fprintf(ofp_tr,"%s\n",ret_tree);
+			if(prtrees == 1){
+				if((rec == 0 && gmi == 0 && gme == 0) || (nsites == 1) ){
+					ofp_tr = fopen("Trees.dat","a+");
+					fprintf(ofp_tr,"%s\n",ret_tree);
+				}else if((rec > 0 || gmi > 0 || gme > 0) && (nsites != 1)){
+					sprintf(Tout,"Trees/Trees_%d.dat",i);
+					ofp_tr = fopen(Tout,"a+");
+					fprintf(ofp_tr,"%s\n",ret_tree);
+				}
+				fclose(ofp_tr);
 			}
-			fclose(ofp_tr);
 			free(ret_tree);
 		}
 		
