@@ -63,7 +63,7 @@ double P4(unsigned int x, unsigned int k, unsigned int Na);
 double P56(unsigned int y, unsigned int Na);
 double P7(unsigned int x, unsigned int k, unsigned int Na);
 double P8(unsigned int x, unsigned int y, unsigned int k, unsigned int Na);
-double P9(unsigned int x, unsigned int y, unsigned int k, double geemi, double geeme, unsigned int lrec, double Qmi, double Qme, double sexC);
+double P9(unsigned int x, unsigned int y, unsigned int k, double geemi, double geeme, double Qmi, double Qme, double sexC);
 double P10(unsigned int x, unsigned int y, unsigned int k, double mee);
 double P11(unsigned int y, unsigned int k, double sexC, double ree, unsigned int lrec, unsigned int nlrec, unsigned int nlrec2);
 double P12(unsigned int x, unsigned int k, double geemi, double Qmi);
@@ -453,9 +453,9 @@ double P8(unsigned int x, unsigned int y, unsigned int k, unsigned int Na){
 	diff = x-k;
 	return (diff*y)/(1.0*Na);
 }
-double P9(unsigned int x, unsigned int y, unsigned int k, double geemi, double geeme, unsigned int lrec, double Qmi, double Qme, double sexC){
+double P9(unsigned int x, unsigned int y, unsigned int k, double geemi, double geeme, double Qmi, double Qme, double sexC){
 	/* 'Disruptive' gene conversion event (I.e. where at least one bp is in sampled material) */
-	return (lrec-1)*(pairGC(x, k, geemi, Qmi) + singGC(y, k, geemi, geeme, Qmi, Qme, sexC));
+	return pairGC(x, k, geemi, Qmi) + singGC(y, k, geemi, geeme, Qmi, Qme, sexC);
 }
 double P10(unsigned int x, unsigned int y, unsigned int k, double mee){
 	/* A sample migrates to another deme */
@@ -492,7 +492,7 @@ void probset2(unsigned int N, double gmi, double gme, double *sexC, double rec, 
 		*((*(pr + 5)) + x) = P56(*(Nbet + x),N);
 		*((*(pr + 6)) + x) = P7(*(Nwith + x),*(kin + x),N);
 		*((*(pr + 7)) + x) = P8(*(Nwith + x),*(Nbet + x),*(kin + x),N);
-		*((*(pr + 8)) + x) = P9(*(Nwith + x),*(Nbet + x),*(kin + x),gmi,gme,lrec,Qmi,Qme,*(sexC + x));
+		*((*(pr + 8)) + x) = P9(*(Nwith + x),*(Nbet + x),*(kin + x),gmi,gme,Qmi,Qme,*(sexC + x));
 		*((*(pr + 9)) + x) = P10(*(Nwith + x),*(Nbet + x),*(kin + x),mig);
 		*((*(pr + 10)) + x) = P11(*(Nbet + x),*(kin + x),*(sexC + x),rec,lrec,*(nlrec + x),*(nlrec2 + x));
 		*((*(pr + 11)) + x) = P12(*(Nwith + x),*(kin + x),gmi,Qmi);
@@ -1125,36 +1125,24 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 			}
 			
 			/* Then drawing startpoint */
-			yesrec = 0;
-			while(yesrec != 1){
-				mindr = 0;
-				gcst = (unsigned int)gsl_ran_flat(r, 1, nsites);
-				for(x = 0; x < *nbreaks; x++){
-					if( *((*(breaks + 0)) + x) == gcst){
-						isyetbp = 1;
-					}
-					if( *((*(breaks + 0)) + x) > gcst){
-						mintr = (x-1);
-						mindr = 1;
-						break;
-					}
+			mindr = 0;
+			gcst = (unsigned int)gsl_ran_flat(r, 1, nsites);
+			for(x = 0; x < *nbreaks; x++){
+				if( *((*(breaks + 0)) + x) == gcst){
+					isyetbp = 1;
 				}
-				
-				if( mindr == 1 ){
-					if((isyetbp != 1) && *((*(breaks + 1)) + mintr) != 1){
-						yesrec = 1;
-					}else if((isyetbp == 1) && ((mintr != 0 && (*((*(breaks + 1)) + mintr) != 1 || *((*(breaks + 1)) + mintr - 1) != 1)) || (mintr == 0 && *((*(breaks + 1)) + mintr) != 1)) ){
-						yesrec = 1;
-					}
-				}else if(mindr == 0){		/* GC start past end of current breakpoints, so need to force it */
-					mintr = ((*nbreaks)-1);
-					if(isyetbp != 1 && *((*(breaks + 1)) + mintr) != 1){
-						yesrec = 1;
-					}else if( (isyetbp == 1) && (*((*(breaks + 1)) + mintr) != 1 || *((*(breaks + 1)) + mintr - 1) != 1) ){
-						yesrec = 1;
-					}
+				if( *((*(breaks + 0)) + x) > gcst){
+					mintr = (x-1);
+					mindr = 1;
+					break;
 				}
 			}
+			
+			if(mindr == 0){		/* GC start past end of current breakpoints, so need to force it */
+				mintr = ((*nbreaks)-1);
+				
+			}
+			
 			/*
 			if(ei == 2 && gcst == 577){
 				TestTabs(indvs, GType, CTms, TAnc, breaks, NMax + 1, Itot, *nbreaks);
@@ -1162,7 +1150,7 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 			*/
 
 			/* Inserting new, start BP if needed */
-			if((isyetbp != 1) && (*((*(GType + gcsamp)) + mintr + 1) != (-1)) ){
+			if((isyetbp != 1) && (*((*(GType + gcsamp)) + mintr + 1) != (-1)) && (*((*(breaks + 1)) + mintr) != 1) ){
 				(*nbreaks)++;
 				for(x = *nbreaks-2; x >= (int)(mintr+1); x--){
 					*((*(breaks + 0)) + x + 1) = *((*(breaks + 0)) + x);
@@ -1186,10 +1174,6 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 /*			printf("Mintr is %d\n",*((*(breaks + 0)) + mintr));*/
 			
 			/* Now drawing endpoint */
-			/*
-			yesrec2 = 0;
-			while(yesrec2 != 1){
-			*/
 			gcdir = 0;
 			gcln = 0;
 			maxck = 0;
@@ -1223,73 +1207,11 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 					break;
 				}
 			}
-			/*
-			if(maxck == 1 & *((*(breaks + 1)) + maxtr) != 1){
-				yesrec2 = 1;
-			}else 
-			*/
+
 			if(maxck == 0 && (gcend != nsites) && (gcend != 0)){ 		/* If endpoint not found amongst existing bps, must be at end */
-/*				printf("It here 1\n");*/
 				maxtr = ((*nbreaks)-1);
-				/*
-				if(*((*(breaks + 1)) + maxtr) != 1){
-					yesrec2 = 1;
-				}
-				*/
 			}else if(maxck == 0 && (gcend == nsites)){
-/*				printf("It here 2\n");*/
 				maxtr = (*nbreaks);
-				isyetbp2 = 1;
-				/*
-				if(*((*(breaks + 1)) + maxtr - 1) != 1){
-					yesrec2 = 1;
-				}
-				*/
-			}
-				/*
-			}
-			*/
-			
-			/* Some kind of correction needed if end point lies in coalesced material */
-			mtrt = maxtr;
-/*			printf("mtrt init is %d, gcend is %d; mintr is %d, gcstart is %d\n", mtrt,gcend,mintr,gcst);*/
-			if(mtrt == (*nbreaks)){
-				mtrt--;
-			}
-			if(*((*(breaks + 1)) + mtrt) == 1){
-				done = 0;
-/*				printf("INITIAL MTRT %d, GT IS %d\n",mtrt,*((*(GType + gcsamp)) + mtrt));*/
-				while(done == 0){
-/*					printf("a change? gcdir %d\n",gcdir);*/
-					if(mtrt != mintr){
-						if(gcdir == 2){
-							mtrt--;
-						}else if(gcdir == 1){
-							mtrt++;
-						}
-/*						printf("MTRT %d (%d), GT IS %d, MINTR %d\n",mtrt,*((*(breaks + 0)) + mtrt),*((*(GType + gcsamp)) + mtrt),mintr);*/
-/*						printf("nbreaks is %d, mtrt is %d\n",*nbreaks, mtrt);*/
-						if(*((*(breaks + 1)) + mtrt) != 1){
-							if(gcdir == 2){
-								gcend = *((*(breaks + 0)) + mtrt + 1);
-							}else if(gcdir == 1){
-								gcend = *((*(breaks + 0)) + mtrt);						
-							}
-							done = 1;
-						}
-					}
-					if(mtrt == mintr){
-						if(gcdir == 2){
-							mtrt = mintr + 1;
-							gcend = *((*(breaks + 0)) + mtrt + 1);
-						}else if(gcdir == 1){
-							mtrt = mintr;
-							gcend = *((*(breaks + 0)) + mtrt);
-						}
-						done = 1;
-					}
-				}
-				maxtr = mtrt;
 				isyetbp2 = 1;
 			}
 			
@@ -1298,7 +1220,7 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 /*			printf("MAXTR %d NBREAKS %d\n",maxtr,*nbreaks);			*/
 			
 			/* Inserting new, end BP if needed */
-			if((isyetbp2 != 1) && (*((*(GType + gcsamp)) + maxtr + 1) != (-1)) ){
+			if((isyetbp2 != 1) && (*((*(GType + gcsamp)) + maxtr + 1) != (-1)) && (*((*(breaks + 1)) + maxtr) != 1) ){
 				(*nbreaks)++;
 				for(x = *nbreaks-2; x >= (int)(maxtr + 1); x--){
 					*((*(breaks + 0)) + x + 1) = *((*(breaks + 0)) + x);
@@ -1745,11 +1667,6 @@ unsigned int ccheck(unsigned int **indvs, int **GType, unsigned int **breaks, un
 		if( *((*(breaks + 1)) + x) != 1 ){		/* If not yet coalesced... */
 			gcount = 0;
 			for(j = 0; j < Ntot; j++){
-			/*
-				if( (*((*(indvs + j)) + 2) != 2 ) && ( *((*(GType + j)) + (x+1)) != (-1) )){
-					gcount++;
-				}
-			*/
 				if( (*((*(indvs + j)) + 2) != 2 ) ){
 					ridx = *((*(indvs + j)) + 0);
 					if( (*((*(GType + ridx)) + (x + 1)) != (-1))){
@@ -1758,6 +1675,7 @@ unsigned int ccheck(unsigned int **indvs, int **GType, unsigned int **breaks, un
 				}
 			}
 			/* If only one individual exists which carries that tract, then it has coalesced */
+			/* Setting last piece to non-ancestral to reflect this */
 			if(gcount == 1){
 				*((*(breaks + 1)) + x) = 1;
 				achange = 1;
@@ -3044,8 +2962,8 @@ int main(int argc, char *argv[]){
 	
 	if(isrec == 1){
 		rec = rec/(2.0*(nsites-1)*N*d);
-		gme = gme/(2.0*N*(nsites-1)*d);		
-		gmi = gmi/(2.0*N*(nsites-1)*d);
+		gme = gme/(2.0*N*d);		
+		gmi = gmi/(2.0*N*d);
 	}
 	
 	if(d == 1){
