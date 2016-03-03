@@ -24,6 +24,7 @@ separately from this file.
 
 #define INITBR 10
 #define HUGEVAL 1000000
+#define WARNQ 0.05
 
 /* Function prototypes */
 unsigned int isanyUI(unsigned int *vin, unsigned int size_t, unsigned int match);
@@ -473,7 +474,7 @@ double P11(unsigned int y, unsigned int k, double sexC, double ree, unsigned int
 }
 double P12(unsigned int x, unsigned int k, double geemi, double Qmi){
 	/* Complete gene conversion, coalesces paired sample into single sample */
-	return (geemi*(x-k)*exp(-Qmi));
+	return (geemi*(x-k)*(exp(-Qmi)/(1.0*Qmi)));
 }
 
 /* Calculate probability change vectors each time OVER EACH DEME */
@@ -2820,6 +2821,10 @@ int main(int argc, char *argv[]){
 						usage();
 					}
 					bigQme = nsites/(1.0*lambdame);
+					if(bigQme < WARNQ){
+						fprintf(stderr,"WARNING: Simulation assumes that lambda ~ nsites.\n");
+						fprintf(stderr,"Too large a lambda might produce inaccurate coalescent times.\n");
+					}
 					argx++;
 					break;
 				case 'm':		/* MITOTIC gene conversion */
@@ -2840,6 +2845,10 @@ int main(int argc, char *argv[]){
 						usage();
 					}
 					bigQmi = nsites/(1.0*lambdami);
+					if(bigQmi < WARNQ){
+						fprintf(stderr,"WARNING: Simulation assumes that lambda ~ nsites.\n");
+						fprintf(stderr,"Too large a lambda might produce inaccurate coalescent times.\n");
+					}
 					argx++;
 					break;
 				case 'I':		/* Population subdivision (Island model) */
