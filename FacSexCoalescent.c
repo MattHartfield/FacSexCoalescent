@@ -81,7 +81,7 @@ void indv_sort(unsigned int **indvs, unsigned int nrow);
 void indv_sortD(double **Tin, unsigned int nrow, unsigned int ncol, unsigned int tcol);
 void Wait();
 void TestTabs(unsigned int **indvs, int **GType, double **CTms , int **TAnc, unsigned int **breaks, unsigned int NMax, unsigned int Itot, unsigned int nbreaks);
-char * treemaker(double **TFin, double thetain, double mind, double maxd, unsigned int Itot, unsigned int run, double gmi, double gme, unsigned int ismsp, unsigned int *nmutT, unsigned int prtrees, const gsl_rng *r);
+char * treemaker(double **TFin, double thetain, unsigned int mind2, unsigned int maxd2, double mind, double maxd, unsigned int Itot, unsigned int run, double gmi, double gme, unsigned int ismsp, unsigned int *nmutT, unsigned int prtrees, const gsl_rng *r);
 void reccal(unsigned int **indvs, int **GType, unsigned int **breaks, unsigned int *Nbet, unsigned int *Nwith, unsigned int *rsex, unsigned int esex, unsigned int *lnrec, unsigned int lrec, unsigned int nbreaks, unsigned int NMax, unsigned int sw, unsigned int run);
 void usage();
 
@@ -553,14 +553,14 @@ void rate_change(unsigned int N, unsigned int pST,double pLH, double pHL, double
 		}else if(switch1 == 1){
 			for(x = 0; x < d; x++){
 				*(sexCN + x) = *(sexH + x);
-				*(sexCNInv + x) = 1 - (*(sexH + x));
+				*(sexCNInv + x) = 1.0 - (*(sexH + x));
 			}
 			*tts = (1.0/0.0);
 		}
 	}else if(pST == 3){		/* If constant, no time to sex switch */
 		for(x = 0; x < d; x++){
 				*(sexCN + x) = *(sexL + x);
-				*(sexCNInv + x) = 1 - (*(sexL + x));
+				*(sexCNInv + x) = 1.0 - (*(sexL + x));
 			}
 		*tts = (1.0/0.0);
 		*npST = pST;
@@ -1890,7 +1890,7 @@ void TestTabs(unsigned int **indvs, int **GType, double **CTms, int **TAnc, unsi
 }
 
 /* Function to reconstruct genealogy and to add mutation to branches */
-char * treemaker(double **TFin, double thetain, double mind, double maxd, unsigned int Itot, unsigned int run, double gmi, double gme, unsigned int ismsp, unsigned int *nmutT, unsigned int prtrees, const gsl_rng *r){
+char * treemaker(double **TFin, double thetain, unsigned int mind2, unsigned int maxd2, double mind, double maxd, unsigned int Itot, unsigned int run, double gmi, double gme, unsigned int ismsp, unsigned int *nmutT, unsigned int prtrees, const gsl_rng *r){
 	unsigned int i, j, k, a, x;
 	unsigned int lct = Itot;
 	unsigned int lct2 = lct-1;
@@ -1968,7 +1968,7 @@ char * treemaker(double **TFin, double thetain, double mind, double maxd, unsign
     		/* Converting values to strings */
     		sprintf(p1char, "%d", parent1);
 	    	sprintf(c1char, "%d", child1);
-	    	sprintf(btchar1,"%0.10lf",birthtime);    	
+	    	sprintf(btchar1,"%0.5lf",birthtime);    	
 
 	    	strcpy(*(clades + 0),lbr);
 	    	strcat(*(clades + 0),p1char);
@@ -2068,7 +2068,7 @@ char * treemaker(double **TFin, double thetain, double mind, double maxd, unsign
     			/* Converting values to strings */
 	    		sprintf(p1char, "%d", parent1);
 		    	sprintf(c1char, "%d", child1);
-	    		sprintf(btchar1,"%0.10lf",birthtime);    	
+	    		sprintf(btchar1,"%0.5lf",birthtime);    	
 
 	    		strcpy(*(clades + nc),lbr);
 		    	strcat(*(clades + nc),p1char);
@@ -2139,8 +2139,8 @@ char * treemaker(double **TFin, double thetain, double mind, double maxd, unsign
    				/* Converting values to strings */
 				sprintf(c1char, "%d", child1);
 				sprintf(p1char, "%d", parent1);				
-				sprintf(btchar1,"%0.10lf",birthtime);
-				sprintf(btchar2,"%0.10lf",(birthtime - (*(Cheight+pc))));
+				sprintf(btchar1,"%0.5lf",birthtime);
+				sprintf(btchar2,"%0.5lf",(birthtime - (*(Cheight+pc))));
 				char *tc = malloc( (strlen((*(clades + pc))) + 40) * sizeof(char) );
 				if( tc == NULL ) {
     				fprintf(stderr, "Error - unable to allocate required memory\n");
@@ -2259,8 +2259,8 @@ char * treemaker(double **TFin, double thetain, double mind, double maxd, unsign
     			/* Converting values to strings */
 				sprintf(c1char, "%d", child1);
 				sprintf(p1char, "%d", parent1);				
-				sprintf(btchar1,"%0.10lf",(birthtime - (*(Cheight + pc))));
-				sprintf(btchar2,"%0.10lf",(birthtime - (*(Cheight + cc))));
+				sprintf(btchar1,"%0.5lf",(birthtime - (*(Cheight + pc))));
+				sprintf(btchar2,"%0.5lf",(birthtime - (*(Cheight + cc))));
 				/* memset(tc,'\0',sizeof(tc)); */
 				char *tc2 = malloc((strlen((*(clades + pc))) + strlen((*(clades + cc))) + 40) * sizeof(char));
 				if( tc2 == NULL ) {
@@ -2432,8 +2432,9 @@ char * treemaker(double **TFin, double thetain, double mind, double maxd, unsign
     	
     if( (rec == 0 && gmi == 0 && gme == 0) || nsites == 1){
     	strcpy(str,(*(clades + 0)));
+    	strcpy(str2,(*(clades + 0)));    	
     }else if((rec > 0 || gmi > 0 || gme > 0) && nsites > 1){
-    	brk = (unsigned int)(mind*nsites);
+    	brk = (maxd2 - mind2);
     	sprintf(brkchar, "%d", brk);
     	strcpy(str,lsq);
     	strcpy(str2,lsq);    	
@@ -2701,12 +2702,14 @@ fprintf(stderr," -I: d [Paired_j Single_j]...[2Nm] for defining island model.\n"
 fprintf(stderr,"     d is number of demes: [Paired_j Single_j] are d pairs of samples per deme;\n");
 fprintf(stderr,"     2Nm is net migration rate between demes.\n");
 fprintf(stderr," -H: [Type of heterogeneity] [pLH pHL] [SexL_j SexH_j] for heterogeneity in rates of sex.\n");
-fprintf(stderr,"     Type of heterogeneity is 0 for constant switching; 1 for stepwise change;\n");
+fprintf(stderr,"     Type of heterogeneity is 0 for constant switching; 1 for stepwise change; 2 for no temporal change (only spatial change).\n");
 fprintf(stderr,"     If type = 0; pLH pHL is probability of switching from low-sex to high-sex state (and vice versa).\n");
 fprintf(stderr,"     If type = 1; pLH is time (units of 2N generations) when switch occurs.\n");
+fprintf(stderr,"     If type = 2; these do not need to be defined.\n");
 fprintf(stderr,"     [SexL_j SexH_j] are d pairs of low-sex, high-sex rates in deme j (if type = 0).\n");
 fprintf(stderr,"     OR they are d pairs of initial-rate, changed-rate of sex (if type = 1).\n");
-fprintf(stderr,"     Note that with -H, one must first specify -I to specify subdivision (even if only one population.\n");
+fprintf(stderr,"     Only SexL_j is defined if just spatial heterogeneity is present (if type = 2).\n");
+fprintf(stderr,"     Note that with -H, one must first specify -I to specify subdivision (even if only one population).\n");
 fprintf(stderr,"See README file for further details.\n");
 fprintf(stderr,"\n");
 exit(1);
@@ -2752,6 +2755,8 @@ int main(int argc, char *argv[]){
 	unsigned int ismig = 0;		/* Has population structure been defined? */	
 	unsigned int ismsp = 0;		/* Use MS-style printout? */
 	unsigned int nmutT = 0;		/* Total mutants (for printout) */
+	unsigned int mind2 = 0;
+	unsigned int maxd2 = 0;	
 	double bsex = 0;			/* Baseline rate of sex (for initial inputting) */
 	double pLH = 0;				/* Prob of low-sex to high-sex transition, OR time of transition if stepwise change */
 	double pHL = 0;				/* Prob of high-sex to low-sex transition */
@@ -2994,6 +2999,10 @@ int main(int argc, char *argv[]){
 					argx++;
 					pHL = strtod(argv[argx],NULL);
 					
+					if(pSTIN != 0 && pSTIN != 1 && pSTIN != 2){
+						fprintf(stderr,"pSTIN has to equal 0, 1 or 2.\n");
+						usage();
+					}
 					if(pSTIN != 1){
 						if(pHL < 0 || pHL > 1 || pLH < 0 || pLH > 1){
 							fprintf(stderr,"Sex transition probabilities have to lie between 0 and 1 (if there is no stepwise change in sex).\n");
@@ -3002,10 +3011,6 @@ int main(int argc, char *argv[]){
 					}
 					if( (pHL == 0 || pLH == 0 ) && pSTIN == 0){
 						fprintf(stderr,"Sex transition probabilities have to lie between 0 and 1 with fluctuating sex.\n");
-						usage();
-					}
-					if(pSTIN != 0 && pSTIN != 1){
-						fprintf(stderr,"pSTIN has to equal 0 or 1.\n");
 						usage();
 					}
 					
@@ -3019,8 +3024,8 @@ int main(int argc, char *argv[]){
 							fprintf(stderr,"Rate of sexual reproduction has to lie between 0 and 1.\n");
 							usage();
 						}
-						if( *(sexH + x) == 0 ){
-							fprintf(stderr,"With fluctuating sex, high rate cannot be zero.\n");
+						if( *(sexH + x) == 0 && pSTIN == 0){
+							fprintf(stderr,"With temporally heterogeneous sex, high rate cannot be zero.\n");
 							usage();
 						}
 						if((*(sexL + x) > *(sexH + x)) && pSTIN == 0){
@@ -3467,22 +3472,26 @@ int main(int argc, char *argv[]){
 
 			/* Using ancestry table to build tree and mutation table */
 			if(x < nbreaks){
-				maxd = (*((*(breaks + 0)) + x))/(1.0*nsites);
-				mind = (*((*(breaks + 0)) + (x-1)))/(1.0*nsites);
+				maxd2 = (*((*(breaks + 0)) + x));
+				maxd = maxd2/(1.0*nsites);
+				mind2 = (*((*(breaks + 0)) + (x-1)));
+				mind = mind2/(1.0*nsites);
 			}else if(x == nbreaks){
+				maxd2 = nsites;
 				maxd = 1;
-				mind = (*((*(breaks + 0)) + (x-1)))/(1.0*nsites);
+				mind2 = *((*(breaks + 0)) + (x-1));
+				mind = (mind2)/(1.0*nsites);
 			}
 			/*
 			printf("For x equal %d: mind, maxd are %lf %lf\n",x,mind,maxd);
 			printf("\n");
 			*/
-			char *ret_tree = treemaker(TFin, theta*(maxd-mind), mind, maxd, Itot, i, gmi, gme, ismsp, &nmutT, prtrees, r);
+			char *ret_tree = treemaker(TFin, theta*(maxd-mind), mind2, maxd2 ,mind, maxd, Itot, i, gmi, gme, ismsp, &nmutT, prtrees, r);
 			if(prtrees == 1){
 				if((rec == 0 && gmi == 0 && gme == 0) || (nsites == 1) ){
-					if(x == 1){
+					if(i == 0){
 						ofp_tr = fopen("Trees.dat","w");
-					}else if(x > 1){
+					}else if(i > 1){
 						ofp_tr = fopen("Trees.dat","a+");
 					}
 					fprintf(ofp_tr,"%s\n",ret_tree);
