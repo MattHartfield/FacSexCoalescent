@@ -2402,7 +2402,11 @@ char * treemaker(double **TFin, double thetain, double mind, double maxd, unsign
 	indv_sortD(MTab,nmut,(Itot+1),0);
 	if(thetain > 0){
 		n = sprintf(Mout,"Mutations/Muts_%d.dat",run);
-		ofp_mut = fopen(Mout,"a");
+		if(mind != 0){
+			ofp_mut = fopen(Mout,"a");
+		}else if(mind == 0){
+			ofp_mut = fopen(Mout,"w");
+		}
 		for(j = 0; j < nmut; j++){
 			fprintf(ofp_mut,"%lf ",*((*(MTab + j)) + 0));
 			for(a = 1; a < (Itot + 1); a++){
@@ -2798,7 +2802,7 @@ int main(int argc, char *argv[]){
 	}
 	
 	bsex = strtod(argv[4],NULL);
-	if( bsex < 0 || bsex > 1){
+	if( bsex <= 0 || bsex > 1){
 		fprintf(stderr,"Baseline rate of sexual reproduction has to lie between 0 and 1.\n");
 		usage();
 	}
@@ -3082,7 +3086,7 @@ int main(int argc, char *argv[]){
 	T = gsl_rng_default;
 	r = gsl_rng_alloc(T);
 	/*printf("%lu\n",gsl_rng_default_seed);*/
-	ofp_sd = fopen("Seed.dat","a+");
+	ofp_sd = fopen("Seed.dat","w");
 	fprintf(ofp_sd,"%lu\n",gsl_rng_default_seed);
 	fclose(ofp_sd);
 	if(ismsp == 1){
@@ -3476,11 +3480,19 @@ int main(int argc, char *argv[]){
 			char *ret_tree = treemaker(TFin, theta*(maxd-mind), mind, maxd, Itot, i, gmi, gme, ismsp, &nmutT, prtrees, r);
 			if(prtrees == 1){
 				if((rec == 0 && gmi == 0 && gme == 0) || (nsites == 1) ){
-					ofp_tr = fopen("Trees.dat","a+");
+					if(x == 1){
+						ofp_tr = fopen("Trees.dat","w");
+					}else if(x > 1){
+						ofp_tr = fopen("Trees.dat","a+");
+					}
 					fprintf(ofp_tr,"%s\n",ret_tree);
 				}else if((rec > 0 || gmi > 0 || gme > 0) && (nsites != 1)){
 					sprintf(Tout,"Trees/Trees_%d.dat",i);
-					ofp_tr = fopen(Tout,"a+");
+					if(x == 1){
+						ofp_tr = fopen(Tout,"w");
+					}else if(x > 1){
+						ofp_tr = fopen(Tout,"a+");
+					}
 					fprintf(ofp_tr,"%s\n",ret_tree);
 				}
 				fclose(ofp_tr);
