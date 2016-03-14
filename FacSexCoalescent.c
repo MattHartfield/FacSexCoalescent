@@ -1929,7 +1929,7 @@ char * treemaker(double **TFin, double thetain, unsigned int mind2, unsigned int
 	char btchar2[16];	
 	char brkchar[16];
 	char Mout[32];				 /* String to hold filename in (Mutations) */
-	FILE *ofp_mut;				 /* Pointer for data output */
+	FILE *ofp_mut = NULL;		 /* Pointer for data output */
 		
 	/* Defining necessary tables */
 	double *Cheight = calloc(lct,sizeof(double));					/* Current 'height' (time) of each clade */
@@ -2428,7 +2428,7 @@ char * treemaker(double **TFin, double thetain, unsigned int mind2, unsigned int
     char *str2 = malloc(clen * sizeof(char));
     if(str2 == NULL) {
     	fprintf(stderr, "Error - unable to allocate required memory (str2) \n");
-	}    
+	}
     	
     if( (rec == 0 && gmi == 0 && gme == 0) || nsites == 1){
     	strcpy(str,(*(clades + 0)));
@@ -2493,6 +2493,7 @@ char * treemaker(double **TFin, double thetain, unsigned int mind2, unsigned int
 			free(MTabF);
     	}
     }
+   	free(str2);
     
     for(j = 0; j < MTRows; j++){
 		free(MTab[j]);
@@ -2507,7 +2508,6 @@ char * treemaker(double **TFin, double thetain, unsigned int mind2, unsigned int
 	free(Cheight);
 	return(str);
 	free(str);
-	free(str2);	
 
 }	/* End of treemaker routine */
 
@@ -2780,7 +2780,7 @@ int main(int argc, char *argv[]){
 	double bigQmi = 1/(1.0*0);	/* Relative length of lambdami (for GC prob calculations) */	
 	double bigQme = 1/(1.0*0);	/* Relative length of lambdame (for GC prob calculations) */		
 	char Tout[32];				/* String to hold filename in (Trees) */
-	FILE *ofp_tr;				/* Pointer for tree output */
+	FILE *ofp_tr = NULL;		/* Pointer for tree output */
 	FILE *ofp_sd;				/* Pointer for seed output */
 	
 	/* GSL random number definitions */
