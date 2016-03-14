@@ -81,7 +81,7 @@ void indv_sort(unsigned int **indvs, unsigned int nrow);
 void indv_sortD(double **Tin, unsigned int nrow, unsigned int ncol, unsigned int tcol);
 void Wait();
 void TestTabs(unsigned int **indvs, int **GType, double **CTms , int **TAnc, unsigned int **breaks, unsigned int NMax, unsigned int Itot, unsigned int nbreaks);
-char * treemaker(double **TFin, double thetain, unsigned int mind2, unsigned int maxd2, double mind, double maxd, unsigned int Itot, unsigned int run, double gmi, double gme, unsigned int ismsp, unsigned int *nmutT, unsigned int prtrees, const gsl_rng *r);
+char * treemaker(double **TFin, double thetain, unsigned int mind2, unsigned int maxd2, double mind, double maxd, unsigned int Itot, unsigned int run, double gmi, double gme, unsigned int ismsp, unsigned int *nmutT, unsigned int prtrees, unsigned int ismut, const gsl_rng *r);
 void reccal(unsigned int **indvs, int **GType, unsigned int **breaks, unsigned int *Nbet, unsigned int *Nwith, unsigned int *rsex, unsigned int esex, unsigned int *lnrec, unsigned int lrec, unsigned int nbreaks, unsigned int NMax, unsigned int sw, unsigned int run);
 void usage();
 
@@ -1890,7 +1890,7 @@ void TestTabs(unsigned int **indvs, int **GType, double **CTms, int **TAnc, unsi
 }
 
 /* Function to reconstruct genealogy and to add mutation to branches */
-char * treemaker(double **TFin, double thetain, unsigned int mind2, unsigned int maxd2, double mind, double maxd, unsigned int Itot, unsigned int run, double gmi, double gme, unsigned int ismsp, unsigned int *nmutT, unsigned int prtrees, const gsl_rng *r){
+char * treemaker(double **TFin, double thetain, unsigned int mind2, unsigned int maxd2, double mind, double maxd, unsigned int Itot, unsigned int run, double gmi, double gme, unsigned int ismsp, unsigned int *nmutT, unsigned int prtrees, unsigned int ismut, const gsl_rng *r){
 	unsigned int i, j, k, a, x;
 	unsigned int lct = Itot;
 	unsigned int lct2 = lct-1;
@@ -2452,7 +2452,7 @@ char * treemaker(double **TFin, double thetain, unsigned int mind2, unsigned int
 	    	printf("%s\n",str2);
     	}
     	/* If last tree, then print out mutation table */
-    	if(maxd == 1){
+    	if(maxd == 1 && ismut == 1){
     		/* If last tree and using MS-style printout, read in data and print to screen */
     		double **MTabF = calloc(*nmutT,sizeof(double *));			/* Mutation table */
 			for(j = 0; j < *nmutT; j++){
@@ -2485,7 +2485,6 @@ char * treemaker(double **TFin, double thetain, unsigned int mind2, unsigned int
 				}
 			    printf("\n");
 		    }
-		    printf("\n");
 
 			/* Then free tables */
 			for(j = 0; j < *nmutT; j++){
@@ -2690,9 +2689,11 @@ void reccal(unsigned int **indvs, int **GType, unsigned int **breaks, unsigned i
 
 void usage(){
 fprintf(stderr,"\n");
-fprintf(stderr,"Command: FacSexCoalescent <Population Size> <Paired Samples> <Single Samples> <Rate of Sex> <Theta> <Reps> <Other parameters>\n");
+fprintf(stderr,"Command: FacSexCoalescent <Population Size> <Paired Samples> <Single Samples> <Rate of Sex> <Reps> <Other parameters>\n");
 fprintf(stderr,"'Other parameters' are optional and include:\n");
+fprintf(stderr," -t: [4Nmu] defines neutral mutation rate\n");
 fprintf(stderr," -T: prints out individuals trees to file\n");
+fprintf(stderr," (Note that one of -t or -T MUST be used)\n");
 fprintf(stderr," -P: prints out data to screen using MS-style format\n");
 fprintf(stderr," -r: [2Nr nsites] to specify recombination\n");
 fprintf(stderr," -c: [2N(g_me) lambda_me] specifies rate and mean length of MEIOTIC gene conversion\n");
@@ -2749,7 +2750,7 @@ int main(int argc, char *argv[]){
 	unsigned int pSTIN = 2;		/* Determine type of heterogeneity (0 = fluctuating sex, 1 = stepwise change, 2 = constant sex) */
 	unsigned int N = 0;			/* Population Size */
 	unsigned int gcalt = 0;		/* How to alter number samples following GC event */
-	unsigned int argx = 7;		/* Extra command line inputs, for parameter definitions */
+	unsigned int argx = 6;		/* Extra command line inputs, for parameter definitions */
 	unsigned int prtrees = 0;	/* Print out trees to file */
 	unsigned int isrec = 0;		/* Has rec been defined? */
 	unsigned int ismig = 0;		/* Has population structure been defined? */	
@@ -2757,6 +2758,7 @@ int main(int argc, char *argv[]){
 	unsigned int nmutT = 0;		/* Total mutants (for printout) */
 	unsigned int mind2 = 0;
 	unsigned int maxd2 = 0;	
+	unsigned int ismut = 0;		/* Mutation defined? */
 	double bsex = 0;			/* Baseline rate of sex (for initial inputting) */
 	double pLH = 0;				/* Prob of low-sex to high-sex transition, OR time of transition if stepwise change */
 	double pHL = 0;				/* Prob of high-sex to low-sex transition */
@@ -2786,8 +2788,8 @@ int main(int argc, char *argv[]){
 	gsl_rng * r;
 	
 	/* Reading in data from command line */
-	if(argc < 7){
-		fprintf(stderr,"At least 6 inputs are needed.\n");
+	if(argc < 6){
+		fprintf(stderr,"At least 5 inputs are needed.\n");
 		usage();
 	}
 	
@@ -2811,15 +2813,9 @@ int main(int argc, char *argv[]){
 		fprintf(stderr,"Baseline rate of sexual reproduction has to lie between 0 and 1.\n");
 		usage();
 	}
-	
-	theta = strtod(argv[5],NULL);
-	if(theta <= 0){
-		fprintf(stderr,"Mutation rate must be a positive value.\n");
-		usage();
-	}
-	
+
 	/* Number of samples/reps to take */
-	Nreps = atoi(argv[6]);
+	Nreps = atoi(argv[5]);
 	if(Nreps <= 0){
 		fprintf(stderr,"Must set positive number of repetitions.\n");
 		usage();
@@ -2850,13 +2846,23 @@ int main(int argc, char *argv[]){
 	*(demes + 0) = 0;
 	
 	/* Now moving onto case-by-case parameter setting */
-	if(argc > 7){
+	if(argc > 6){
 		while(argx < argc){
 			if(argv[argx][0] != '-'){
 				fprintf(stderr,"Further arguments should be of form -C, for C a defined character.\n");
 				usage();
 			}
 			switch ( argv[argx][1] ){
+				case 't':		/* Defining Mutation Rate (theta) */
+					ismut = 1;
+					argx++;
+					theta = strtod(argv[argx],NULL);
+					if(theta <= 0){
+						fprintf(stderr,"Mutation rate must be a positive value.\n");
+						usage();
+					}
+					argx++;
+					break;
 				case 'r':		/* Defining recombination (cross over) */
 					isrec = 1;
 					argx++;
@@ -3047,6 +3053,11 @@ int main(int argc, char *argv[]){
 		}
 	}
 	
+	if(ismut == 0 && prtrees == 0){
+		fprintf(stderr,"Error: Have to define a mutation rate or print out trees.\n");
+		usage();
+	}
+	
 	if(isrec == 1){
 		rec = rec/(2.0*(nsites-1)*N*d);
 		gme = gme/(2.0*N*d);		
@@ -3096,14 +3107,15 @@ int main(int argc, char *argv[]){
 	fclose(ofp_sd);
 	if(ismsp == 1){
 		printf("%lu\n",gsl_rng_default_seed);
-		printf("\n");
 	}
 	
 	/* Creating necessary directories */
 	if((rec > 0 || gmi > 0 || gme > 0) && (nsites != 1) && (prtrees == 1)){
 		mkdir("Trees/", 0777);
 	}
-	mkdir("Mutations/", 0777);
+	if(ismut == 1){
+		mkdir("Mutations/", 0777);
+	}
 	
 	/* Running the simulation Nreps times */
 	for(i = 0; i < Nreps; i++){
@@ -3447,6 +3459,7 @@ int main(int argc, char *argv[]){
 		*/
 		
 		if(ismsp == 1){
+	    	printf("\n");
 			printf("// \n");
 		}		
 
@@ -3486,7 +3499,7 @@ int main(int argc, char *argv[]){
 			printf("For x equal %d: mind, maxd are %lf %lf\n",x,mind,maxd);
 			printf("\n");
 			*/
-			char *ret_tree = treemaker(TFin, theta*(maxd-mind), mind2, maxd2 ,mind, maxd, Itot, i, gmi, gme, ismsp, &nmutT, prtrees, r);
+			char *ret_tree = treemaker(TFin, theta*(maxd-mind), mind2, maxd2 ,mind, maxd, Itot, i, gmi, gme, ismsp, &nmutT, prtrees, ismut, r);
 			if(prtrees == 1){
 				if((rec == 0 && gmi == 0 && gme == 0) || (nsites == 1) ){
 					if(i == 0){
