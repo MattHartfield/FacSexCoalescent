@@ -3271,10 +3271,6 @@ int main(int argc, char *argv[]){
 				exit(1);
 			}
 			if(isanylessD_2D(pr,12,d,0) == 1){
-				/*
-				fprintf(stderr,"A negative probability exists, you need to double-check your algebra (or probability inputs) - esex 0.\n");
-				exit(1);
-				*/
 				proberr(0, pr);
 				
 			}
@@ -3334,10 +3330,6 @@ int main(int argc, char *argv[]){
 					/* Then recalculating probability of events */
 					probset2(N, gmi, gme, sexC, rec, bigQmi, bigQme, lrec, nlrec, nlrec2, mig, Nwith, Nbet, evsex, 1, pr);
 					if(isanylessD_2D(pr,12,d,0) == 1){
-						/*
-						fprintf(stderr,"A negative probability exists, you need to double-check your algebra (or probability inputs) - esex 1.\n");
-						exit(1);
-						*/
 						proberr(1, pr);
 					}
 										
