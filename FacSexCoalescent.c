@@ -83,6 +83,7 @@ void Wait();
 void TestTabs(unsigned int **indvs, int **GType, double **CTms , int **TAnc, unsigned int **breaks, unsigned int NMax, unsigned int Itot, unsigned int nbreaks);
 char * treemaker(double **TFin, double thetain, unsigned int mind2, unsigned int maxd2, double mind, double maxd, unsigned int Itot, unsigned int run, double gmi, double gme, unsigned int ismsp, unsigned int *nmutT, unsigned int prtrees, unsigned int ismut, const gsl_rng *r);
 void reccal(unsigned int **indvs, int **GType, unsigned int **breaks, unsigned int *Nbet, unsigned int *Nwith, unsigned int *rsex, unsigned int esex, unsigned int *lnrec, unsigned int lrec, unsigned int nbreaks, unsigned int NMax, unsigned int sw, unsigned int run);
+void proberr(unsigned int est, double **pr);
 void usage();
 
 /* Global variable declaration */
@@ -415,13 +416,22 @@ unsigned int trig(unsigned int x){
 
 /* 'K' function, for GC calculations */
 double KQ(double Q){
-	return 1.0 - (1.0 - exp(-Q))/Q;
+	return 1.0 - ((1.0 - exp(-Q))/(1.0*Q));
 }
 
 /* Partial GC prob calculations. For calculating overall GC prob, and subprobs of different events */
 double singGC(unsigned int y, unsigned int k, double geemi, double geeme, double Qmi, double Qme, double sexC){
 	return y*(geemi*(2.0-KQ(Qmi)) + sexC*geeme*(2.0-KQ(Qme))) + 2*k*(geemi*(2.0-KQ(Qmi)) + geeme*(2.0-KQ(Qme)));
 }
+
+/*
+void singGCP(unsigned int y, unsigned int k, double geemi, double geeme, double Qmi, double Qme, double sexC);
+void singGCP(unsigned int y, unsigned int k, double geemi, double geeme, double Qmi, double Qme, double sexC){
+	printf("SCG vars are y %d, k %d, geemi %lf, geeme %lf, Qmi %lf, Qme %lf, sexC %lf\n",y,k,geemi,geeme,Qmi,Qme,sexC);
+	printf("Tot is %lf\n",y*(geemi*(2.0-KQ(Qmi)) + sexC*geeme*(2.0-KQ(Qme))) + 2*k*(geemi*(2.0-KQ(Qmi)) + geeme*(2.0-KQ(Qme))));
+	printf("y part is %lf\n",y*(geemi*(2.0-KQ(Qmi)) + sexC*geeme*(2.0-KQ(Qme))));
+}
+*/
 
 double pairGC(unsigned int x, unsigned int k, double geemi, double Qmi){
 	return geemi*(2.0-KQ(Qmi))*(x-k);
@@ -2687,6 +2697,28 @@ void reccal(unsigned int **indvs, int **GType, unsigned int **breaks, unsigned i
 	free(BHi);
 }
 
+void proberr(unsigned int est, double **pr){
+
+	unsigned int j, x;
+	
+	fprintf(stderr,"A negative probability exists, you need to double-check your algebra (or probability inputs) - esex %d.\n",est);
+	fprintf(stderr,"This likely arises due to having excessively high recombination or gene conversion rates - please check.\n");
+	fprintf(stderr,"\n");
+	fprintf(stderr,"For error reporting, the final probability calculations per deme are:\n");
+	
+	for(j = 0; j < 12; j++){
+		fprintf(stderr,"Event %d: ",j);
+		for(x = 0; x < d; x++){			
+			fprintf(stderr,"%0.10lf ",(*((*(pr + j)) + x)));
+		}
+		fprintf(stderr,"\n");
+	}
+	
+	fprintf(stderr,"\n");
+	exit(1);				
+
+}
+
 void usage(){
 fprintf(stderr,"\n");
 fprintf(stderr,"Command: FacSexCoalescent <Population Size> <Paired Samples> <Single Samples> <Rate of Sex> <Reps> <Other parameters>\n");
@@ -3120,9 +3152,7 @@ int main(int argc, char *argv[]){
 	/* Running the simulation Nreps times */
 	for(i = 0; i < Nreps; i++){
 		
-		/*
-		printf("Starting Run %d\n",i);
-		*/
+/*		printf("Starting Run %d\n",i);*/
 		nmutT = 0;
 
 		/* Setting up type of sex heterogeneity */
@@ -3230,17 +3260,7 @@ int main(int argc, char *argv[]){
 			probset2(N, gmi, gme, sexC, rec, bigQmi, bigQme, lrec, nlrec, zeros, mig, Nwith, Nbet, zeros, 0, pr);
 			nosex = powDUI(sexCInv,Nwith,d);				/* Probability of no segregation via sex, accounting for within-deme variation */
 			psum = (1-nosex) + nosex*(sumT_D(pr,12,d));		/* Sum of all event probabilities, for drawing random time */
-			
-			/*
-			for(j = 0; j < 12; j++){
-				for(x = 0; x < d; x++){			
-					printf("%0.10lf ",(*((*(pr + j)) + x)));
-				}
-				printf("\n");
-			}
-			printf("\n");
-			*/
-				
+							
 			/* Intermediate error checking */
 			if(psum > 1){
 				fprintf(stderr,"Summed probabilities exceed one, you need to double-check your algebra (or probability inputs).\n");
@@ -3251,8 +3271,12 @@ int main(int argc, char *argv[]){
 				exit(1);
 			}
 			if(isanylessD_2D(pr,12,d,0) == 1){
+				/*
 				fprintf(stderr,"A negative probability exists, you need to double-check your algebra (or probability inputs) - esex 0.\n");
-				exit(1);				
+				exit(1);
+				*/
+				proberr(0, pr);
+				
 			}
 			
 			/* Drawing time to next event, SCALED TO 2NT GENERATIONS */
@@ -3310,8 +3334,11 @@ int main(int argc, char *argv[]){
 					/* Then recalculating probability of events */
 					probset2(N, gmi, gme, sexC, rec, bigQmi, bigQme, lrec, nlrec, nlrec2, mig, Nwith, Nbet, evsex, 1, pr);
 					if(isanylessD_2D(pr,12,d,0) == 1){
+						/*
 						fprintf(stderr,"A negative probability exists, you need to double-check your algebra (or probability inputs) - esex 1.\n");
-						exit(1);				
+						exit(1);
+						*/
+						proberr(1, pr);
 					}
 										
 				}
@@ -3382,6 +3409,8 @@ int main(int argc, char *argv[]){
 							NMax++;
 							if(NMax > HUGEVAL){
 								fprintf(stderr,"Too many recombinants (exceeds HUGEVAL), exiting program.\n");
+								fprintf(stderr,"This is likely due to having excessively large recombination\n");
+								fprintf(stderr,"or gene conversion parameters\n");
 								exit(1);			
 							}
 						}
@@ -3398,6 +3427,8 @@ int main(int argc, char *argv[]){
 					NMax++;
 					if(NMax > HUGEVAL){
 						fprintf(stderr,"Too many recombinants (exceeds HUGEVAL), exiting program.\n");
+						fprintf(stderr,"This is likely due to having excessively large recombination\n");
+						fprintf(stderr,"or gene conversion parameters\n");
 						exit(1);			
 					}
 				}
