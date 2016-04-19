@@ -84,6 +84,8 @@ void TestTabs(unsigned int **indvs, int **GType, double **CTms , int **TAnc, uns
 char * treemaker(double **TFin, double thetain, unsigned int mind2, unsigned int maxd2, double mind, double maxd, unsigned int Itot, unsigned int run, double gmi, double gme, unsigned int ismsp, unsigned int *nmutT, unsigned int prtrees, unsigned int ismut, const gsl_rng *r);
 void reccal(unsigned int **indvs, int **GType, unsigned int **breaks, unsigned int *Nbet, unsigned int *Nwith, unsigned int *rsex, unsigned int esex, unsigned int *lnrec, unsigned int lrec, unsigned int nbreaks, unsigned int NMax, unsigned int sw, unsigned int run);
 void proberr(unsigned int est, double **pr);
+void proberr2(double **pr);
+void manyr();
 void usage();
 
 /* Global variable declaration */
@@ -2078,7 +2080,7 @@ char * treemaker(double **TFin, double thetain, unsigned int mind2, unsigned int
     			/* Converting values to strings */
 	    		sprintf(p1char, "%d", parent1);
 		    	sprintf(c1char, "%d", child1);
-	    		sprintf(btchar1,"%0.5lf",birthtime);    	
+	    		sprintf(btchar1,"%0.5lf",birthtime);
 
 	    		strcpy(*(clades + nc),lbr);
 		    	strcat(*(clades + nc),p1char);
@@ -2719,6 +2721,35 @@ void proberr(unsigned int est, double **pr){
 
 }
 
+void proberr2(double **pr){
+
+	unsigned int j, x;
+	
+	fprintf(stderr,"Summed probabilities exceed one, you need to double-check your algebra (or probability inputs).\n");
+	fprintf(stderr,"This likely arises due to having excessively high recombination or gene conversion rates - please check.\n");
+	fprintf(stderr,"\n");
+	fprintf(stderr,"For error reporting, the final probability calculations per deme are:\n");
+	
+	for(j = 0; j < 12; j++){
+		fprintf(stderr,"Event %d: ",j);
+		for(x = 0; x < d; x++){			
+			fprintf(stderr,"%0.10lf ",(*((*(pr + j)) + x)));
+		}
+		fprintf(stderr,"\n");
+	}
+	
+	fprintf(stderr,"\n");
+	exit(1);				
+
+}
+
+void manyr(){
+	fprintf(stderr,"Too many recombinants (exceeds HUGEVAL), exiting program.\n");
+	fprintf(stderr,"This is likely due to having excessively large recombination\n");
+	fprintf(stderr,"or gene conversion rates.\n");
+	exit(1);
+}
+
 void usage(){
 fprintf(stderr,"\n");
 fprintf(stderr,"Command: FacSexCoalescent <Population Size> <Paired Samples> <Single Samples> <Rate of Sex> <Reps> <Other parameters>\n");
@@ -3263,8 +3294,7 @@ int main(int argc, char *argv[]){
 							
 			/* Intermediate error checking */
 			if(psum > 1){
-				fprintf(stderr,"Summed probabilities exceed one, you need to double-check your algebra (or probability inputs).\n");
-				exit(1);
+				proberr2(pr);
 			}
 			if((psum <= 0) && (isallD(sexC,d,0) != 1)){
 				fprintf(stderr,"Summed probabilites are zero or negative, you need to double-check your algebra (or probability inputs).\n");
@@ -3272,7 +3302,6 @@ int main(int argc, char *argv[]){
 			}
 			if(isanylessD_2D(pr,12,d,0) == 1){
 				proberr(0, pr);
-				
 			}
 			
 			/* Drawing time to next event, SCALED TO 2NT GENERATIONS */
@@ -3400,10 +3429,7 @@ int main(int argc, char *argv[]){
 							Ntot++;
 							NMax++;
 							if(NMax > HUGEVAL){
-								fprintf(stderr,"Too many recombinants (exceeds HUGEVAL), exiting program.\n");
-								fprintf(stderr,"This is likely due to having excessively large recombination\n");
-								fprintf(stderr,"or gene conversion parameters\n");
-								exit(1);			
+								manyr();			
 							}
 						}
 						if(gcalt == 2){		/* GC led to WH sample coalescing */
@@ -3418,10 +3444,7 @@ int main(int argc, char *argv[]){
 				if(event == 10){
 					NMax++;
 					if(NMax > HUGEVAL){
-						fprintf(stderr,"Too many recombinants (exceeds HUGEVAL), exiting program.\n");
-						fprintf(stderr,"This is likely due to having excessively large recombination\n");
-						fprintf(stderr,"or gene conversion parameters\n");
-						exit(1);			
+						manyr();		
 					}
 				}
 				
@@ -3498,13 +3521,13 @@ int main(int argc, char *argv[]){
 					count++;
 				}
 			}
+			indv_sortD(TFin,(Itot-1),3,1);
 			/*
 			for(j = 0; j < Itot-1; j++){
 				printf("%f %f %f\n",*((*(TFin + j)) + 0),*((*(TFin + j)) + 1),*((*(TFin + j)) + 2));
 			}
 			printf("\n");
 			*/
-			indv_sortD(TFin,(Itot-1),3,1);
 
 			/* Using ancestry table to build tree and mutation table */
 			if(x < nbreaks){
