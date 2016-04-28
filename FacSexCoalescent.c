@@ -1208,8 +1208,6 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 				}
 			}
 			
-/*			printf("STATS: GCST %d, gcdir %d, gcln %d, gcend %d\n",gcst,gcdir,gcln,gcend); */
-			
 			for(x = 0; x < *nbreaks; x++){
 				if( *((*(breaks + 0)) + x) == gcend){
 					isyetbp2 = 1;
@@ -1258,10 +1256,14 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 			if(gcdir == 1){
 				mtrt = mintr;
 				mintr = maxtr;
-				maxtr = mtrt;				
+				maxtr = mtrt;
+				if(isyetbp2 != 1){
+					maxtr++;
+				}
 			}
 			
 			/*
+			printf("STATS: GCST %d, gcdir %d, gcln %d, gcend %d, mintr %d, maxtr %d\n",gcst,gcdir,gcln,gcend,mintr,maxtr);			
 			printf("Maxtr is %d\n",*((*(breaks + 0)) + maxtr));
 			printf("gcst is %d, end is %d\n",gcst,gcend);
 			*/
@@ -1351,12 +1353,22 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, dou
 					}
 				}
 				
+				/*
+				printf("mintr, maxtr, nbreaks are %d %d %d\n",mintr,maxtr,*nbreaks);
+				maxtr2 = maxtr;
+				if(maxtr != (*nbreaks)){
+					maxtr2 = maxtr + 1;
+					printf("Is this done?\n");
+				}
+				printf("maxtr2 is %d\n",maxtr2);
+				*/
+				
 				/* Now updating coalescent times */
 				cchange(indvs, GType, CTms, TAnc, breaks, &csamp, &par, 1, Ntot, mintr, &maxtr, Ttot, iscoal);
 			
 				/* Check if tracts have coalesced */
 				*lrec = ccheck(indvs,GType,breaks,nsites,lrec,Ntot,*nbreaks);
-				
+								
 			}
 			
 			break;
@@ -1639,7 +1651,10 @@ void cchange(unsigned int **indvs, int **GType, double **CTms, int **TAnc, unsig
 			*((*(indvs + crow)) + 2) = 2;
 		}
 		
+		/* printf("Start, end are %d %d\n",cst,*cend); */
+		
 		for(x = cst; x < (*cend); x++){
+		
 			
 			/* Updating coalescent time and parental sample */
 /*			if( (*((*(breaks + 1)) + x) != 1) && (*((*(GType + (*(csamp + i)))) + (x+1))) != (-1) && (*((*(GType + (*(par + i)))) + (x+1))) != (-1) && (*((*(TAnc + (*(par + i)))) + (x+1))) != *(csamp + i) && ((*((*(CTms + (*(csamp + i)))) + (x+1))) == (-1) || ( (*((*(CTms + (*(csamp + i)))) + (x+1))) != (-1) && (*((*(CTms + (*(par + i)))) + (x+1))) == (-1) && isall != 0))){ */
@@ -1850,7 +1865,6 @@ void Wait(){
 void TestTabs(unsigned int **indvs, int **GType, double **CTms, int **TAnc, unsigned int **breaks, unsigned int NMax, unsigned int Itot, unsigned int nbreaks){
 
 	unsigned int j, x;
-	
 	printf("INDV TABLE\n");
 	for(j = 0; j < NMax; j++){
 		for(x = 0; x < 4; x++){
@@ -1859,7 +1873,7 @@ void TestTabs(unsigned int **indvs, int **GType, double **CTms, int **TAnc, unsi
 		printf("\n");
 	}
 	printf("\n");
-/*	
+
 	printf("GTYPE TABLE\n");
 	for(j = 0; j < NMax; j++){
 		for(x = 0; x <= nbreaks; x++){
@@ -1886,7 +1900,7 @@ void TestTabs(unsigned int **indvs, int **GType, double **CTms, int **TAnc, unsi
 		printf("\n");
 	}
 	printf("\n");
-*/	
+
 	printf("BREAKS TABLE\n");
 	for(j = 0; j < 2; j++){
 		for(x = 0; x < nbreaks; x++){
@@ -3405,12 +3419,14 @@ int main(int argc, char *argv[]){
 				gcalt = 0;
 				coalesce(indvs, GType, CTms, TAnc, Ttot, Nwith, Nbet, deme, rsex, evsex, event, drec, e2, breaks, nsites, &lrec, &nbreaks, NMax, Itot, lambdami, lambdame, gmi, gme, bigQmi, bigQme, &gcalt, sexC, r, i);
 				/* printf("Lrec is %d\n",lrec); */
-				/*
-				if(esex > 0 && event == 5){
+				
+				/* 
+				if(event == 8){
 					printf("event %d, esex %d, first %d\n",event,esex,*(rsex + 0));
 					TestTabs(indvs, GType, CTms, TAnc, breaks, NMax, Itot, nbreaks);
+					Wait();
 				}
-				*/
+				*/				
 				
 				/* Based on outcome, altering (non-mig) states accordingly */
 				if(event != 9){		/* Since already done for state = 9 above... */
