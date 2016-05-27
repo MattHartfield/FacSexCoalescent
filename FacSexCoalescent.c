@@ -86,7 +86,7 @@ void indv_sort(unsigned int **indvs, unsigned int nrow);
 void indv_sortD(double **Tin, unsigned int nrow, unsigned int ncol, unsigned int tcol);
 void Wait();
 void TestTabs(unsigned int **indvs, int **GType, double **CTms, int **TAnc, unsigned int **breaks, unsigned int **nlri, unsigned int NMax, unsigned int Itot, unsigned int Nbet, unsigned int nbreaks);
-char * treemaker(double **TFin, double thetain, unsigned int mind2, unsigned int maxd2, double mind, double maxd, unsigned int Itot, unsigned int run, double gmi, double gme, unsigned int ismsp, unsigned int *nmutT, unsigned int prtrees, unsigned int ismut, const gsl_rng *r);
+char * treemaker(double **TFin, double thetain, unsigned int mind2, unsigned int maxd2, double mind, double maxd, unsigned int Itot, unsigned int run, double gmi, double gme, unsigned int ismsp, unsigned int *nmutT, unsigned int prtrees, unsigned int ismut, double pburst, unsigned int mburst, double bdist, const gsl_rng *r);
 void reccal(unsigned int **indvs, int **GType, unsigned int **breaks, unsigned int **nlri, unsigned int *Nbet, unsigned int *Nwith, unsigned int *rsex, unsigned int esex, unsigned int *lnrec, unsigned int lrec, unsigned int nbreaks, unsigned int NMax, unsigned int sw, unsigned int run);
 void proberr(unsigned int est, double **pr);
 void proberr2(double **pr);
@@ -2053,12 +2053,13 @@ void TestTabs(unsigned int **indvs, int **GType, double **CTms, int **TAnc, unsi
 }
 
 /* Function to reconstruct genealogy and to add mutation to branches */
-char * treemaker(double **TFin, double thetain, unsigned int mind2, unsigned int maxd2, double mind, double maxd, unsigned int Itot, unsigned int run, double gmi, double gme, unsigned int ismsp, unsigned int *nmutT, unsigned int prtrees, unsigned int ismut, const gsl_rng *r){
+char * treemaker(double **TFin, double thetain, unsigned int mind2, unsigned int maxd2, double mind, double maxd, unsigned int Itot, unsigned int run, double gmi, double gme, unsigned int ismsp, unsigned int *nmutT, unsigned int prtrees, unsigned int ismut, double pburst, unsigned int mburst, double bdist, const gsl_rng *r){
 	unsigned int i, j, k, a, x;
 	unsigned int lct = Itot;
 	unsigned int lct2 = lct-1;
 	unsigned int nc = 0;			/* {N}umber of {c}lades in current reconstruction */
 	double birthtime = 0;			/* Coalescent time */
+	double cbst = 0;				/* Centre of burst event */
 	unsigned int child1 = 0;		/* Coalesced sample */
 	unsigned int parent1 = 0;		/* Parental sample */	
 	unsigned int csum = 0;			/* How many of each have been sampled, to decide action*/
@@ -2076,7 +2077,10 @@ char * treemaker(double **TFin, double thetain, unsigned int mind2, unsigned int
 	unsigned int clen = 256;		/* Space allocated to clades array */
 	unsigned int nmut = 0;			/* Number of mutants added */
 	unsigned int n;				 	/* sprintf counter */
-	unsigned int newr = 0;			/* New rows in table if need to expand */	
+	unsigned int newr = 0;			/* New rows in table if need to expand */
+	unsigned int isbst = 0;			/* Are next mutants clustered ? */
+	unsigned int bsze = 0;			/* Burst counter */
+	unsigned int isrb = 0;			/* Checking if burst distance lies in actual distance */
 	
 	static const char lbr[] = "(";
 	static const char rbr[] = ")";
@@ -2147,6 +2151,8 @@ char * treemaker(double **TFin, double thetain, unsigned int mind2, unsigned int
 			rmut1 = gsl_ran_poisson(r,(0.5*thetain*birthtime));
 			rmut2 = gsl_ran_poisson(r,(0.5*thetain*birthtime));
 			if(rmut1 != 0){
+				isbst = 0;
+				bsze = 0;
 				if((nmut + rmut1) > MTRows){
 					newr = MTRows;
 					while(newr < (nmut + rmut1)){
@@ -2163,13 +2169,31 @@ char * treemaker(double **TFin, double thetain, unsigned int mind2, unsigned int
 				}
 				for(a = 0; a < rmut1; a++){
 					/* Indicating location of mutants */
-					*((*(MTab + (nmut+a))) + 0) = gsl_ran_flat(r, mind, maxd);
+					if(bsze == 0){
+						*((*(MTab + (nmut+a))) + 0) = gsl_ran_flat(r, mind, maxd);
+						isbst = gsl_ran_bernoulli(r,pburst);
+						if(isbst == 1){
+							bsze = mburst;
+							cbst = *((*(MTab + (nmut+a))) + 0);
+						}
+					}else if(bsze > 0){
+						isrb = 0;
+						while(isrb == 0){
+							*((*(MTab + (nmut+a))) + 0) = gsl_ran_flat(r, cbst-bdist, cbst+bdist);
+							if( (mind < *((*(MTab + (nmut+a))) + 0)) && (*((*(MTab + (nmut+a))) + 0) < maxd) ){
+								isrb = 1;
+							}
+						}
+						bsze--;
+					}
 					*((*(MTab + (nmut+a))) + (parent1+1)) = 1;
 				}
 				nmut += rmut1;
 			}
 			
 			if(rmut2 != 0){
+				isbst = 0;
+				bsze = 0;			
 				if((nmut + rmut2) > MTRows){
 					newr = MTRows;
 					while(newr < (nmut + rmut2)){
@@ -2186,7 +2210,23 @@ char * treemaker(double **TFin, double thetain, unsigned int mind2, unsigned int
 				}
 				for(a = 0; a < rmut2; a++){
 					/* Indicating location of mutants */
-					*((*(MTab + (nmut+a))) + 0) = gsl_ran_flat(r, mind, maxd);
+					if(bsze == 0){
+						*((*(MTab + (nmut+a))) + 0) = gsl_ran_flat(r, mind, maxd);
+						isbst = gsl_ran_bernoulli(r,pburst);
+						if(isbst == 1){
+							bsze = mburst;
+							cbst = *((*(MTab + (nmut+a))) + 0);
+						}
+					}else if(bsze > 0){
+						isrb = 0;
+						while(isrb == 0){
+							*((*(MTab + (nmut+a))) + 0) = gsl_ran_flat(r, cbst-bdist, cbst+bdist);
+							if( (mind < *((*(MTab + (nmut+a))) + 0)) && (*((*(MTab + (nmut+a))) + 0) < maxd) ){
+								isrb = 1;
+							}
+						}
+						bsze--;
+					}
 					*((*(MTab + (nmut+a))) + (child1+1)) = 1;
 				}
 				nmut += rmut2;
@@ -2247,6 +2287,8 @@ char * treemaker(double **TFin, double thetain, unsigned int mind2, unsigned int
 				rmut1 = gsl_ran_poisson(r,(0.5*thetain*birthtime));
 				rmut2 = gsl_ran_poisson(r,(0.5*thetain*birthtime));
 				if(rmut1 != 0){
+					isbst = 0;
+					bsze = 0;
 					if((nmut + rmut1) > MTRows){
 						newr = MTRows;
 						while(newr < (nmut + rmut1)){
@@ -2263,13 +2305,31 @@ char * treemaker(double **TFin, double thetain, unsigned int mind2, unsigned int
 					}
 					for(a = 0; a < rmut1; a++){
 						/* Indicating location of mutants */
-						*((*(MTab + (nmut+a))) + 0) = gsl_ran_flat(r, mind, maxd);
+						if(bsze == 0){
+							*((*(MTab + (nmut+a))) + 0) = gsl_ran_flat(r, mind, maxd);
+							isbst = gsl_ran_bernoulli(r,pburst);
+							if(isbst == 1){
+								bsze = mburst;
+								cbst = *((*(MTab + (nmut+a))) + 0);
+							}
+						}else if(bsze > 0){
+							isrb = 0;
+							while(isrb == 0){
+								*((*(MTab + (nmut+a))) + 0) = gsl_ran_flat(r, cbst-bdist, cbst+bdist);
+								if( (mind < *((*(MTab + (nmut+a))) + 0)) && (*((*(MTab + (nmut+a))) + 0) < maxd) ){
+									isrb = 1;
+								}
+							}
+							bsze--;
+						}
 						*((*(MTab + (nmut+a))) + (parent1+1)) = 1;
 					}
 					nmut += rmut1;
 				}
 		
 				if(rmut2 != 0){
+					isbst = 0;
+					bsze = 0;				
 					if((nmut + rmut2) > MTRows){
 						newr = MTRows;
 						while(newr < (nmut + rmut2)){
@@ -2286,7 +2346,23 @@ char * treemaker(double **TFin, double thetain, unsigned int mind2, unsigned int
 					}
 					for(a = 0; a < rmut2; a++){
 						/* Indicating location of mutants */
-						*((*(MTab + (nmut+a))) + 0) = gsl_ran_flat(r, mind, maxd);
+						if(bsze == 0){
+							*((*(MTab + (nmut+a))) + 0) = gsl_ran_flat(r, mind, maxd);
+							isbst = gsl_ran_bernoulli(r,pburst);
+							if(isbst == 1){
+								bsze = mburst;
+								cbst = *((*(MTab + (nmut+a))) + 0);
+							}
+						}else if(bsze > 0){
+							isrb = 0;
+							while(isrb == 0){
+								*((*(MTab + (nmut+a))) + 0) = gsl_ran_flat(r, cbst-bdist, cbst+bdist);
+								if( (mind < *((*(MTab + (nmut+a))) + 0)) && (*((*(MTab + (nmut+a))) + 0) < maxd) ){
+									isrb = 1;
+								}
+							}
+							bsze--;
+						}
 						*((*(MTab + (nmut+a))) + (child1+1)) = 1;
 					}
 					nmut += rmut2;
@@ -2354,6 +2430,8 @@ char * treemaker(double **TFin, double thetain, unsigned int mind2, unsigned int
 				rmut1 = gsl_ran_poisson(r,(0.5*thetain*(birthtime - (*(Cheight+pc)))));
 				rmut2 = gsl_ran_poisson(r,(0.5*thetain*birthtime));
 				if(rmut1 != 0){
+					isbst = 0;
+					bsze = 0;
 					if((nmut + rmut1) > MTRows){
 						newr = MTRows;
 						while(newr < (nmut + rmut1)){
@@ -2370,7 +2448,24 @@ char * treemaker(double **TFin, double thetain, unsigned int mind2, unsigned int
 					}
 					for(a = 0; a < rmut1; a++){
 						/* Indicating location of mutants */
-						*((*(MTab + (nmut+a))) + 0) = gsl_ran_flat(r, mind, maxd);
+						if(bsze == 0){
+							*((*(MTab + (nmut+a))) + 0) = gsl_ran_flat(r, mind, maxd);
+							isbst = gsl_ran_bernoulli(r,pburst);
+							if(isbst == 1){
+								bsze = mburst;
+								cbst = *((*(MTab + (nmut+a))) + 0);
+							}
+						}else if(bsze > 0){
+							isrb = 0;
+							while(isrb == 0){
+								*((*(MTab + (nmut+a))) + 0) = gsl_ran_flat(r, cbst-bdist, cbst+bdist);
+								if( (mind < *((*(MTab + (nmut+a))) + 0)) && (*((*(MTab + (nmut+a))) + 0) < maxd) ){
+									isrb = 1;
+								}
+							}
+							bsze--;
+						}
+						
 						for(k = 0; k < lct; k++){
 							if( (*((*(samps + pc)) + k) != Itot) && (*((*(samps + pc)) + k) != exsamps) ){
 								cs = *((*(samps + pc)) + k);
@@ -2382,6 +2477,8 @@ char * treemaker(double **TFin, double thetain, unsigned int mind2, unsigned int
 				}
 		
 				if(rmut2 != 0){
+					isbst = 0;
+					bsze = 0;
 					if((nmut + rmut2) > MTRows){
 						newr = MTRows;
 						while(newr < (nmut + rmut2)){
@@ -2398,7 +2495,24 @@ char * treemaker(double **TFin, double thetain, unsigned int mind2, unsigned int
 					}
 					for(a = 0; a < rmut2; a++){
 						/* Indicating location of mutants */
-						*((*(MTab + (nmut+a))) + 0) = gsl_ran_flat(r, mind, maxd);
+						if(bsze == 0){
+							*((*(MTab + (nmut+a))) + 0) = gsl_ran_flat(r, mind, maxd);
+							isbst = gsl_ran_bernoulli(r,pburst);
+							if(isbst == 1){
+								bsze = mburst;
+								cbst = *((*(MTab + (nmut+a))) + 0);
+							}
+						}else if(bsze > 0){
+							isrb = 0;
+							while(isrb == 0){
+								*((*(MTab + (nmut+a))) + 0) = gsl_ran_flat(r, cbst-bdist, cbst+bdist);
+								if( (mind < *((*(MTab + (nmut+a))) + 0)) && (*((*(MTab + (nmut+a))) + 0) < maxd) ){
+									isrb = 1;
+								}
+							}
+							bsze--;
+						}
+						
 						*((*(MTab + (nmut+a))) + (exsamps + 1)) = 1;
 					}
 					nmut += rmut2;
@@ -2444,6 +2558,8 @@ char * treemaker(double **TFin, double thetain, unsigned int mind2, unsigned int
 				rmut1 = gsl_ran_poisson(r,(0.5*thetain*(birthtime - (*(Cheight+pc)))));
 				rmut2 = gsl_ran_poisson(r,(0.5*thetain*(birthtime - (*(Cheight+cc)))));
 				if(rmut1 != 0){
+					isbst = 0;
+					bsze = 0;
 					if((nmut + rmut1) > MTRows){
 						newr = MTRows;
 						while(newr < (nmut + rmut1)){
@@ -2460,7 +2576,24 @@ char * treemaker(double **TFin, double thetain, unsigned int mind2, unsigned int
 					}
 					for(a = 0; a < rmut1; a++){
 						/* Indicating location of mutants */
-						*((*(MTab + (nmut+a))) + 0) = gsl_ran_flat(r, mind, maxd);
+						if(bsze == 0){
+							*((*(MTab + (nmut+a))) + 0) = gsl_ran_flat(r, mind, maxd);
+							isbst = gsl_ran_bernoulli(r,pburst);
+							if(isbst == 1){
+								bsze = mburst;
+								cbst = *((*(MTab + (nmut+a))) + 0);
+							}
+						}else if(bsze > 0){
+							isrb = 0;
+							while(isrb == 0){
+								*((*(MTab + (nmut+a))) + 0) = gsl_ran_flat(r, cbst-bdist, cbst+bdist);
+								if( (mind < *((*(MTab + (nmut+a))) + 0)) && (*((*(MTab + (nmut+a))) + 0) < maxd) ){
+									isrb = 1;
+								}
+							}
+							bsze--;
+						}
+
 						for(k = 0; k < lct; k++){
 							if( *((*(samps + pc)) + k) != Itot ){
 								cs = *((*(samps + pc)) + k);
@@ -2472,6 +2605,8 @@ char * treemaker(double **TFin, double thetain, unsigned int mind2, unsigned int
 				}
 				
 				if(rmut2 != 0){
+					isbst = 0;
+					bsze = 0;				
 					if((nmut + rmut2) > MTRows){
 						newr = MTRows;
 						while(newr < (nmut + rmut2)){
@@ -2488,7 +2623,24 @@ char * treemaker(double **TFin, double thetain, unsigned int mind2, unsigned int
 					}
 					for(a = 0; a < rmut2; a++){
 						/* Indicating location of mutants */
-						*((*(MTab + (nmut+a))) + 0) = gsl_ran_flat(r, mind, maxd);
+						if(bsze == 0){
+							*((*(MTab + (nmut+a))) + 0) = gsl_ran_flat(r, mind, maxd);
+							isbst = gsl_ran_bernoulli(r,pburst);
+							if(isbst == 1){
+								bsze = mburst;
+								cbst = *((*(MTab + (nmut+a))) + 0);
+							}
+						}else if(bsze > 0){
+							isrb = 0;
+							while(isrb == 0){
+								*((*(MTab + (nmut+a))) + 0) = gsl_ran_flat(r, cbst-bdist, cbst+bdist);
+								if( (mind < *((*(MTab + (nmut+a))) + 0)) && (*((*(MTab + (nmut+a))) + 0) < maxd) ){
+									isrb = 1;
+								}
+							}
+							bsze--;
+						}
+						
 						for(k = 0; k < lct; k++){
 							if( *((*(samps + cc)) + k) != Itot ){
 								cs = *((*(samps + cc)) + k);
@@ -2924,7 +3076,8 @@ fprintf(stderr," -P: prints out data to screen using MS-style format\n");
 fprintf(stderr," -r: [2Nr nsites] to specify recombination\n");
 fprintf(stderr," -c: [2N(g_me) lambda_me] specifies rate and mean length of MEIOTIC gene conversion\n");
 fprintf(stderr," -m: [2N(g_mi) lambda_mi] specifies rate and mean length of MITOTIC gene conversion\n");
-fprintf(stderr," (For -c, -m, need to first use -r to specify number of sites, even if 2Nr = 0)\n");
+fprintf(stderr," -b: [p_burst max_burst dist] specifies parameters for some polymorphisms to cluster ('burst')\n");
+fprintf(stderr," (For -c, -m, -b: need to first use -r to specify number of sites, even if 2Nr = 0)\n");
 fprintf(stderr," -I: d [Paired_j Single_j]...[2Nm] for defining island model.\n");
 fprintf(stderr,"     d is number of demes: [Paired_j Single_j] are d pairs of samples per deme;\n");
 fprintf(stderr,"     2Nm is net migration rate between demes.\n");
@@ -2980,11 +3133,13 @@ int main(int argc, char *argv[]){
 	unsigned int prtrees = 0;	/* Print out trees to file */
 	unsigned int isrec = 0;		/* Has rec been defined? */
 	unsigned int ismig = 0;		/* Has population structure been defined? */	
+	unsigned int isburst = 0;	/* Has a burst of mutations been defined? */
 	unsigned int ismsp = 0;		/* Use MS-style printout? */
 	unsigned int nmutT = 0;		/* Total mutants (for printout) */
 	unsigned int mind2 = 0;
 	unsigned int maxd2 = 0;	
 	unsigned int ismut = 0;		/* Mutation defined? */
+	unsigned int mburst = 0;	/* Max burst size */
 	double bsex = 0;			/* Baseline rate of sex (for initial inputting) */
 	double pLH = 0;				/* Prob of low-sex to high-sex transition, OR time of transition if stepwise change */
 	double pHL = 0;				/* Prob of high-sex to low-sex transition */
@@ -3005,6 +3160,8 @@ int main(int argc, char *argv[]){
 	double lambdame = 0;		/* Average length of MEIOTIC GC event */	
 	double bigQmi = 1/(1.0*0);	/* Relative length of lambdami (for GC prob calculations) */	
 	double bigQme = 1/(1.0*0);	/* Relative length of lambdame (for GC prob calculations) */		
+	double pburst = 0;			/* Probability that subsequent mutations will cluster */
+	double bdist = 0;			/* Max distance if mutations cluster */
 	char Tout[32];				/* String to hold filename in (Trees) */
 	FILE *ofp_tr = NULL;		/* Pointer for tree output */
 	FILE *ofp_sd;				/* Pointer for seed output */
@@ -3275,6 +3432,38 @@ int main(int argc, char *argv[]){
 					ismsp = 1;
 					argx++;
 					break;
+				case 'b':
+					if(isrec == 0){
+						fprintf(stderr,"Have to define number of breakpoints first (using -r) before defining burst of mutations.\n");
+						usage();
+					}
+					if(ismut == 0){
+						fprintf(stderr,"Need to define a mutation rate first.\n");
+						usage();
+					}					
+				
+					isburst = 1;
+					argx++;
+					pburst = strtod(argv[argx],NULL);
+					argx++;
+					mburst = atoi(argv[argx]);
+					argx++;
+					bdist = strtod(argv[argx],NULL);
+					
+					if( (pburst < 0) || (pburst > 1) ){
+						fprintf(stderr,"Burst probability has to lie between 0 and 1.\n");
+						usage();
+					}
+					if(mburst == 0){
+						fprintf(stderr,"Max burst size has to be greater than zero.\n");
+						usage();
+					}
+					if(bdist == 0){
+						fprintf(stderr,"Burst distance has to be greater than zero.\n");
+						usage();
+					}
+					argx++;
+					break;
 				default:	/* If none of these cases chosen, exit with error message */
 					fprintf(stderr,"Error: Non-standard input given.\n");
 					usage();
@@ -3294,10 +3483,14 @@ int main(int argc, char *argv[]){
 		gmi = gmi/(2.0*N*d);
 	}
 	
+	if(isburst == 1){
+		bdist = bdist/(1.0*nsites);
+	}
+	
 	if(d == 1){
 		mig = 0;	/* Set migration to zero if only one deme, as a precaution */
 	}
-	if(rec == 0 && gmi == 0 && gme == 0){
+	if(rec == 0 && gmi == 0 && gme == 0 && isburst == 0){
 		nsites = 1; /* Set number of sites to 1 if no recombination OR gc, as a precaution */
 	}
 	if(nsites == 1){
@@ -3729,7 +3922,7 @@ int main(int argc, char *argv[]){
 			printf("For x equal %d: mind, maxd are %lf %lf\n",x,mind,maxd);
 			printf("\n");
 			*/
-			char *ret_tree = treemaker(TFin, theta*(maxd-mind), mind2, maxd2 ,mind, maxd, Itot, i, gmi, gme, ismsp, &nmutT, prtrees, ismut, r);
+			char *ret_tree = treemaker(TFin, theta*(maxd-mind), mind2, maxd2 ,mind, maxd, Itot, i, gmi, gme, ismsp, &nmutT, prtrees, ismut, pburst, mburst, bdist, r);
 			if(prtrees == 1){
 				if((rec == 0 && gmi == 0 && gme == 0) || (nsites == 1) ){
 					if(i == 0){
