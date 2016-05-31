@@ -3927,7 +3927,7 @@ int main(int argc, char *argv[]){
 				if((rec == 0 && gmi == 0 && gme == 0) || (nsites == 1) ){
 					if(i == 0){
 						ofp_tr = fopen("Trees.dat","w");
-					}else if(i > 1){
+					}else if(i > 0){
 						ofp_tr = fopen("Trees.dat","a+");
 					}
 					fprintf(ofp_tr,"%s\n",ret_tree);
