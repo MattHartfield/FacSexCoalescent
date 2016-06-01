@@ -1175,40 +1175,45 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, uns
 			
 			/* Now determining type of GC event. */
 			/* Does there exist one or two breakpoints? */
-			p1bp = 2.0*((1-KQ(Qin))/(1.0*(2.0-KQ(Qin))));
-			gcbp = gsl_ran_bernoulli(r,p1bp);
+			if(nsites > 1){
+				p1bp = 2.0*((1-KQ(Qin))/(1.0*(2.0-KQ(Qin))));
+				gcbp = gsl_ran_bernoulli(r,p1bp);
 			
-			if(gcbp == 0){			/* Two breakpoints */
-				gcst = 0;
-				gcend = nsites;
-				while(gcst == 0 || gcst >= (nsites-1)){
-					gcst2 = gsl_ran_flat(r, 0, 1);
-					gcst = (unsigned int)(invs2(gcst2,Qin)*nsites);
-				}
-				while(gcend >= nsites){
-					gcln = 0;
-					while(gcln == 0){
-						gcln = (gsl_ran_geometric(r,(1.0/lambda)));
-					}
-					gcend = gcst + gcln;
-				}
-			}else if(gcbp == 1){ 	/* One breakpoint */
-				gcst3 = gsl_ran_bernoulli(r,0.5);
-				if(gcst3 == 0){		/* Starts outside, ends in */
+				if(gcbp == 0){			/* Two breakpoints */
 					gcst = 0;
-					gcend = 0;
-					while(gcend == 0 || gcend == nsites){
-						gcend2 = gsl_ran_flat(r, 0, 1);
-						gcend = (unsigned int)(invt1(gcend2,Qin)*nsites);
-					}
-				}else if(gcst3 == 1){		/* Starts inside, ends out */
 					gcend = nsites;
-					gcst = 0;
-					while(gcst == 0 || gcst == nsites){
+					while(gcst == 0 || gcst >= (nsites-1)){
 						gcst2 = gsl_ran_flat(r, 0, 1);
-						gcst = (unsigned int)(invs1(gcst2,Qin)*nsites);
+						gcst = (unsigned int)(invs2(gcst2,Qin)*nsites);
+					}
+					while(gcend >= nsites){
+						gcln = 0;
+						while(gcln == 0){
+							gcln = (gsl_ran_geometric(r,(1.0/lambda)));
+						}
+						gcend = gcst + gcln;
+					}
+				}else if(gcbp == 1){ 	/* One breakpoint */
+					gcst3 = gsl_ran_bernoulli(r,0.5);
+					if(gcst3 == 0){		/* Starts outside, ends in */
+						gcst = 0;
+						gcend = 0;
+						while(gcend == 0 || gcend == nsites){
+							gcend2 = gsl_ran_flat(r, 0, 1);
+							gcend = (unsigned int)(invt1(gcend2,Qin)*nsites);
+						}
+					}else if(gcst3 == 1){		/* Starts inside, ends out */
+						gcend = nsites;
+						gcst = 0;
+						while(gcst == 0 || gcst == nsites){
+							gcst2 = gsl_ran_flat(r, 0, 1);
+							gcst = (unsigned int)(invs1(gcst2,Qin)*nsites);
+						}
 					}
 				}
+			}else if(nsites == 1){
+				gcst = 0;
+				gcend = nsites;				
 			}
 			
 			/* Finding block number associated with start point */
@@ -1392,7 +1397,6 @@ void coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, uns
 				){
 					iscoal = 1;
 					/*
-					printf("Daddy would you like some sausage?\n");
 					printf("In samp %d, start at %d, block %d\n",gcsamp,gcst,mintr);
 					printf("End at %d, block %d\n",gcend,maxtr);
 					printf("Case 1 is %d, Case 2 is %d\n",cs1,cs2);
@@ -3078,6 +3082,7 @@ fprintf(stderr," -c: [2N(g_me) lambda_me] specifies rate and mean length of MEIO
 fprintf(stderr," -m: [2N(g_mi) lambda_mi] specifies rate and mean length of MITOTIC gene conversion\n");
 fprintf(stderr," -b: [p_burst max_burst dist] specifies parameters for some polymorphisms to cluster ('burst')\n");
 fprintf(stderr," (For -c, -m, -b: need to first use -r to specify number of sites, even if 2Nr = 0)\n");
+/*fprintf(stderr," -G: [alpha] specifies population growth, N(t) = N0 exp(-alpha*t) \n");*/
 fprintf(stderr," -I: d [Paired_j Single_j]...[2Nm] for defining island model.\n");
 fprintf(stderr,"     d is number of demes: [Paired_j Single_j] are d pairs of samples per deme;\n");
 fprintf(stderr,"     2Nm is net migration rate between demes.\n");
@@ -3090,7 +3095,7 @@ fprintf(stderr,"     [SexL_j SexH_j] are d pairs of low-sex, high-sex rates in d
 fprintf(stderr,"     OR they are d pairs of initial-rate, changed-rate of sex (if type = 1).\n");
 fprintf(stderr,"     Only SexL_j is defined if just spatial heterogeneity is present (if type = 2).\n");
 fprintf(stderr,"     Note that with -H, one must first specify -I to specify subdivision (even if only one population).\n");
-fprintf(stderr,"See README file for further details.\n");
+fprintf(stderr,"See documentation for further details.\n");
 fprintf(stderr,"\n");
 exit(1);
 }
@@ -3140,6 +3145,7 @@ int main(int argc, char *argv[]){
 	unsigned int maxd2 = 0;	
 	unsigned int ismut = 0;		/* Mutation defined? */
 	unsigned int mburst = 0;	/* Max burst size */
+	unsigned int isexp = 0;		/* Assume exponential growth/decay? */
 	double bsex = 0;			/* Baseline rate of sex (for initial inputting) */
 	double pLH = 0;				/* Prob of low-sex to high-sex transition, OR time of transition if stepwise change */
 	double pHL = 0;				/* Prob of high-sex to low-sex transition */
@@ -3162,6 +3168,7 @@ int main(int argc, char *argv[]){
 	double bigQme = 1/(1.0*0);	/* Relative length of lambdame (for GC prob calculations) */		
 	double pburst = 0;			/* Probability that subsequent mutations will cluster */
 	double bdist = 0;			/* Max distance if mutations cluster */
+	double alpha = 0;			/* Population growth/shrink parameter */
 	char Tout[32];				/* String to hold filename in (Trees) */
 	FILE *ofp_tr = NULL;		/* Pointer for tree output */
 	FILE *ofp_sd;				/* Pointer for seed output */
@@ -3260,7 +3267,7 @@ int main(int argc, char *argv[]){
 					}
 					argx++;
 					nsites = atoi(argv[argx]);
-					if(nsites < 2){
+					if(nsites < 2 && rec > 0){
 						fprintf(stderr,"Must define at least two sites with recombination.\n");
 						usage();
 					}
@@ -3279,6 +3286,10 @@ int main(int argc, char *argv[]){
 					gme = strtod(argv[argx],NULL);
 					if(gme < 0){
 						fprintf(stderr,"Must define a positive meiotic gene conversion rate.\n");
+						usage();
+					}
+					if(nsites < 2 && gme > 0){
+						fprintf(stderr,"Must define at least two sites with meiotic gene conversion.\n");
 						usage();
 					}
 					argx++;
@@ -3464,6 +3475,16 @@ int main(int argc, char *argv[]){
 					}
 					argx++;
 					break;
+				case 'G':
+					isexp = 1;
+					argx++;
+					alpha = strtod(argv[argx],NULL);
+					if(alpha <= 0){
+						fprintf(stderr,"Growth rate has to be a positive, non-zero value.\n");
+						usage();
+					}
+					argx++;					
+					break;
 				default:	/* If none of these cases chosen, exit with error message */
 					fprintf(stderr,"Error: Non-standard input given.\n");
 					usage();
@@ -3543,7 +3564,7 @@ int main(int argc, char *argv[]){
 	/* Running the simulation Nreps times */
 	for(i = 0; i < Nreps; i++){
 		
-/*		printf("Starting Run %d\n",i);*/
+		/* printf("Starting Run %d\n",i);*/
 		nmutT = 0;
 
 		/* Setting up type of sex heterogeneity */
@@ -3893,7 +3914,11 @@ int main(int argc, char *argv[]){
 			for(j = 0; j < Itot; j++){
 				if((*((*(CTms + j)) + x)) != (-1.0)){
 					*((*(TFin + count)) + 0) = *((*(CTms + j)) + 0);
-					*((*(TFin + count)) + 1) = *((*(CTms + j)) + x);
+					if(isexp == 0){
+						*((*(TFin + count)) + 1) = *((*(CTms + j)) + x);
+					}else if(isexp == 1){
+						*((*(TFin + count)) + 1) = (1/(1.0*alpha))*log(1 + alpha*(*((*(CTms + j)) + x)));
+					}
 					*((*(TFin + count)) + 2) = *((*(TAnc + j)) + x);
 					count++;
 				}
