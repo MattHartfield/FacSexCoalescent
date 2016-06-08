@@ -1743,8 +1743,8 @@ unsigned int ccheck(unsigned int **indvs, int **GType, unsigned int **breaks, un
 void excoal(unsigned int **indvs, int **GType, unsigned int *par, unsigned int nbreaks, unsigned int npar, unsigned int Ntot, int *WCHex, int *BCHex, unsigned int deme){
 	
 	unsigned int i, j;
-	unsigned int prow;
-	unsigned int prent;
+	unsigned int prow = 0;
+	unsigned int prent = 0;
 	
 	for(i = 0; i < npar; i++){
 		if( isallI(*(GType + (*(par + i))), nbreaks + 1, (-1), 1) == 1 ) {
