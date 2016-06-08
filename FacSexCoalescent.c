@@ -904,7 +904,7 @@ unsigned int coalesce(unsigned int **indvs, int **GType, double **CTms , int **T
 		case 4:			/* Event 4: Two pre-existing unique samples re-create paired sample. */
 			done = 0;
 			unsigned int *singsamps4 = calloc(*(Nbet + deme),sizeof(unsigned int));			/* For storing BH samples */
-			unsigned int *twosing = calloc(2,sizeof(unsigned int));
+			unsigned int *twosing = calloc(2,sizeof(unsigned int));	
 
 			sselect_UI(indvs, singsamps4, Ntot, 2, 0, 1, 3, deme);
 
@@ -1109,6 +1109,11 @@ unsigned int coalesce(unsigned int **indvs, int **GType, double **CTms , int **T
 			
 			/* Check if tracts have coalesced */
 			achange = ccheck(indvs,GType,breaks,nsites,Ntot,*nbreaks);
+			
+			printf("Csamp, par are %d %d\n",csamp,par);
+			if((*(Nbet + 0) == 2) && (*(Nwith + 0) == 1)){
+				TestTabs(indvs, GType, CTms, TAnc, breaks, nlri, NMax, Itot, sumUI(Nbet,d), *nbreaks);
+			}
 			
 			if(achange == 1){
 				excoal(indvs, GType, &par, *nbreaks, 1, Ntot, WCHex, BCHex, deme);
@@ -1743,26 +1748,35 @@ unsigned int ccheck(unsigned int **indvs, int **GType, unsigned int **breaks, un
 void excoal(unsigned int **indvs, int **GType, unsigned int *par, unsigned int nbreaks, unsigned int npar, unsigned int Ntot, int *WCHex, int *BCHex, unsigned int deme){
 	
 	unsigned int i, j;
+	unsigned int prow;
+	unsigned int prent;
 	
 	for(i = 0; i < npar; i++){
 		if( isallI(*(GType + (*(par + i))), nbreaks + 1, (-1), 1) == 1 ) {
 			for(j = 0; j < Ntot; j++){
 				if( *((*(indvs + j)) + 0) == *(par + i) ){
-					*((*(indvs + j)) + 1) = HUGEVAL;
-					if(*((*(indvs + j)) + 2) == 1){
-						*(BCHex + deme) -= 1;
-					}else if(*((*(indvs + j)) + 2) == 0){
-						if( (j != 0) && (*((*(indvs + j - 1)) + 1) == *((*(indvs + j)) + 1)) ){
-							*((*(indvs + j - 1)) + 2) = 1;
-						}else if( *((*(indvs + j + 1)) + 1) == *((*(indvs + j)) + 1) ){
-							*((*(indvs + j + 1)) + 2) = 1;
-						}
-						*(WCHex + deme) -= 1;
-						*(BCHex + deme) += 1;
-					}
-					*((*(indvs + j)) + 2) = 2;
+					prow = j;
+					break;
 				}
 			}
+			
+			if(*((*(indvs + prow)) + 2) == 1){
+				*(BCHex + deme) -= 1;
+			}else if(*((*(indvs + prow)) + 2) == 0){
+				prent = *((*(indvs + prow)) + 1);
+				for(j = 0; j < Ntot; j++){
+					if( (*((*(indvs + j)) + 1) == prent) && (*((*(indvs + j)) + 0) != *(par + i) ) ){
+						*((*(indvs + j)) + 2) = 1;
+						break;
+					}
+				}		
+				*(WCHex + deme) -= 1;
+				*(BCHex + deme) += 1;
+			}
+
+			*((*(indvs + prow)) + 1) = HUGEVAL;
+			*((*(indvs + prow)) + 2) = 2;
+			
 		}
 	}
 	
@@ -1964,7 +1978,7 @@ void TestTabs(unsigned int **indvs, int **GType, double **CTms, int **TAnc, unsi
 	}
 	printf("\n");	
 
-	Wait();		
+/*	Wait();		*/
 /*	exit(1);	*/
 
 }
@@ -3398,7 +3412,7 @@ int main(int argc, char *argv[]){
 	/* Running the simulation Nreps times */
 	for(i = 0; i < Nreps; i++){
 		
-/*		printf("Starting Run %d\n",i);	*/
+		printf("Starting Run %d\n",i);	
 		nmutT = 0;
 
 		/* Setting up type of sex heterogeneity */
@@ -3504,6 +3518,7 @@ int main(int argc, char *argv[]){
 			probset2(N, gmi, gme, sexC, rec, bigQmi, bigQme, nsites, nlrec, zeros, mig, Nwith, Nbet, zeros, 0, pr);
 			nosex = powDUI(sexCInv,Nwith,d);				/* Probability of no segregation via sex, accounting for within-deme variation */
 			psum = (1-nosex) + nosex*(sumT_D(pr,12,d));		/* Sum of all event probabilities, for drawing random time */
+			printf("Nwith %d, nosex %lf, psum %lf\n",*(Nwith+0),nosex,psum);
 							
 			/* Intermediate error checking */
 			if(psum > 1){
@@ -3573,7 +3588,7 @@ int main(int argc, char *argv[]){
 					probset2(N, gmi, gme, sexC, rec, bigQmi, bigQme, nsites, nlrec, nlrec2, mig, Nwith, Nbet, evsex, 1, pr);
 					if(isanylessD_2D(pr,12,d,0) == 1){
 						proberr(1, pr);
-					}					
+					}
 				}
 				
 				/* Given event happens, what is that event? 
@@ -3585,7 +3600,7 @@ int main(int argc, char *argv[]){
 				gsl_ran_multinomial(r,d,1,(*(pr + event)),draw2);
 				deme = matchUI(draw2,d,1);
 				
-/*				printf("Event is %d\n",event);	*/
+				printf("Event is %d, Nwith is %d. Nbet is %d\n",event,*(Nwith + 0),*(Nbet + 0));
 
 				if(event == 9){		/* Choosing demes to swap NOW if there is a migration */
 					stchange2(event,deme,evsex,WCH,BCH);
@@ -3642,14 +3657,6 @@ int main(int argc, char *argv[]){
 							Ntot--;
 						}
 					}
-				
-					/*
-					if(achange == 1 && i == 4 && *(WCHex + 0) != 0){
-						printf("\n");
-						printf("WCHex %d, BCHex %d\n",*(WCHex + 0),*(BCHex + 0));
-						TestTabs(indvs, GType, CTms, TAnc, breaks, nlri, NMax, Itot, sumUI(Nbet,d), nbreaks);
-					}
-					*/
 
 					if(achange == 1){
 						vsum_UI_I(Nwith, WCHex, d);
@@ -3682,8 +3689,11 @@ int main(int argc, char *argv[]){
 				}
 				free(rsex);		/* Can be discarded once used to change ancestry */
 				
-				/*
+				if(event == 7 && (*(Nbet + 0) == 2) && (*(Nwith + 0) == 0)){
+					TestTabs(indvs, GType, CTms, TAnc, breaks, nlri, NMax, Itot, sumUI(Nbet,d), nbreaks);
+				}
 
+				/*
 				printf("Lrec is %d, Nbet is %d\n",lrec,sumUI(Nbet,d));
 				for(x = 0; x < d; x++){
 					printf("nlrec in deme %d is %d\n",x,*(nlrec + x));
