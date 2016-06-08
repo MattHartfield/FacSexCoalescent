@@ -1110,11 +1110,6 @@ unsigned int coalesce(unsigned int **indvs, int **GType, double **CTms , int **T
 			/* Check if tracts have coalesced */
 			achange = ccheck(indvs,GType,breaks,nsites,Ntot,*nbreaks);
 			
-			printf("Csamp, par are %d %d\n",csamp,par);
-			if((*(Nbet + 0) == 2) && (*(Nwith + 0) == 1)){
-				TestTabs(indvs, GType, CTms, TAnc, breaks, nlri, NMax, Itot, sumUI(Nbet,d), *nbreaks);
-			}
-			
 			if(achange == 1){
 				excoal(indvs, GType, &par, *nbreaks, 1, Ntot, WCHex, BCHex, deme);
 			}
@@ -3412,7 +3407,7 @@ int main(int argc, char *argv[]){
 	/* Running the simulation Nreps times */
 	for(i = 0; i < Nreps; i++){
 		
-		printf("Starting Run %d\n",i);	
+/*		printf("Starting Run %d\n",i);	*/
 		nmutT = 0;
 
 		/* Setting up type of sex heterogeneity */
@@ -3518,7 +3513,6 @@ int main(int argc, char *argv[]){
 			probset2(N, gmi, gme, sexC, rec, bigQmi, bigQme, nsites, nlrec, zeros, mig, Nwith, Nbet, zeros, 0, pr);
 			nosex = powDUI(sexCInv,Nwith,d);				/* Probability of no segregation via sex, accounting for within-deme variation */
 			psum = (1-nosex) + nosex*(sumT_D(pr,12,d));		/* Sum of all event probabilities, for drawing random time */
-			printf("Nwith %d, nosex %lf, psum %lf\n",*(Nwith+0),nosex,psum);
 							
 			/* Intermediate error checking */
 			if(psum > 1){
@@ -3600,7 +3594,7 @@ int main(int argc, char *argv[]){
 				gsl_ran_multinomial(r,d,1,(*(pr + event)),draw2);
 				deme = matchUI(draw2,d,1);
 				
-				printf("Event is %d\n",event);
+/*				printf("Event is %d\n",event);*/
 
 				if(event == 9){		/* Choosing demes to swap NOW if there is a migration */
 					stchange2(event,deme,evsex,WCH,BCH);
