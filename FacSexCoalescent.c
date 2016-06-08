@@ -3600,7 +3600,7 @@ int main(int argc, char *argv[]){
 				gsl_ran_multinomial(r,d,1,(*(pr + event)),draw2);
 				deme = matchUI(draw2,d,1);
 				
-				printf("Event is %d, Nwith is %d. Nbet is %d\n",event,*(Nwith + 0),*(Nbet + 0));
+				printf("Event is %d\n",event);
 
 				if(event == 9){		/* Choosing demes to swap NOW if there is a migration */
 					stchange2(event,deme,evsex,WCH,BCH);
@@ -3688,10 +3688,6 @@ int main(int argc, char *argv[]){
 					}
 				}
 				free(rsex);		/* Can be discarded once used to change ancestry */
-				
-				if(event == 7 && (*(Nbet + 0) == 2) && (*(Nwith + 0) == 0)){
-					TestTabs(indvs, GType, CTms, TAnc, breaks, nlri, NMax, Itot, sumUI(Nbet,d), nbreaks);
-				}
 
 				/*
 				printf("Lrec is %d, Nbet is %d\n",lrec,sumUI(Nbet,d));
