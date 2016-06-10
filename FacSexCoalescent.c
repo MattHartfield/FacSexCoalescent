@@ -2000,7 +2000,7 @@ char * treemaker(double **TFin, double thetain, unsigned int mind2, unsigned int
 	unsigned int maxc = 0;
 	unsigned int ccM = 0;
 	unsigned int brk = 0;			/* Breakpoint where tract starts */
-	unsigned int clen = 256;		/* Space allocated to clades array */
+	unsigned int clen = 4096;		/* Space allocated to clades array */
 	unsigned int nmut = 0;			/* Number of mutants added */
 	unsigned int n;				 	/* sprintf counter */
 	unsigned int newr = 0;			/* New rows in table if need to expand */
@@ -3175,12 +3175,12 @@ int main(int argc, char *argv[]){
 					ismig = 1;
 					argx++;
 					d = atoi(argv[argx]);
-					if(N%d != 0){
-						fprintf(stderr,"Population size must be a multiple of deme number.\n");
-						usage();
-					}
 					if(d <= 0){
 						fprintf(stderr,"Number of demes has to be a positive integer.\n");
+						usage();
+					}
+					if(N%d != 0){
+						fprintf(stderr,"Population size must be a multiple of deme number.\n");
 						usage();
 					}
 					N = (unsigned int)(N/(d*1.0));	/* Scaling NT to a demetic size, for more consistent use in calculations */
