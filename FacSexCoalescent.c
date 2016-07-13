@@ -92,6 +92,7 @@ char * treemaker(double **TFin, double thetain, unsigned int mind2, unsigned int
 void reccal(unsigned int **indvs, int **GType, unsigned int **breaks, unsigned int **nlri, unsigned int *Nbet, unsigned int *Nwith, unsigned int *rsex, unsigned int esex, unsigned int *lnrec, unsigned int nbreaks, unsigned int NMax, unsigned int sw, unsigned int run);
 void proberr(unsigned int est, double **pr);
 void proberr2(double **pr);
+void proberr3(double **pr);
 void manyr();
 void usage();
 
@@ -727,7 +728,7 @@ unsigned int coalesce(unsigned int **indvs, int **GType, double **CTms , int **T
 	unsigned int rsite = 0;		/* Position of recombination breakpoint (event 10) */
 	unsigned int isyetbp = 0;	/* Is breakpoint already present? (event 10) */
 	unsigned int isyetbp2 = 0;	/* Is 2nd breakpoint already present? (event 8) */	
-	unsigned int isbpend = 0;	/* Is bp at end of table? (event 10) */
+/*	unsigned int isbpend = 0;	 Is bp at end of table? (event 10) */
 	unsigned int maxtr = 0;		/* Max site in bp table before breakpoint (event 10) */
 	unsigned int mintr = 0;		/* Start of GC event (event 8) */	
 	unsigned int gt = 0;		/* GC acting on single or paired sample? (event 8) */
@@ -753,6 +754,8 @@ unsigned int coalesce(unsigned int **indvs, int **GType, double **CTms , int **T
 	unsigned int rpar = 0;		/* Indv number of recombined sample (event 10) */
 	unsigned int gcbp = 0;		/* Type of GC event (1 or 2 breakpoints; event 8) */
 	unsigned int achange = 0;	/* Note whether to run extra coal check */
+	unsigned int length = 0;	/* Length of sampled chrom (event 10) */
+	unsigned int start = 0;		/* Start of sampled chrom  (event 10) */
 	
 	/* Then further actions based on other event */
 	switch(ex)
@@ -945,7 +948,7 @@ unsigned int coalesce(unsigned int **indvs, int **GType, double **CTms , int **T
 			while(par == csamp){	/* Ensuring par != csamp */
 				gsl_ran_choose(r,&par,1,singsamps5,(*(Nbet + deme)),sizeof(unsigned int));			/* Other sample involved in coalescence (par) */
 			}
-/*			printf("Csamp, par is %d %d\n",csamp,par);	*/
+/*			printf("Csamp, par is %d %d\n",csamp,par);*/
 		
 			/* Now updating coalescent times */
 			cchange(indvs, GType, CTms, TAnc, breaks, &csamp, &par, 1, Ntot, 0, nbreaks, Ttot, 1);
@@ -1064,9 +1067,10 @@ unsigned int coalesce(unsigned int **indvs, int **GType, double **CTms , int **T
 					break;
 				}
 			}
+/*			printf("Nsum, WHSel, nos, samp1 are %d %d %d %d\n",nsum,WHsel,nos,*(twosamps7 + 0));*/
 			
 			/* Choosing BH sample */
-			while(done == 0){
+			while(done == 0){	
 				gsl_ran_choose(r,&twosamps7[1],1,singsamps7,(*(Nbet + deme) + 2*(*(nsex + deme))),sizeof(unsigned int));
 				/* Checking that it didn't originate from WH */
 				for(j = 0; j < Ntot; j++){
@@ -1076,6 +1080,7 @@ unsigned int coalesce(unsigned int **indvs, int **GType, double **CTms , int **T
 						for(a = 0; a < nsum; a++){
 							if( *((*(indvs + j)) + 1) == *(rsex + a)){
 								isWH = 0;
+/*								printf("Rechange\n");*/
 							}
 						}
 						if(isWH == 1){
@@ -1085,6 +1090,7 @@ unsigned int coalesce(unsigned int **indvs, int **GType, double **CTms , int **T
 					}
 				}
 			}
+/*			printf("Samp2 is %d\n",*(twosamps7 + 1));*/
 			
 			/* Choosing csamp, par */
 			gsl_ran_choose(r,&csamp,1,twosamps7,2,sizeof(unsigned int));			/* One sample involved in coalescence (csamp) */
@@ -1092,6 +1098,7 @@ unsigned int coalesce(unsigned int **indvs, int **GType, double **CTms , int **T
 			while(par == csamp){	/* Ensuring par != csamp */
 				gsl_ran_choose(r,&par,1,twosamps7,2,sizeof(unsigned int));			/* Other sample involved in coalescence (par) */
 			}
+/*			printf("Csamp, par are %d %d\n",csamp,par);*/
 			
 			/* Correction if parental sample is BH */
 			if(par == *(twosamps7 + 1)){
@@ -1435,20 +1442,22 @@ unsigned int coalesce(unsigned int **indvs, int **GType, double **CTms , int **T
 			/* For storing BH weights */
 			double *weights10 = calloc((*(Nbet + deme) + 2*(*(nsex + deme))),sizeof(double));
 			double *singsamps10 = calloc((*(Nbet + deme) + 2*(*(nsex + deme))),sizeof(double));
-
+			double *startp = calloc((*(Nbet + deme) + 2*(*(nsex + deme))),sizeof(double));			
 			
 			/* Obtaining weights of each sample */
 			count = 0;
 			while(count < (*(Nbet + deme) + 2*(*(nsex + deme)))){
-				for(j = 0; j < (NBtot + 2*nsum); j++){				
-					if( *((*(nlri + j)) + 2) == deme){
-						*(weights10 + count) = *((*(nlri + j)) + 1);
+				for(j = 0; j < (NBtot + 2*nsum); j++){
+/*					printf("%d %d %d\n",*((*(nlri + j)) + 0),*((*(nlri + j)) + 1),*((*(nlri + j)) + 2),*((*(nlri + j)) + 3));	*/
+					if( *((*(nlri + j)) + 3) == deme){
+						*(weights10 + count) = *((*(nlri + j)) + 2);
+						*(startp + count) = *((*(nlri + j)) + 1);						
 						*(singsamps10 + count) = *((*(nlri + j)) + 0);
 						count++;
 					}
 				}
 			}
-					
+			
 			/* For storing BH samples */
 			unsigned int *singsamps10a = calloc((*(Nbet + deme) + 2*(*(nsex + deme))),sizeof(unsigned int));
 				
@@ -1457,44 +1466,64 @@ unsigned int coalesce(unsigned int **indvs, int **GType, double **CTms , int **T
 				
 			/* Matching choice to sample */
 			for(j = 0; j < (*(Nbet + deme) + 2*(*(nsex + deme))); j++){
-				if( *(singsamps10a + j) == 1){
-				rands = *(singsamps10 + j);
+				if(*(singsamps10a + j) == 1){
+					rands = *(singsamps10 + j);
+					length = *(weights10 + j);
+					start = *(startp + j);
 					break;
 				}
 			}
-				
+					
 			free(singsamps10a);
-				
-			yesrec = 0;
-			while(yesrec != 1){				
-				
-				/* Initial choice for rec site */
-				rsite = (unsigned int)floor(gsl_ran_flat(r, 1, nsites));
-				
-				if(*nbreaks == 1){
-					yesrec = 1;
-					isyetbp = 0;
-					isbpend = 1;
-					maxtr = 1;
-				}else if(*nbreaks > 1){
-					/* First, check if (1) rsite is already in existing table of breakpoints;
-					and (2) if so, breakpoint included at end of existing table */
-					isyetbp = 0;
-					isbpend = 0;
-					maxtr = 0;
-					for(x = 0; x < *nbreaks; x++){
-						if( *((*(breaks + 0)) + x) == rsite){
-							isyetbp = 1;
-						}
-						if( *((*(breaks + 0)) + x) <= rsite){
-							maxtr = (x+1);
-						}
+			
+			rsite = gsl_rng_uniform_int(r,length) + (start + 1);
+			/*
+			if(rsite == 1 || rsite == (nsites-1)){
+				printf("rsite is %d\n",rsite);
+			}
+			*/
+			if(*nbreaks == 1){
+				yesrec = 1;
+				isyetbp = 0;
+/*				isbpend = 1;	*/
+				maxtr = 1;
+			}else if(*nbreaks > 1){
+				/* First, check if (1) rsite is already in existing table of breakpoints;
+				and (2) if so, breakpoint included at end of existing table */
+				isyetbp = 0;
+/*				isbpend = 0;	*/
+				maxtr = 0;
+				for(x = 0; x < *nbreaks; x++){
+					if( *((*(breaks + 0)) + x) == rsite){
+						isyetbp = 1;
 					}
+					if( *((*(breaks + 0)) + x) <= rsite){
+						maxtr = (x+1);
+					}
+				}
+			}
+			
+/*			printf("Samp, length, Start, RS, maxtr, iybp are %d %d %d %d %d %d\n",rands,length,start,rsite,maxtr,isyetbp);	*/
+				
+			/*	
+			yesrec = 0;
+			while(yesrec != 1){
+				
+				 Initial choice for rec site */
+				/* rsite = (unsigned int)(gsl_ran_flat(r, 0.51, (nsites-0.51)));	
+				gsl_rng_uniform_int				if(rsite == 1 || rsite == (nsites-1)){
+					printf("Rsite is %d\n",rsite);
+				}
+				*/
+				
+					/*
 					if(maxtr == *nbreaks){
 						isbpend = 1;
 					}
+					*/
 					
 					/* Next, checking if valid breakpoint depending on location */
+					/*
 					if( (isbpend == 1) && (isyetbp == 0) ){
 						for(j = 0; j < NMax; j++){
 							if( *((*(GType + j)) + 0) == rands){
@@ -1515,17 +1544,18 @@ unsigned int coalesce(unsigned int **indvs, int **GType, double **CTms , int **T
 							}
 						}
 					}
-					else if( (isbpend == 0) && (isyetbp == 0) ){			
+					else 
+					if( isyetbp == 0 ){			
 						for(j = 0; j < NMax; j++){
 							if( *((*(GType + j)) + 0) == rands){
-								if( (isallI((*(GType + j)), maxtr+1, (-1), 1) != 1) && (isallI((*(GType + j)), (*nbreaks+1), (-1), (maxtr)) != 1)){
+								if( (isallI((*(GType + j)), (maxtr+1), (-1), 1) != 1) && (isallI((*(GType + j)), (*nbreaks+1), (-1), maxtr) != 1)){
 									yesrec = 1;
 								}
 								break;
 							}
 						}
 					}
-					else if( (isbpend == 0) && (isyetbp == 1) ){		
+					else if( isyetbp == 1 ){		
 						for(j = 0; j < NMax; j++){
 							if( *((*(GType + j)) + 0) == rands){
 								if( (isallI((*(GType + j)), maxtr, (-1), 1) != 1) && (isallI((*(GType + j)), (*nbreaks+1), (-1), maxtr) != 1) ){
@@ -1536,17 +1566,21 @@ unsigned int coalesce(unsigned int **indvs, int **GType, double **CTms , int **T
 						}
 					}					
 				}	
-			}		/* End of BP verification step */
+			}		 End of BP verification step 
+			*/
+			/*					printf("Rands, rsite, iybp are %d %d %d\n",rands,rsite,isyetbp);	*/
+			
+			/* printf("rsite is %d\n",rsite);	*/
 					
 			/* Adding new site and re-ordering tracts in other tables */
-			if((isyetbp != 1) && (*((*(GType + j)) + maxtr) != (-1)) ){
+			if((isyetbp != 1) && (*((*(GType + rands)) + maxtr) != (-1)) ){
 				(*nbreaks)++;
 				for(x = *nbreaks-2; x >= (int)(maxtr-1); x--){
 					*((*(breaks + 0)) + x + 1) = *((*(breaks + 0)) + x);
 					*((*(breaks + 1)) + x + 1) = *((*(breaks + 1)) + x);						
 				}
 				*((*(breaks + 0)) + maxtr) = rsite;
-				*((*(breaks + 1)) + maxtr) = 0;
+				*((*(breaks + 1)) + maxtr) = *((*(breaks + 1)) + maxtr - 1);
 				/* Adding new site to genotype; coalescent time; ancestry table */
 				for(j = 0; j < NMax; j++){
 					for(x = (*nbreaks-1); x >= (int)(maxtr); x--){
@@ -1557,7 +1591,7 @@ unsigned int coalesce(unsigned int **indvs, int **GType, double **CTms , int **T
 						}
 					}
 				}
-			}else if((isyetbp == 1) || (*((*(GType + j)) + maxtr) == (-1) )){
+			}else if((isyetbp == 1) || (*((*(GType + rands)) + maxtr) == (-1) )){
 				maxtr--;
 			}
 			
@@ -1592,6 +1626,7 @@ unsigned int coalesce(unsigned int **indvs, int **GType, double **CTms , int **T
 			}
 			*((*(GType + NMax)) + 0) = NMax;
 			
+			free(startp);
 			free(singsamps10);
 			free(weights10);
 			break;
@@ -1756,8 +1791,10 @@ void excoal(unsigned int **indvs, int **GType, unsigned int *par, unsigned int n
 			}
 			
 			if(*((*(indvs + prow)) + 2) == 1){
+/*				printf("excoal 1\n");	*/
 				*(BCHex + deme) -= 1;
 			}else if(*((*(indvs + prow)) + 2) == 0){
+/*				printf("excoal 2\n");			*/
 				prent = *((*(indvs + prow)) + 1);
 				for(j = 0; j < Ntot; j++){
 					if( (*((*(indvs + j)) + 1) == prent) && (*((*(indvs + j)) + 0) != *(par + i) ) ){
@@ -1919,6 +1956,7 @@ void Wait(){
 void TestTabs(unsigned int **indvs, int **GType, double **CTms, int **TAnc, unsigned int **breaks, unsigned int **nlri, unsigned int NMax, unsigned int Itot, unsigned int Nbet, unsigned int nbreaks){
 
 	unsigned int j, x;
+	
 	printf("INDV TABLE\n");
 	for(j = 0; j < NMax; j++){
 		for(x = 0; x < 4; x++){
@@ -1936,7 +1974,7 @@ void TestTabs(unsigned int **indvs, int **GType, double **CTms, int **TAnc, unsi
 		printf("\n");
 	}
 	printf("\n");
-
+/*
 	printf("CTMS TABLE\n");
 	for(j = 0; j < Itot; j++){
 		for(x = 0; x <= nbreaks; x++){
@@ -1957,13 +1995,13 @@ void TestTabs(unsigned int **indvs, int **GType, double **CTms, int **TAnc, unsi
 
 	printf("NLRI TABLE\n");
 	for(j = 0; j < Nbet; j++){
-		for(x = 0; x < 3; x++){
+		for(x = 0; x < 4; x++){
 			printf("%d ",*((*(nlri + j)) + x));
 		}
 		printf("\n");
 	}
 	printf("\n");
-
+*/
 	printf("BREAKS TABLE\n");
 	for(j = 0; j < 2; j++){
 		for(x = 0; x < nbreaks; x++){
@@ -2822,6 +2860,8 @@ void reccal(unsigned int **indvs, int **GType, unsigned int **breaks, unsigned i
 			ridx = 0;
 			brec = 0;
 			intot = 0;
+			*((*(nlri + count3 + i)) + 0) = (*(BHi + i));
+			*((*(nlri + count3 + i)) + 1) = 0;
 			/* Determining case to run */
 			for(j = 0; j < NMax; j++){
 				if( *((*(GType + j)) + 0) == *(BHi + i) ){
@@ -2838,7 +2878,7 @@ void reccal(unsigned int **indvs, int **GType, unsigned int **breaks, unsigned i
 			if( is0l == 1 ){
 				mintr = first_neI(*(GType + ridx), nbreaks + 1, (-1), 1);
 				mintr--;	/* So concordant with 'breaks' table */
-				/* printf("For indv %d, Mintr %d\n",ridx,mintr);	*/
+				*((*(nlri + count3 + i)) + 1) = *((*(breaks + 0)) + mintr);
 				brec = *((*(breaks + 0)) + mintr);
 				*(lnrec + (*(BHid + i))) += brec;
 				intot = brec;
@@ -2852,9 +2892,8 @@ void reccal(unsigned int **indvs, int **GType, unsigned int **breaks, unsigned i
 				*(lnrec + (*(BHid + i))) += brec;
 				intot += brec;
 			}
-			*((*(nlri + count3 + i)) + 0) = (*(BHi + i));
-			*((*(nlri + count3 + i)) + 1) = (nsites - 1 - intot);
-			*((*(nlri + count3 + i)) + 2) = (*(BHid + i));
+			*((*(nlri + count3 + i)) + 2) = (nsites - 1 - intot);
+			*((*(nlri + count3 + i)) + 3) = (*(BHid + i));
 		}
 	}
 
@@ -2890,6 +2929,27 @@ void proberr2(double **pr){
 	
 	fprintf(stderr,"Summed probabilities exceed one, you need to double-check your algebra (or probability inputs).\n");
 	fprintf(stderr,"This likely arises due to having excessively high recombination or gene conversion rates - please check.\n");
+	fprintf(stderr,"\n");
+	fprintf(stderr,"For error reporting, the final probability calculations per deme are:\n");
+	
+	for(j = 0; j < 12; j++){
+		fprintf(stderr,"Event %d: ",j);
+		for(x = 0; x < d; x++){			
+			fprintf(stderr,"%0.10lf ",(*((*(pr + j)) + x)));
+		}
+		fprintf(stderr,"\n");
+	}
+	
+	fprintf(stderr,"\n");
+	exit(1);				
+
+}
+
+void proberr3(double **pr){
+
+	unsigned int j, x;
+	
+	fprintf(stderr,"Summed probabilites are zero or negative, you need to double-check your algebra (or probability inputs).\n");
 	fprintf(stderr,"\n");
 	fprintf(stderr,"For error reporting, the final probability calculations per deme are:\n");
 	
@@ -3450,7 +3510,7 @@ int main(int argc, char *argv[]){
 		for(j = 0; j < (Itot+exr); j++){									/* Assigning space for each genome sample */
 			indvs[j] = calloc(4,sizeof(unsigned int));
 			GType[j] = calloc(exc+1,sizeof(int));
-			nlri[j] = calloc(3,sizeof(unsigned int));			
+			nlri[j] = calloc(4,sizeof(unsigned int));			
 			if(j < Itot){
 				CTms[j] = calloc(exc+1,sizeof(double));
 				TAnc[j] = calloc(exc+1,sizeof(int));
@@ -3496,12 +3556,13 @@ int main(int argc, char *argv[]){
 				*((*(indvs + (2*IwithT + j))) + 1) = IwithT + j;
 				*((*(indvs + (2*IwithT + j))) + 2) = 1;
 				*((*(nlri + j)) + 0) = j;
-				*((*(nlri + j)) + 1) = (nsites-1);
+				*((*(nlri + j)) + 1) = 0;
+				*((*(nlri + j)) + 2) = (nsites-1);
 			}
 			for(x = 0; x < d; x++){
 				for(j = IbetC; j < (IbetC + *(Ibet + x)); j++){
 					*((*(indvs + (2*IwithT + j))) + 3) = x;
-					*((*(nlri + j)) + 2) = x;
+					*((*(nlri + j)) + 3) = x;
 				}
 				IbetC += *(Ibet + x);
 			}
@@ -3519,8 +3580,7 @@ int main(int argc, char *argv[]){
 				proberr2(pr);
 			}
 			if((psum <= 0) && (isallD(sexC,d,0) != 1)){
-				fprintf(stderr,"Summed probabilites are zero or negative, you need to double-check your algebra (or probability inputs).\n");
-				exit(1);
+				proberr3(pr);
 			}
 			if(isanylessD_2D(pr,12,d,0) == 1){
 				proberr(0, pr);
@@ -3594,7 +3654,7 @@ int main(int argc, char *argv[]){
 				gsl_ran_multinomial(r,d,1,(*(pr + event)),draw2);
 				deme = matchUI(draw2,d,1);
 				
-/*				printf("Event is %d\n",event);*/
+/*				printf("Event is %d\n",event);	*/
 
 				if(event == 9){		/* Choosing demes to swap NOW if there is a migration */
 					stchange2(event,deme,evsex,WCH,BCH);
@@ -3691,13 +3751,14 @@ int main(int argc, char *argv[]){
 				printf("\n");
 				if(i == 3 && event == 10){
 					TestTabs(indvs, GType, CTms, TAnc, breaks, nlri, NMax, Itot, sumUI(Nbet,d), nbreaks);
-				}
-								
-				if(event == 10){
+				}						
+				
+				if(i == 0){
 					TestTabs(indvs, GType, CTms, TAnc, breaks, nlri, NMax, Itot, sumUI(Nbet,d), nbreaks);
 				}
-				*/				
-			
+
+				*/
+																							
 				/* Checking if need to expand tables */
 				if(NMax == (exr+Itot-1)){
 					exr += INITBR;
@@ -3707,12 +3768,12 @@ int main(int argc, char *argv[]){
 					for(j = 0; j < (Itot+exr-INITBR); j++){
 						indvs[j] = (unsigned int *)realloc(*(indvs + j),4*sizeof(unsigned int));
 						GType[j] = (int *)realloc( *(GType + j) ,(exc + 1)*sizeof(int));
-						nlri[j] = (unsigned int *)realloc(*(nlri + j),3*sizeof(unsigned int));
+						nlri[j] = (unsigned int *)realloc(*(nlri + j),4*sizeof(unsigned int));
 					}
 					for(j = (Itot+exr-INITBR); j < (Itot+exr); j++){
 						indvs[j] = (unsigned int *)calloc(4,sizeof(unsigned int));
 						GType[j] = (int *)calloc((exc + 1),sizeof(int));
-						nlri[j] = (unsigned int *)calloc(3,sizeof(unsigned int));						
+						nlri[j] = (unsigned int *)calloc(4,sizeof(unsigned int));						
 					}
 				}
 				
