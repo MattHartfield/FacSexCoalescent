@@ -691,7 +691,7 @@ void sexconv(unsigned int **Tin, unsigned int *rsex, unsigned int nsum, unsigned
 				*((*(Tin + j)) + 2) = 1;
 				*((*(Tin + j + 1)) + 2) = 1;				/* Since other paired sample also split */
 				if(ex == 8 || ex == 10){
-					*((*(Tin + j + 1)) + 1) = Nid + npc;		/* Placing sample in new individual */
+					*((*(Tin + j + 1)) + 1) = Nid + npc;		/* Placing sample in *same* individual with rec or GC */
 					npc++;
 				}
 				count++;
@@ -940,7 +940,7 @@ unsigned int coalesce(unsigned int **indvs, int **GType, double **CTms , int **T
 			break;
 		case 5:			/* Event 5: Two pre-existing unique samples coalesce */	
 			csamp = 0;
-			unsigned int *singsamps5 = calloc(*(Nbet + deme),sizeof(unsigned int));			/* For storing BH samples */
+			unsigned int *singsamps5 = calloc(*(Nbet + deme),sizeof(unsigned int));					/* For storing BH samples */
 			sselect_UI(indvs, singsamps5, Ntot, 2, 0, 1, 3, deme);
 			
 			gsl_ran_choose(r,&csamp,1,singsamps5,(*(Nbet + deme)),sizeof(unsigned int));			/* One sample involved in coalescence (csamp) */
@@ -1448,7 +1448,7 @@ unsigned int coalesce(unsigned int **indvs, int **GType, double **CTms , int **T
 			count = 0;
 			while(count < (*(Nbet + deme) + 2*(*(nsex + deme)))){
 				for(j = 0; j < (NBtot + 2*nsum); j++){
-/*					printf("%d %d %d\n",*((*(nlri + j)) + 0),*((*(nlri + j)) + 1),*((*(nlri + j)) + 2),*((*(nlri + j)) + 3));	*/
+/*					printf("%d %d %d %d\n",*((*(nlri + j)) + 0),*((*(nlri + j)) + 1),*((*(nlri + j)) + 2),*((*(nlri + j)) + 3));	*/
 					if( *((*(nlri + j)) + 3) == deme){
 						*(weights10 + count) = *((*(nlri + j)) + 2);
 						*(startp + count) = *((*(nlri + j)) + 1);						
@@ -1609,6 +1609,36 @@ unsigned int coalesce(unsigned int **indvs, int **GType, double **CTms , int **T
 			*((*(indvs + NMax)) + 1) = rpar;
 			*((*(indvs + NMax)) + 2) = 0;
 			*((*(indvs + NMax)) + 3) = deme;
+			
+			/* Now creating the new sample genotype
+			nos = gsl_ran_bernoulli(r,0.5);
+			for(j = 0; j < NMax; j++){
+				if( *((*(GType + j)) + 0) == rands ){
+					if(nos == 0){
+						for(x = (*nbreaks); x > (int)maxtr; x--){
+							*((*(GType + NMax)) + x) = *((*(GType + j)) + x);
+							*((*(GType + j)) + x) = (-1);
+						}
+					}else if(nos == 1){
+						for(x = maxtr; x > (int)0; x--){
+							*((*(GType + NMax)) + x) = *((*(GType + j)) + x);
+							*((*(GType + j)) + x) = (-1);
+						}
+					}
+					break;
+				}
+			}
+			
+			if(nos == 0){
+				for(x = maxtr; x > (int)0; x--){
+					*((*(GType + NMax)) + x) = (-1);
+				}
+			}else if(nos == 1){
+				for(x = (*nbreaks); x > (int)maxtr; x--){
+					*((*(GType + NMax)) + x) = (-1);
+				}
+			}
+			*((*(GType + NMax)) + 0) = NMax; */
 			
 			/* Now creating the new sample genotype */
 			for(j = 0; j < NMax; j++){
@@ -2011,7 +2041,7 @@ void TestTabs(unsigned int **indvs, int **GType, double **CTms, int **TAnc, unsi
 	}
 	printf("\n");	
 
-/*	Wait();		*/
+	Wait();		
 /*	exit(1);	*/
 
 }
@@ -3588,7 +3618,7 @@ int main(int argc, char *argv[]){
 			
 			/* Drawing time to next event, SCALED TO 2NT GENERATIONS */
 			if(psum == 1){
-				tjump = 0.0;
+				tjump = 1.0/(2.0*N*d);
 			}else if(psum == 0){
 				tjump = (1.0/0.0);
 			}else{
@@ -3645,6 +3675,19 @@ int main(int argc, char *argv[]){
 					}
 				}
 				
+				/*
+				if(tjump == 0){
+					for(j = 0; j < 12; j++){
+						fprintf(stderr,"Event %d: ",j);
+						for(x = 0; x < d; x++){			
+							fprintf(stderr,"%0.10lf ",(*((*(pr + j)) + x)));
+						}
+						fprintf(stderr,"\n");
+					}
+					Wait();
+				}
+				*/
+				
 				/* Given event happens, what is that event? 
 				Weighted average based on above probabilities. 
 				Then drawing deme of event. */
@@ -3653,8 +3696,20 @@ int main(int argc, char *argv[]){
 				event = matchUI(draw,12,1);
 				gsl_ran_multinomial(r,d,1,(*(pr + event)),draw2);
 				deme = matchUI(draw2,d,1);
+				/*	
+				if(psum != 1){
+					rowsumD(pr,12,d,pr_rsums);
+					gsl_ran_multinomial(r,12,1,pr_rsums,draw);			
+					event = matchUI(draw,12,1);
+					gsl_ran_multinomial(r,d,1,(*(pr + event)),draw2);
+					deme = matchUI(draw2,d,1);
+				}else if(psum == 1){
+					event = 0;
+					deme = 0;
+				}				
+				*/
 				
-/*				printf("Event is %d\n",event);	*/
+/*				printf("%d\n",event); */
 
 				if(event == 9){		/* Choosing demes to swap NOW if there is a migration */
 					stchange2(event,deme,evsex,WCH,BCH);
@@ -3751,11 +3806,12 @@ int main(int argc, char *argv[]){
 				printf("\n");
 				if(i == 3 && event == 10){
 					TestTabs(indvs, GType, CTms, TAnc, breaks, nlri, NMax, Itot, sumUI(Nbet,d), nbreaks);
-				}						
-				
-				if(i == 0){
-					TestTabs(indvs, GType, CTms, TAnc, breaks, nlri, NMax, Itot, sumUI(Nbet,d), nbreaks);
 				}
+				
+								if(event == 10 && i == 18){
+					printf("Time is %lf\n",Ttot);
+					TestTabs(indvs, GType, CTms, TAnc, breaks, nlri, NMax, Itot, sumUI(Nbet,d), nbreaks);
+				}						
 
 				*/
 																							
@@ -3830,6 +3886,7 @@ int main(int argc, char *argv[]){
 				mind2 = *((*(breaks + 0)) + (x-1));
 				mind = (mind2)/(1.0*nsites);
 			}
+			printf("Mind, maxd are %lf %lf\n",mind,maxd);
 			char *ret_tree = treemaker(TFin, theta*(maxd-mind), mind2, maxd2 ,mind, maxd, Itot, i, gmi, gme, ismsp, &nmutT, prtrees, ismut, pburst, mburst, bdist, r);
 			if(prtrees == 1){
 				if((rec == 0 && gmi == 0 && gme == 0) || (nsites == 1) ){
