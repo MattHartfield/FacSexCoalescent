@@ -3040,7 +3040,7 @@ exit(1);
 
 /* Main program */
 int main(int argc, char *argv[]){
-	unsigned int x, i, j;		/* Assignment counter, rep counter, indv counter */
+	unsigned int x, i, j, z;	/* Assignment counter, rep counter, indv counter, argument counter */
 	unsigned int pST = 0;		/* State of reproduction heterogeneity */	
 	unsigned int npST = 0;		/* State of reproduction heterogeneity */	
 	unsigned int Ntot = 0;		/* Total number of samples at time */
@@ -3483,6 +3483,10 @@ int main(int argc, char *argv[]){
 	fprintf(ofp_sd,"%lu\n",gsl_rng_default_seed);
 	fclose(ofp_sd);
 	if(ismsp == 1){
+		for(z = 0; z < argc; z++){
+			printf("%s ",argv[z]);
+		}
+		printf("\n");
 		printf("%lu\n",gsl_rng_default_seed);
 	}
 	
@@ -3886,7 +3890,6 @@ int main(int argc, char *argv[]){
 				mind2 = *((*(breaks + 0)) + (x-1));
 				mind = (mind2)/(1.0*nsites);
 			}
-			printf("Mind, maxd are %lf %lf\n",mind,maxd);
 			char *ret_tree = treemaker(TFin, theta*(maxd-mind), mind2, maxd2 ,mind, maxd, Itot, i, gmi, gme, ismsp, &nmutT, prtrees, ismut, pburst, mburst, bdist, r);
 			if(prtrees == 1){
 				if((rec == 0 && gmi == 0 && gme == 0) || (nsites == 1) ){
