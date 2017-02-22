@@ -495,7 +495,7 @@ double P12(unsigned int x, unsigned int k, double geemi, double Qmi, unsigned in
 	/* Complete gene conversion, coalesces paired sample into single sample */
 	double outs = 0;
 	if(nsites == 1){
-		outs = geemi;
+		outs = geemi*(x-k);
 	}else if(nsites > 1){
 		outs = (geemi*(x-k)*(exp(-Qmi)/(1.0*Qmi)));
 	}
@@ -741,20 +741,22 @@ unsigned int coalesce(unsigned int **indvs, int **GType, double **CTms , int **T
 	unsigned int maxtr = 0;		/* Max site in bp table before breakpoint (event 10) */
 	unsigned int mintr = 0;		/* Start of GC event (event 8) */	
 	unsigned int gt = 0;		/* GC acting on single or paired sample? (event 8) */
-	unsigned int gcst = 0;		/* GC start point (event 8) */
+	int gcst = 0;				/* GC start point (event 8) */
 	int gcend = 0; 				/* GC end point (event 8) */
+	int gct = 0; 				/* Temp GC value (event 8) */	
 	unsigned int gcsamp = 0;	/* Index of GC'ed sample (event 8) */
 	unsigned int gcsamp2 = 0;	/* Index of GC'ed sample if paired sample involved (event 8) */	
 	unsigned int gcln = 0;		/* Length of GC event (event 8) */
+	unsigned int gcdir = 0;		/* Direction of GC event (event 8) */
 	double NWd = 0; 			/* Weighted WH sample chosen (event 8) */
 	double NTd = 0; 			/* Total GC prob (ev 8) */	
 	double lambda = 0;			/* Assignment of lambda after choosing GC type (event 8) */
 	double gcMI = 0;			/* Probability that single samp GC event is mitotic (event 8) */
 	double Qin = 0;				/* Q value used in subsequent calcs (event 8) */
-	double gcst2 = 0;			/* Initial start site for GC (event 8) */
-	double gcend2 = 0;			/* Initial end site for GC (event 8) */
+/*	double gcst2 = 0;			 Initial start site for GC (event 8) */
+/*	double gcend2 = 0;			 Initial end site for GC (event 8) */
 	double p1bp = 0;			/* Prob 1 breakpoint (event 8) */
-	unsigned int gcst3 = 0;		/* */
+/*	unsigned int gcst3 = 0;		 */
 	unsigned int gcS = 0;		/* Type of GC evening on unpaired samples (event 8) */
 	unsigned int mindr = 0;		/* Done choosing min tract point? (event 8) */
 	unsigned int proceed = 0;	/* Proceed with gene conversion? (event 8) */
@@ -1196,14 +1198,56 @@ unsigned int coalesce(unsigned int **indvs, int **GType, double **CTms , int **T
 				p1bp = 2.0*((1-KQ(Qin))/(1.0*(2.0-KQ(Qin))));
 				gcbp = gsl_ran_bernoulli(r,p1bp);
 			}
-		
-			if(gcbp == 0){			/* Two breakpoints */
+			
+			/*
+			OH WHAT TO DO, NOW?
+			irrespective of 1, 2bps:
+			1) Draw start points from [1,ns), integer
+			2) Draw GC length from geometric distribution
+			3) Draw whether it goes left, right
+			4) THEN check whether it satisfies expected behaviour (i.e. if one, two BPs)
+			*/
+			
+			done = 0;
+			while(done == 0){
+				/* Drawing start point */
+				if(nsites > 2){
+					gcst = gsl_rng_uniform_int(r,(nsites-2));
+					gcst++;
+				}else if(nsites == 2){
+					gcst = 1;
+				}
+				gcln = gsl_ran_geometric(r,(1.0/(1.0 + lambda)));
+				gcdir = gsl_ran_bernoulli(r,0.5);
+				gcend = gcst + pow((-1),gcdir)*gcln;
+				if(gcdir == 1){
+					gct = gcend;
+					gcend = gcst;
+					gcst = gct;
+				}
+				/* Now checking if a valid event */
+				if(gcbp == 0){			/* Two breakpoints */
+					if((gcend > 0) && (gcend < nsites) && (gcst > 0) && (gcst < nsites)){
+						done = 1;
+					}
+				}else if(gcbp == 1){ 	/* One Breakpoint */
+					if((gcst > 0) && (gcend >= nsites)){
+						gcend = nsites;
+						done = 1;
+					}else if((gcst <= 0) && (gcend < nsites)){
+						gcst = 0;
+						done = 1;
+					}
+				}
+			}
+			
+			/*
+			if(gcbp == 0){			 Two breakpoints 
 				gcst = 0;
 				gcend = nsites;
 				while(gcst == 0 || gcst >= (nsites-1)){
 					gcst2 = gsl_ran_flat(r, 0, 1);
-					gcst = (unsigned int)(invs2(gcst2,Qin)*(nsites - 3));
-					gcst++;
+					gcst = (unsigned int)(invs2(gcst2,Qin)*nsites);
 				}
 				while(gcend >= nsites){
 					gcln = 0;
@@ -1212,26 +1256,25 @@ unsigned int coalesce(unsigned int **indvs, int **GType, double **CTms , int **T
 					}
 					gcend = gcst + gcln;
 				}
-			}else if(gcbp == 1){ 	/* One breakpoint */
+			}else if(gcbp == 1){ 	 One breakpoint 
 				gcst3 = gsl_ran_bernoulli(r,0.5);
-				if(gcst3 == 0){		/* Starts outside, ends in */
+				if(gcst3 == 0){		 Starts outside, ends in 
 					gcst = 0;
 					gcend = 0;
 					while(gcend == 0 || gcend == nsites){
 						gcend2 = gsl_ran_flat(r, 0, 1);
-						gcend = (unsigned int)(invt1(gcend2,Qin)*(nsites - 2));
-						gcend++;
+						gcend = (unsigned int)(invt1(gcend2,Qin)*nsites);
 					}
-				}else if(gcst3 == 1){		/* Starts inside, ends out */
+				}else if(gcst3 == 1){		Starts inside, ends out
 					gcend = nsites;
 					gcst = 0;
 					while(gcst == 0 || gcst == nsites){
 						gcst2 = gsl_ran_flat(r, 0, 1);
-						gcst = (unsigned int)(invs1(gcst2,Qin)*(nsites - 2));
-						gcst++;
+						gcst = (unsigned int)(invs1(gcst2,Qin)*nsites);
 					}
 				}
 			}
+			*/
 			
 			/* Finding block number associated with start point */
 			mindr = 0;
@@ -1582,7 +1625,7 @@ unsigned int coalesce(unsigned int **indvs, int **GType, double **CTms , int **T
 			cchange(indvs, GType, CTms, TAnc, breaks, &csamp, &par, 1, Ntot, 0, nbreaks, Ttot, 1);
 			
 			/* Check if tracts have coalesced */
-			ccheck(indvs,GType,breaks,nsites,Ntot,*nbreaks);
+			achange = ccheck(indvs,GType,breaks,nsites,Ntot,*nbreaks);
 			
 			if(achange == 1){
 				excoal(indvs, GType, &par, *nbreaks, 1, Ntot, WCHex, BCHex, deme);
@@ -1885,7 +1928,7 @@ void TestTabs(unsigned int **indvs, int **GType, double **CTms, int **TAnc, unsi
 		printf("\n");
 	}
 	printf("\n");
-	
+/*	
 	printf("CTMS TABLE\n");
 	for(j = 0; j < Itot; j++){
 		for(x = 0; x <= nbreaks; x++){
@@ -1912,7 +1955,7 @@ void TestTabs(unsigned int **indvs, int **GType, double **CTms, int **TAnc, unsi
 		printf("\n");
 	}
 	printf("\n");
-	
+*/	
 	printf("BREAKS TABLE\n");
 	for(j = 0; j < 2; j++){
 		for(x = 0; x < nbreaks; x++){
@@ -3131,8 +3174,8 @@ int main(int argc, char *argv[]){
 					}
 					argx++;
 					lambdami = strtod(argv[argx],NULL);
-					if(lambdami < 1){
-						fprintf(stderr,"With mitotic gene conversion, average length (lambda) has to be at least 1.\n");
+					if(lambdami < 1 && nsites > 1){
+						fprintf(stderr,"With mitotic gene conversion, average length (lambda) has to be at least 1 with multiple sites.\n");
 						usage();
 					}
 					bigQmi = (nsites-1)/(1.0*lambdami);
@@ -3568,7 +3611,7 @@ int main(int argc, char *argv[]){
 				event = matchUI(draw,12,1);
 				gsl_ran_multinomial(r,d,1,(*(pr + event)),draw2);
 				deme = matchUI(draw2,d,1);
-				
+								
 				if(event == 9){		/* Choosing demes to swap NOW if there is a migration */
 					stchange2(event,deme,evsex,WCH,BCH);
 					vsum_UI_I(Nwith, WCH, d);
@@ -3645,9 +3688,9 @@ int main(int argc, char *argv[]){
 				
 				/* Sorting table afterwards to ensure paired samples are together */
 				indv_sort(indvs, NMax);
-
+				
 				/* Updating baseline recombinable material depending on number single samples */
-				if(isallUI(*(breaks+1),nbreaks,1,0) == 0){			
+				if(isallUI(*(breaks+1),nbreaks,1,0) == 0){	
 					reccal(indvs, GType, breaks, nlri, Nbet, Nwith, rsex, esex, nlrec, nbreaks, NMax, 0, i);
 					for(x = 0; x < d; x++){
 						*(nlrec2 + x) = 0;
@@ -3688,6 +3731,7 @@ int main(int argc, char *argv[]){
 				
 				/* Testing if all sites coalesced or not */
 				done = isallUI(*(breaks + 1),nbreaks,1,0);
+				
 			}
 		}
 		
