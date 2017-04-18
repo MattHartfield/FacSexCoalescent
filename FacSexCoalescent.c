@@ -443,7 +443,7 @@ double singGC(unsigned int y, unsigned int k, double geemi, double geeme, double
 }
 
 double pairGC(unsigned int x, unsigned int k, double geemi, double Qmi){
-	return geemi*(2.0-KQ(Qmi))*(x-k);
+	return 2.0*geemi*(2.0-KQ(Qmi))*(x-k);
 }
 
 /* Functions of each transition probability calculation */
@@ -495,9 +495,9 @@ double P12(unsigned int x, unsigned int k, double geemi, double Qmi, unsigned in
 	/* Complete gene conversion, coalesces paired sample into single sample */
 	double outs = 0;
 	if(nsites == 1){
-		outs = geemi*(x-k);
+		outs = 2*geemi*(x-k);
 	}else if(nsites > 1){
-		outs = (geemi*(x-k)*(exp(-Qmi)/(1.0*Qmi)));
+		outs = (2*geemi*(x-k)*(exp(-Qmi)/(1.0*Qmi)));
 	}
 	return outs;
 }
@@ -1217,7 +1217,7 @@ unsigned int coalesce(unsigned int **indvs, int **GType, double **CTms , int **T
 				}else if(nsites == 2){
 					gcst = 1;
 				}
-				gcln = gsl_ran_geometric(r,(1.0/(1.0 + lambda)));
+				gcln = gsl_ran_geometric(r,(1.0/(lambda)));
 				gcdir = gsl_ran_bernoulli(r,0.5);
 				gcend = gcst + pow((-1),gcdir)*gcln;
 				if(gcdir == 1){
