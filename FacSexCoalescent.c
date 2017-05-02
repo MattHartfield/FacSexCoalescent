@@ -74,6 +74,7 @@ double P12(unsigned int x, unsigned int k, double geemi, double Qmi, unsigned in
 double invs1(double Si, double Qin);
 double invt1(double Ti, double Qin);
 double invs2(double Si, double Qin);
+double invz(double Zi, double Qin);
 void probset2(unsigned int N, double gmi, double gme, double *sexC, double rec, double Qmi, double Qme, unsigned int lrec, unsigned int *nlrec, unsigned int *nlrec2, double mig, unsigned int *Nwith, unsigned int *Nbet, unsigned int *kin, unsigned int sw, double **pr);
 void rate_change(unsigned int N, unsigned int pST,double pLH, double pHL, double *sexH, double *sexL, unsigned int switch1, double *sexCN, double *sexCNInv, double *tts, unsigned int *npST,const gsl_rng *r);
 void stchange2(unsigned int ev, unsigned int deme, unsigned int *kin, int *WCH, int *BCH);
@@ -517,6 +518,11 @@ double invs2(double Si, double Qin){
 	return exp(-Qin)*(-1.0 + Si + exp(Qin)*(Si*(Qin - 1.0) - gsl_sf_lambert_W0((-1.0)*exp(-Qin + Si*(Qin - 1.0) + exp(-Qin)*(Si-1.0)))))/(1.0*Qin);
 }
 
+double invz(double Zi, double Qin){
+	/* Inversion of GC length, double GC event (2 bps) */
+	return 1.0 - ((1.0 + gsl_sf_lambert_W0(exp(Qin - 1.0)*(Qin - 1.0)*(1.0 - Zi) - Zi*exp(-1.0)))/(1.0*Qin));
+}
+
 /* Calculate probability change vectors each time OVER EACH DEME */
 void probset2(unsigned int N, double gmi, double gme, double *sexC, double rec, double Qmi, double Qme, unsigned int lrec, unsigned int *nlrec, unsigned int *nlrec2, double mig, unsigned int *Nwith, unsigned int *Nbet, unsigned int *kin, unsigned int sw, double **pr){
 	unsigned int x;				/* Deme counter */
@@ -743,20 +749,21 @@ unsigned int coalesce(unsigned int **indvs, int **GType, double **CTms , int **T
 	unsigned int gt = 0;		/* GC acting on single or paired sample? (event 8) */
 	int gcst = 0;				/* GC start point (event 8) */
 	int gcend = 0; 				/* GC end point (event 8) */
-	int gct = 0; 				/* Temp GC value (event 8) */	
+/*	int gct = 0; 				 Temp GC value (event 8) */	
 	unsigned int gcsamp = 0;	/* Index of GC'ed sample (event 8) */
 	unsigned int gcsamp2 = 0;	/* Index of GC'ed sample if paired sample involved (event 8) */	
 	unsigned int gcln = 0;		/* Length of GC event (event 8) */
-	unsigned int gcdir = 0;		/* Direction of GC event (event 8) */
+/*	unsigned int gcdir = 0;		 Direction of GC event (event 8) */
 	double NWd = 0; 			/* Weighted WH sample chosen (event 8) */
 	double NTd = 0; 			/* Total GC prob (ev 8) */	
 	double lambda = 0;			/* Assignment of lambda after choosing GC type (event 8) */
 	double gcMI = 0;			/* Probability that single samp GC event is mitotic (event 8) */
 	double Qin = 0;				/* Q value used in subsequent calcs (event 8) */
-/*	double gcst2 = 0;			 Initial start site for GC (event 8) */
-/*	double gcend2 = 0;			 Initial end site for GC (event 8) */
+	double gcst2 = 0;			/* Initial start site for GC (event 8) */
+	double gcend2 = 0;			/* Initial end site for GC (event 8) */
+	double gcln2 = 0;			/* Initial length for GC (event 8) */	
 	double p1bp = 0;			/* Prob 1 breakpoint (event 8) */
-/*	unsigned int gcst3 = 0;		 */
+	unsigned int gcst3 = 0;		 
 	unsigned int gcS = 0;		/* Type of GC evening on unpaired samples (event 8) */
 	unsigned int mindr = 0;		/* Done choosing min tract point? (event 8) */
 	unsigned int proceed = 0;	/* Proceed with gene conversion? (event 8) */
@@ -1200,17 +1207,9 @@ unsigned int coalesce(unsigned int **indvs, int **GType, double **CTms , int **T
 			}
 			
 			/*
-			OH WHAT TO DO, NOW?
-			irrespective of 1, 2bps:
-			1) Draw start points from [1,ns), integer
-			2) Draw GC length from geometric distribution
-			3) Draw whether it goes left, right
-			4) THEN check whether it satisfies expected behaviour (i.e. if one, two BPs)
-			*/
-			
 			done = 0;
 			while(done == 0){
-				/* Drawing start point */
+				Drawing start point 
 				if(nsites > 2){
 					gcst = gsl_rng_uniform_int(r,(nsites-2));
 					gcst++;
@@ -1225,12 +1224,12 @@ unsigned int coalesce(unsigned int **indvs, int **GType, double **CTms , int **T
 					gcend = gcst;
 					gcst = gct;
 				}
-				/* Now checking if a valid event */
-				if(gcbp == 0){			/* Two breakpoints */
+				 Now checking if a valid event 
+				if(gcbp == 0){			 Two breakpoints 
 					if((gcend > 0) && (gcend < nsites) && (gcst > 0) && (gcst < nsites)){
 						done = 1;
 					}
-				}else if(gcbp == 1){ 	/* One Breakpoint */
+				}else if(gcbp == 1){ 	One Breakpoint 
 					if((gcst > 0) && (gcend >= nsites)){
 						gcend = nsites;
 						done = 1;
@@ -1240,9 +1239,9 @@ unsigned int coalesce(unsigned int **indvs, int **GType, double **CTms , int **T
 					}
 				}
 			}
+			*/
 			
-			/*
-			if(gcbp == 0){			 Two breakpoints 
+			if(gcbp == 0){			 /* Two breakpoints */
 				gcst = 0;
 				gcend = nsites;
 				while(gcst == 0 || gcst >= (nsites-1)){
@@ -1252,20 +1251,22 @@ unsigned int coalesce(unsigned int **indvs, int **GType, double **CTms , int **T
 				while(gcend >= nsites){
 					gcln = 0;
 					while(gcln == 0){
-						gcln = (gsl_ran_geometric(r,(1.0/lambda)));
+						gcln2 = gsl_ran_flat(r, 0, 1);
+						gcln = (unsigned int)(invz(gcln2,Qin)*nsites);
+					/*	gcln = (gsl_ran_geometric(r,(1.0/lambda)));	*/
 					}
 					gcend = gcst + gcln;
 				}
-			}else if(gcbp == 1){ 	 One breakpoint 
+			}else if(gcbp == 1){ 	 /* One breakpoint */
 				gcst3 = gsl_ran_bernoulli(r,0.5);
-				if(gcst3 == 0){		 Starts outside, ends in 
+				if(gcst3 == 0){		 /* Starts outside, ends in */
 					gcst = 0;
 					gcend = 0;
 					while(gcend == 0 || gcend == nsites){
 						gcend2 = gsl_ran_flat(r, 0, 1);
 						gcend = (unsigned int)(invt1(gcend2,Qin)*nsites);
 					}
-				}else if(gcst3 == 1){		Starts inside, ends out
+				}else if(gcst3 == 1){		/* Starts inside, ends out */
 					gcend = nsites;
 					gcst = 0;
 					while(gcst == 0 || gcst == nsites){
@@ -1274,7 +1275,6 @@ unsigned int coalesce(unsigned int **indvs, int **GType, double **CTms , int **T
 					}
 				}
 			}
-			*/
 			
 			/* Finding block number associated with start point */
 			mindr = 0;
