@@ -74,7 +74,7 @@ double P12(unsigned int x, unsigned int k, double geemi, double Qmi, unsigned in
 double invs1(double Si, double Qin);
 double invt1(double Ti, double Qin);
 double invs2(double Si, double Qin);
-double invz(double Zi, double Qin);
+double invt(double Ti, double Si, double Qin);
 void probset2(unsigned int N, double gmi, double gme, double *sexC, double rec, double Qmi, double Qme, unsigned int lrec, unsigned int *nlrec, unsigned int *nlrec2, double mig, unsigned int *Nwith, unsigned int *Nbet, unsigned int *kin, unsigned int sw, double **pr);
 void rate_change(unsigned int N, unsigned int pST,double pLH, double pHL, double *sexH, double *sexL, unsigned int switch1, double *sexCN, double *sexCNInv, double *tts, unsigned int *npST,const gsl_rng *r);
 void stchange2(unsigned int ev, unsigned int deme, unsigned int *kin, int *WCH, int *BCH);
@@ -518,9 +518,9 @@ double invs2(double Si, double Qin){
 	return exp(-Qin)*(-1.0 + Si + exp(Qin)*(Si*(Qin - 1.0) - gsl_sf_lambert_W0((-1.0)*exp(-Qin + Si*(Qin - 1.0) + exp(-Qin)*(Si-1.0)))))/(1.0*Qin);
 }
 
-double invz(double Zi, double Qin){
-	/* Inversion of GC length, double GC event (2 bps) */
-	return 1.0 - ((1.0 + gsl_sf_lambert_W0(exp(Qin - 1.0)*(Qin - 1.0)*(1.0 - Zi) - Zi*exp(-1.0)))/(1.0*Qin));
+double invt(double Ti, double Si, double Qin){
+	/* Inversion of endpoint for double GC event (2 bps) */
+	return Si - (log(1.0 - Ti*(1.0 - exp(-Qin*(1.0 - Si)))))/(1.0*Qin);
 }
 
 /* Calculate probability change vectors each time OVER EACH DEME */
@@ -752,7 +752,7 @@ unsigned int coalesce(unsigned int **indvs, int **GType, double **CTms , int **T
 /*	int gct = 0; 				 Temp GC value (event 8) */	
 	unsigned int gcsamp = 0;	/* Index of GC'ed sample (event 8) */
 	unsigned int gcsamp2 = 0;	/* Index of GC'ed sample if paired sample involved (event 8) */	
-	unsigned int gcln = 0;		/* Length of GC event (event 8) */
+/*	unsigned int gcln = 0;		 Length of GC event (event 8) */
 /*	unsigned int gcdir = 0;		 Direction of GC event (event 8) */
 	double NWd = 0; 			/* Weighted WH sample chosen (event 8) */
 	double NTd = 0; 			/* Total GC prob (ev 8) */	
@@ -761,7 +761,7 @@ unsigned int coalesce(unsigned int **indvs, int **GType, double **CTms , int **T
 	double Qin = 0;				/* Q value used in subsequent calcs (event 8) */
 	double gcst2 = 0;			/* Initial start site for GC (event 8) */
 	double gcend2 = 0;			/* Initial end site for GC (event 8) */
-	double gcln2 = 0;			/* Initial length for GC (event 8) */	
+/*	double gcln2 = 0;			 Initial length for GC (event 8) */	
 	double p1bp = 0;			/* Prob 1 breakpoint (event 8) */
 	unsigned int gcst3 = 0;		 
 	unsigned int gcS = 0;		/* Type of GC evening on unpaired samples (event 8) */
@@ -1248,14 +1248,16 @@ unsigned int coalesce(unsigned int **indvs, int **GType, double **CTms , int **T
 					gcst2 = gsl_ran_flat(r, 0, 1);
 					gcst = (unsigned int)(invs2(gcst2,Qin)*nsites);
 				}
+				/*
 				while(gcend >= nsites){
-					gcln = 0;
-					while(gcln == 0){
-						gcln2 = gsl_ran_flat(r, 0, 1);
-						gcln = (unsigned int)(invz(gcln2,Qin)*nsites);
-					/*	gcln = (gsl_ran_geometric(r,(1.0/lambda)));	*/
-					}
+					gcend = 0;
 					gcend = gcst + gcln;
+				}
+				*/
+				while(gcend == 0 || gcend == nsites){
+					gcend2 = gsl_ran_flat(r, 0, 1);
+					gcend = (unsigned int)(invt(gcend2, gcst2, Qin)*nsites);
+				/*	gcln = (gsl_ran_geometric(r,(1.0/lambda)));	*/
 				}
 			}else if(gcbp == 1){ 	 /* One breakpoint */
 				gcst3 = gsl_ran_bernoulli(r,0.5);
