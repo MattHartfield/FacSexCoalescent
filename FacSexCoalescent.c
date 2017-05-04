@@ -74,7 +74,7 @@ double P12(unsigned int x, unsigned int k, double geemi, double Qmi, unsigned in
 double invs1(double Si, double Qin);
 double invt1(double Ti, double Qin);
 double invs2(double Si, double Qin);
-double invt(double Ti, double Si, double Qin);
+double invt2(double Ti, double Si, double Qin);
 void probset2(unsigned int N, double gmi, double gme, double *sexC, double rec, double Qmi, double Qme, unsigned int lrec, unsigned int *nlrec, unsigned int *nlrec2, double mig, unsigned int *Nwith, unsigned int *Nbet, unsigned int *kin, unsigned int sw, double **pr);
 void rate_change(unsigned int N, unsigned int pST,double pLH, double pHL, double *sexH, double *sexL, unsigned int switch1, double *sexCN, double *sexCNInv, double *tts, unsigned int *npST,const gsl_rng *r);
 void stchange2(unsigned int ev, unsigned int deme, unsigned int *kin, int *WCH, int *BCH);
@@ -518,7 +518,7 @@ double invs2(double Si, double Qin){
 	return exp(-Qin)*(-1.0 + Si + exp(Qin)*(Si*(Qin - 1.0) - gsl_sf_lambert_W0((-1.0)*exp(-Qin + Si*(Qin - 1.0) + exp(-Qin)*(Si-1.0)))))/(1.0*Qin);
 }
 
-double invt(double Ti, double Si, double Qin){
+double invt2(double Ti, double Si, double Qin){
 	/* Inversion of endpoint for double GC event (2 bps) */
 	return Si - (log(1.0 - Ti*(1.0 - exp(-Qin*(1.0 - Si)))))/(1.0*Qin);
 }
@@ -1148,7 +1148,9 @@ unsigned int coalesce(unsigned int **indvs, int **GType, double **CTms , int **T
 			/* First, is it a paired or single sample that is affected? */
 			NWd = pairGC(*(Nwith + deme), *(nsex + deme), gmi, Qmi);
 			NTd = NWd + singGC(*(Nbet + deme), *(nsex + deme), gmi, gme, Qmi, Qme, *(sexC + deme));
+/*			printf("For %d paired and %d single, NWD %.10lf; NTD %.10lf; ratio %.10lf\n",*(Nwith + deme),*(Nbet + deme),NWd,NTd,(NWd/(1.0*NTd)));	*/
 			gt = gsl_ran_bernoulli(r,(NWd/(1.0*NTd)));
+/*			printf("GT is %d\n",gt);	*/
 			
 			if(gt == 0){	/* Acts on single sample */
 				unsigned int *singsamps8 = calloc((*(Nbet + deme) + 2*(*(nsex + deme))),sizeof(unsigned int));
@@ -1205,6 +1207,7 @@ unsigned int coalesce(unsigned int **indvs, int **GType, double **CTms , int **T
 				p1bp = 2.0*((1-KQ(Qin))/(1.0*(2.0-KQ(Qin))));
 				gcbp = gsl_ran_bernoulli(r,p1bp);
 			}
+/*			printf("For Q = %lf, p1bp = %lf and gcbp = %d\n",Qin,p1bp,gcbp);	*/
 			
 			/*
 			done = 0;
@@ -1256,9 +1259,14 @@ unsigned int coalesce(unsigned int **indvs, int **GType, double **CTms , int **T
 				*/
 				while(gcend == 0 || gcend == nsites){
 					gcend2 = gsl_ran_flat(r, 0, 1);
-					gcend = (unsigned int)(invt(gcend2, gcst2, Qin)*nsites);
+					gcend = (unsigned int)(invt2(gcend2, (gcst/(1.0*nsites)), Qin)*nsites);
+/*					printf("gcend = %d\n",gcend);*/
 				/*	gcln = (gsl_ran_geometric(r,(1.0/lambda)));	*/
 				}
+/*				printf("gcst2 is %lf (= %d); gcend2 is %lf (= %d). Length = %d\n",gcst2,gcst,invt2(gcend2, gcst2, Qin),gcend,(gcend-gcst));	
+				printf("1 %lf %d\n",gcst2,gcst);
+				printf("4 %lf %d\n",gcend2,gcend);
+				printf("%lf %lf %d\n",gcst2,gcend2,gcend);		*/
 			}else if(gcbp == 1){ 	 /* One breakpoint */
 				gcst3 = gsl_ran_bernoulli(r,0.5);
 				if(gcst3 == 0){		 /* Starts outside, ends in */
@@ -1267,6 +1275,8 @@ unsigned int coalesce(unsigned int **indvs, int **GType, double **CTms , int **T
 					while(gcend == 0 || gcend == nsites){
 						gcend2 = gsl_ran_flat(r, 0, 1);
 						gcend = (unsigned int)(invt1(gcend2,Qin)*nsites);
+/*						printf("Ended in. gcend2 is %lf (= %d)\n",invt1(gcend2,Qin),gcend);	
+						printf("2 %lf %d\n",gcend2,gcend);*/
 					}
 				}else if(gcst3 == 1){		/* Starts inside, ends out */
 					gcend = nsites;
@@ -1274,6 +1284,8 @@ unsigned int coalesce(unsigned int **indvs, int **GType, double **CTms , int **T
 					while(gcst == 0 || gcst == nsites){
 						gcst2 = gsl_ran_flat(r, 0, 1);
 						gcst = (unsigned int)(invs1(gcst2,Qin)*nsites);
+/*						printf("Started in. gcst is %lf (= %d)\n",invs1(gcst2,Qin),gcst);	
+						printf("3 %lf %d\n",gcst2,gcst);*/
 					}
 				}
 			}
