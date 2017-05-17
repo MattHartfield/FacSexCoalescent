@@ -1257,16 +1257,16 @@ unsigned int coalesce(unsigned int **indvs, int **GType, double **CTms , int **T
 					gcend = gcst + gcln;
 				}
 				*/
-				while(gcend == 0 || gcend == nsites){
+				while(gcend == 0 || gcend == nsites || gcend == gcst){
 					gcend2 = gsl_ran_flat(r, 0, 1);
 					gcend = (unsigned int)(invt2(gcend2, (gcst/(1.0*nsites)), Qin)*nsites);
 /*					printf("gcend = %d\n",gcend);*/
 				/*	gcln = (gsl_ran_geometric(r,(1.0/lambda)));	*/
 				}
-/*				printf("gcst2 is %lf (= %d); gcend2 is %lf (= %d). Length = %d\n",gcst2,gcst,invt2(gcend2, gcst2, Qin),gcend,(gcend-gcst));	
+/*				printf("gcst2 is %lf (= %d); gcend2 is %lf (= %d). Length = %d\n",gcst2,gcst,invt2(gcend2, gcst2, Qin),gcend,(gcend-gcst));		
 				printf("1 %lf %d\n",gcst2,gcst);
 				printf("4 %lf %d\n",gcend2,gcend);
-				printf("%lf %lf %d\n",gcst2,gcend2,gcend);		*/
+				printf("%lf %lf %d\n",gcst2,gcend2,gcend);			*/
 			}else if(gcbp == 1){ 	 /* One breakpoint */
 				gcst3 = gsl_ran_bernoulli(r,0.5);
 				if(gcst3 == 0){		 /* Starts outside, ends in */
@@ -1275,7 +1275,7 @@ unsigned int coalesce(unsigned int **indvs, int **GType, double **CTms , int **T
 					while(gcend == 0 || gcend == nsites){
 						gcend2 = gsl_ran_flat(r, 0, 1);
 						gcend = (unsigned int)(invt1(gcend2,Qin)*nsites);
-/*						printf("Ended in. gcend2 is %lf (= %d)\n",invt1(gcend2,Qin),gcend);	
+/*						printf("Ended in. gcend2 is %lf (= %d)\n",invt1(gcend2,Qin),gcend);		
 						printf("2 %lf %d\n",gcend2,gcend);*/
 					}
 				}else if(gcst3 == 1){		/* Starts inside, ends out */
@@ -1284,7 +1284,7 @@ unsigned int coalesce(unsigned int **indvs, int **GType, double **CTms , int **T
 					while(gcst == 0 || gcst == nsites){
 						gcst2 = gsl_ran_flat(r, 0, 1);
 						gcst = (unsigned int)(invs1(gcst2,Qin)*nsites);
-/*						printf("Started in. gcst is %lf (= %d)\n",invs1(gcst2,Qin),gcst);	
+/*						printf("Started in. gcst is %lf (= %d)\n",invs1(gcst2,Qin),gcst);		
 						printf("3 %lf %d\n",gcst2,gcst);*/
 					}
 				}
