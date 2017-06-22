@@ -94,6 +94,7 @@ void reccal(unsigned int **indvs, int **GType, unsigned int **breaks, unsigned i
 void proberr(unsigned int est, double **pr);
 void proberr2(double **pr);
 void proberr3(double **pr);
+void printCT(double **CTms, unsigned int **breaks, unsigned int nbreaks, unsigned int nsites, unsigned int Itot, unsigned int run);
 void manyr();
 void usage();
 
@@ -2934,6 +2935,34 @@ void proberr3(double **pr){
 
 }
 
+/* Function to print coalescent times of individual loci */
+void printCT(double **CTms, unsigned int **breaks, unsigned int nbreaks, unsigned int nsites, unsigned int Itot, unsigned int run){
+
+	/* Note: If proceeding with implementing different population sizes,
+	need to adjust code to print off re-scaled pop times! */
+
+	unsigned int j, x, n;
+	char Cout[32];				 /* String to hold filename in */
+	FILE *ofp_ctm = NULL;		 /* Pointer for data output */
+	
+	n = sprintf(Cout,"CoalTimes/CTimes_%d.dat",run);
+	ofp_ctm = fopen(Cout,"w");
+
+	for(x = 0; x < nbreaks; x++){
+		fprintf(ofp_ctm,"%d ",*((*(breaks + 0)) + x));
+	}
+	fprintf(ofp_ctm,"\n");
+	
+	for(j = 0; j < Itot; j++){
+		for(x = 1; x <= nbreaks; x++){
+			fprintf(ofp_ctm,"%lf ",*((*(CTms + j)) + x));
+		}
+		fprintf(ofp_ctm,"\n");
+	}
+	fclose(ofp_ctm);
+	
+}
+
 void manyr(){
 	fprintf(stderr,"Too many recombinants (exceeds HUGEVAL), exiting program.\n");
 	fprintf(stderr,"This is likely due to having excessively large recombination\n");
@@ -2950,6 +2979,7 @@ fprintf(stderr," -t: [4Nmu] defines neutral mutation rate\n");
 fprintf(stderr," -T: prints out individuals trees to file\n");
 fprintf(stderr," (Note that one of -t or -T MUST be used)\n");
 fprintf(stderr," -P: prints out data to screen using MS-style format\n");
+fprintf(stderr," -D: 'Debug mode'; prints table of coalescent times to file.\n");
 fprintf(stderr," -r: [2Nr nsites] to specify recombination\n");
 fprintf(stderr," -c: [2N(g_me) lambda_me] specifies rate and mean length of MEIOTIC gene conversion\n");
 fprintf(stderr," -m: [2N(g_mi) lambda_mi] specifies rate and mean length of MITOTIC gene conversion\n");
@@ -3020,6 +3050,7 @@ int main(int argc, char *argv[]){
 	unsigned int mburst = 0;	/* Max burst size */
 	unsigned int isexp = 0;		/* Assume exponential growth/decay? */
 	unsigned int achange = 0;	/* Has there been a coal event? If so then extra checks needed */
+	unsigned int iscmp = 0;		/* Switch to denote whether to print off table of coalescent times */
 	double bsex = 0;			/* Baseline rate of sex (for initial inputting) */
 	double pLH = 0;				/* Prob of low-sex to high-sex transition, OR time of transition if stepwise change */
 	double pHL = 0;				/* Prob of high-sex to low-sex transition */
@@ -3313,6 +3344,10 @@ int main(int argc, char *argv[]){
 					ismsp = 1;
 					argx++;
 					break;
+				case 'D':
+					iscmp = 1;
+					argx++;
+					break;
 				case 'b':
 					if(isrec == 0){
 						fprintf(stderr,"Have to define number of breakpoints first (using -r) before defining burst of mutations.\n");
@@ -3434,6 +3469,9 @@ int main(int argc, char *argv[]){
 	}
 	if(ismut == 1){
 		mkdir("Mutations/", 0777);
+	}
+	if(iscmp == 1){
+		mkdir("CoalTimes/", 0777);
 	}
 	
 	/* Running the simulation Nreps times */
@@ -3752,7 +3790,12 @@ int main(int argc, char *argv[]){
 		if(ismsp == 1){
 	    	printf("\n");
 			printf("// \n");
-		}		
+		}
+		
+		if(iscmp == 1){
+			/* Print off table of coalescent times if requested */
+			printCT(CTms, breaks, nbreaks, nsites, Itot, i);
+		}
 
 		for(x = 1; x <= nbreaks; x++){
 			
