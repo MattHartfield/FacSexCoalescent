@@ -1,4 +1,4 @@
-README FOR FACSEXCOALESCENT
+README FOR FAC SEX COALESCENT
 
 FacSexCoalescent is a simulation program, written in C, to simulate genealogies from individuals that alternate between sexual and asexual (parthenogenetic) reproduction. It is the source code for the Hartfield, Wright and Agrawal paper "The Facultative Sex Coalescent with Crossover Recombination and Multi-Site Gene Conversion". This updated version of the program can simulate genealogies at multiple sites, and is much faster since it is written in C (the 2015 program was written in R and only simulated genealogies at a single site).
 
