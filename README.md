@@ -13,4 +13,4 @@ EXECUTION:
 For basic usage, run the program without any input parameters to obtain the basic command line.
 Otherwise, more information is available in the user documentation.
 
-Comments to matthew.hartfield@birc.au.dk.
+Comments to matthew.hartfield@birc.au.dk
