@@ -1,7 +1,9 @@
 /* FacSexCoalescent.c
 The facultative sex coalescent program, ported over to C
 
-< Add further preamble here once the program is near release - e.g. runtime instructions, etc. >
+Run the program without parameters to obtain a helpfile outlining basic instructions.
+Further information is available in the README file, and the manual.
+(see https://github.com/MattHartfield/FacSexCoalescent for more info.)
 
 Simulation uses routines found with the GNU Scientific Library (GSL)
 (http://www.gnu.org/software/gsl/)
