@@ -3,7 +3,7 @@ The facultative sex coalescent program, ported over to C
 
 Run the program without parameters to obtain a helpfile outlining basic instructions.
 Further information is available in the README file, and the manual.
-(see https://github.com/MattHartfield/FacSexCoalescent for more info.)
+(see http://github.com/MattHartfield/FacSexCoalescent for more info.)
 
 Simulation uses routines found with the GNU Scientific Library (GSL)
 (http://www.gnu.org/software/gsl/)
@@ -1210,12 +1210,6 @@ unsigned int coalesce(unsigned int **indvs, int **GType, double **CTms , int **T
 					gcst2 = gsl_ran_flat(r, 0, 1);
 					gcst = (unsigned int)(invs2(gcst2,Qin)*nsites);
 				}
-				/*
-				while(gcend >= nsites){
-					gcend = 0;
-					gcend = gcst + gcln;
-				}
-				*/
 				while(gcend == 0 || gcend == nsites || gcend == gcst){
 					gcend2 = gsl_ran_flat(r, 0, 1);
 					gcend = (unsigned int)(invt2(gcend2, (gcst/(1.0*nsites)), Qin)*nsites);
