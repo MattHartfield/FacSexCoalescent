@@ -1,5 +1,5 @@
 /* FacSexCoalescent.c
-The facultative sex coalescent program...in C!!!
+The facultative sex coalescent program, ported over to C
 
 < Add further preamble here once the program is near release - e.g. runtime instructions, etc. >
 
@@ -750,11 +750,8 @@ unsigned int coalesce(unsigned int **indvs, int **GType, double **CTms , int **T
 	unsigned int gt = 0;		/* GC acting on single or paired sample? (event 8) */
 	int gcst = 0;				/* GC start point (event 8) */
 	int gcend = 0; 				/* GC end point (event 8) */
-/*	int gct = 0; 				 Temp GC value (event 8) */	
 	unsigned int gcsamp = 0;	/* Index of GC'ed sample (event 8) */
 	unsigned int gcsamp2 = 0;	/* Index of GC'ed sample if paired sample involved (event 8) */	
-/*	unsigned int gcln = 0;		 Length of GC event (event 8) */
-/*	unsigned int gcdir = 0;		 Direction of GC event (event 8) */
 	double NWd = 0; 			/* Weighted WH sample chosen (event 8) */
 	double NTd = 0; 			/* Total GC prob (ev 8) */	
 	double lambda = 0;			/* Assignment of lambda after choosing GC type (event 8) */
@@ -762,7 +759,6 @@ unsigned int coalesce(unsigned int **indvs, int **GType, double **CTms , int **T
 	double Qin = 0;				/* Q value used in subsequent calcs (event 8) */
 	double gcst2 = 0;			/* Initial start site for GC (event 8) */
 	double gcend2 = 0;			/* Initial end site for GC (event 8) */
-/*	double gcln2 = 0;			 Initial length for GC (event 8) */	
 	double p1bp = 0;			/* Prob 1 breakpoint (event 8) */
 	unsigned int gcst3 = 0;		 
 	unsigned int gcS = 0;		/* Type of GC evening on unpaired samples (event 8) */
@@ -967,7 +963,6 @@ unsigned int coalesce(unsigned int **indvs, int **GType, double **CTms , int **T
 			while(par == csamp){	/* Ensuring par != csamp */
 				gsl_ran_choose(r,&par,1,singsamps5,(*(Nbet + deme)),sizeof(unsigned int));			/* Other sample involved in coalescence (par) */
 			}
-/*			printf("Csamp, par is %d %d\n",csamp,par);*/
 		
 			/* Now updating coalescent times */
 			cchange(indvs, GType, CTms, TAnc, breaks, &csamp, &par, 1, Ntot, 0, nbreaks, Ttot, 1);
@@ -1098,7 +1093,6 @@ unsigned int coalesce(unsigned int **indvs, int **GType, double **CTms , int **T
 						for(a = 0; a < nsum; a++){
 							if( *((*(indvs + j)) + 1) == *(rsex + a)){
 								isWH = 0;
-/*								printf("Rechange\n");*/
 							}
 						}
 						if(isWH == 1){
@@ -1149,9 +1143,7 @@ unsigned int coalesce(unsigned int **indvs, int **GType, double **CTms , int **T
 			/* First, is it a paired or single sample that is affected? */
 			NWd = pairGC(*(Nwith + deme), *(nsex + deme), gmi, Qmi);
 			NTd = NWd + singGC(*(Nbet + deme), *(nsex + deme), gmi, gme, Qmi, Qme, *(sexC + deme));
-/*			printf("For %d paired and %d single, NWD %.10lf; NTD %.10lf; ratio %.10lf\n",*(Nwith + deme),*(Nbet + deme),NWd,NTd,(NWd/(1.0*NTd)));	*/
 			gt = gsl_ran_bernoulli(r,(NWd/(1.0*NTd)));
-/*			printf("GT is %d\n",gt);	*/
 			
 			if(gt == 0){	/* Acts on single sample */
 				unsigned int *singsamps8 = calloc((*(Nbet + deme) + 2*(*(nsex + deme))),sizeof(unsigned int));
@@ -1208,42 +1200,6 @@ unsigned int coalesce(unsigned int **indvs, int **GType, double **CTms , int **T
 				p1bp = 2.0*((1-KQ(Qin))/(1.0*(2.0-KQ(Qin))));
 				gcbp = gsl_ran_bernoulli(r,p1bp);
 			}
-/*			printf("For Q = %lf, p1bp = %lf and gcbp = %d\n",Qin,p1bp,gcbp);	*/
-			
-			/*
-			done = 0;
-			while(done == 0){
-				Drawing start point 
-				if(nsites > 2){
-					gcst = gsl_rng_uniform_int(r,(nsites-2));
-					gcst++;
-				}else if(nsites == 2){
-					gcst = 1;
-				}
-				gcln = gsl_ran_geometric(r,(1.0/(lambda)));
-				gcdir = gsl_ran_bernoulli(r,0.5);
-				gcend = gcst + pow((-1),gcdir)*gcln;
-				if(gcdir == 1){
-					gct = gcend;
-					gcend = gcst;
-					gcst = gct;
-				}
-				 Now checking if a valid event 
-				if(gcbp == 0){			 Two breakpoints 
-					if((gcend > 0) && (gcend < nsites) && (gcst > 0) && (gcst < nsites)){
-						done = 1;
-					}
-				}else if(gcbp == 1){ 	One Breakpoint 
-					if((gcst > 0) && (gcend >= nsites)){
-						gcend = nsites;
-						done = 1;
-					}else if((gcst <= 0) && (gcend < nsites)){
-						gcst = 0;
-						done = 1;
-					}
-				}
-			}
-			*/
 			
 			if(gcbp == 0){			 /* Two breakpoints */
 				gcst = 0;
@@ -1261,13 +1217,7 @@ unsigned int coalesce(unsigned int **indvs, int **GType, double **CTms , int **T
 				while(gcend == 0 || gcend == nsites || gcend == gcst){
 					gcend2 = gsl_ran_flat(r, 0, 1);
 					gcend = (unsigned int)(invt2(gcend2, (gcst/(1.0*nsites)), Qin)*nsites);
-/*					printf("gcend = %d\n",gcend);*/
-				/*	gcln = (gsl_ran_geometric(r,(1.0/lambda)));	*/
 				}
-/*				printf("gcst2 is %lf (= %d); gcend2 is %lf (= %d). Length = %d\n",gcst2,gcst,invt2(gcend2, gcst2, Qin),gcend,(gcend-gcst));		
-				printf("1 %lf %d\n",gcst2,gcst);
-				printf("4 %lf %d\n",gcend2,gcend);
-				printf("%lf %lf %d\n",gcst2,gcend2,gcend);			*/
 			}else if(gcbp == 1){ 	 /* One breakpoint */
 				gcst3 = gsl_ran_bernoulli(r,0.5);
 				if(gcst3 == 0){		 /* Starts outside, ends in */
@@ -1276,8 +1226,6 @@ unsigned int coalesce(unsigned int **indvs, int **GType, double **CTms , int **T
 					while(gcend == 0 || gcend == nsites){
 						gcend2 = gsl_ran_flat(r, 0, 1);
 						gcend = (unsigned int)(invt1(gcend2,Qin)*nsites);
-/*						printf("Ended in. gcend2 is %lf (= %d)\n",invt1(gcend2,Qin),gcend);		
-						printf("2 %lf %d\n",gcend2,gcend);*/
 					}
 				}else if(gcst3 == 1){		/* Starts inside, ends out */
 					gcend = nsites;
@@ -1285,8 +1233,6 @@ unsigned int coalesce(unsigned int **indvs, int **GType, double **CTms , int **T
 					while(gcst == 0 || gcst == nsites){
 						gcst2 = gsl_ran_flat(r, 0, 1);
 						gcst = (unsigned int)(invs1(gcst2,Qin)*nsites);
-/*						printf("Started in. gcst is %lf (= %d)\n",invs1(gcst2,Qin),gcst);		
-						printf("3 %lf %d\n",gcst2,gcst);*/
 					}
 				}
 			}
