@@ -93,9 +93,9 @@ void Wait();
 void TestTabs(unsigned int **indvs, int **GType, double **CTms, int **TAnc, unsigned int **breaks, unsigned int **nlri, unsigned int NMax, unsigned int Itot, unsigned int Nbet, unsigned int nbreaks);
 char * treemaker(double **TFin, double thetain, unsigned int mind2, unsigned int maxd2, double mind, double maxd, unsigned int Itot, unsigned int run, double gmi, double gme, unsigned int ismsp, unsigned int *nmutT, unsigned int prtrees, unsigned int ismut, double pburst, unsigned int mburst, double bdist, const gsl_rng *r);
 void reccal(unsigned int **indvs, int **GType, unsigned int **breaks, unsigned int **nlri, unsigned int *Nbet, unsigned int *Nwith, unsigned int *rsex, unsigned int esex, unsigned int *lnrec, unsigned int nbreaks, unsigned int NMax, unsigned int sw, unsigned int run);
-void proberr(unsigned int est, double **pr);
-void proberr2(double **pr);
-void proberr3(double **pr);
+void proberr(unsigned int est, double **pr, unsigned int *NW, unsigned int *NB, unsigned int *esx);
+void proberr2(double **pr, unsigned int *NW, unsigned int *NB);
+void proberr3(double **pr, unsigned int *NW, unsigned int *NB);
 void printCT(double **CTms, unsigned int **breaks, unsigned int nbreaks, unsigned int nsites, unsigned int Itot, unsigned int run);
 void manyr();
 void usage();
@@ -2812,14 +2812,26 @@ void reccal(unsigned int **indvs, int **GType, unsigned int **breaks, unsigned i
 	free(BHi);
 }
 
-void proberr(unsigned int est, double **pr){
+void proberr(unsigned int est, double **pr, unsigned int *NW, unsigned int *NB, unsigned int *esx){
 
 	unsigned int j, x;
 	
 	fprintf(stderr,"A negative probability exists, you need to double-check your algebra (or probability inputs) - esex %d.\n",est);
 	fprintf(stderr,"This likely arises due to having excessively high recombination or gene conversion rates - please check.\n");
 	fprintf(stderr,"\n");
-	fprintf(stderr,"For error reporting, the final probability calculations per deme are:\n");
+	fprintf(stderr,"For error reporting, the number of paired and unpaired samples per deme are:\n");
+	if(est == 0){
+		for(x = 0; x < d; x++){			
+			fprintf(stderr,"%d %d\n",*(NW + x), *(NB + x));
+		}
+	}else if(est == 1){		
+		for(x = 0; x < d; x++){			
+			fprintf(stderr,"%d %d (%d)\n",*(NW + x), *(NB + x), *(esx + x));
+		}
+	}
+	
+	fprintf(stderr,"\n");
+	fprintf(stderr,"The final probability calculations per deme are:\n");
 	
 	for(j = 0; j < 12; j++){
 		fprintf(stderr,"Event %d: ",j);
@@ -2834,14 +2846,20 @@ void proberr(unsigned int est, double **pr){
 
 }
 
-void proberr2(double **pr){
+void proberr2(double **pr, unsigned int *NW, unsigned int *NB){
 
 	unsigned int j, x;
 	
 	fprintf(stderr,"Summed probabilities exceed one, you need to double-check your algebra (or probability inputs).\n");
 	fprintf(stderr,"This likely arises due to having excessively high recombination or gene conversion rates - please check.\n");
 	fprintf(stderr,"\n");
-	fprintf(stderr,"For error reporting, the final probability calculations per deme are:\n");
+	fprintf(stderr,"For error reporting, the number of paired and unpaired samples per deme are:\n");
+	for(x = 0; x < d; x++){			
+		fprintf(stderr,"%d %d\n",*(NW + x), *(NB + x));
+	}
+	
+	fprintf(stderr,"\n");
+	fprintf(stderr,"The final probability calculations per deme are:\n");
 	
 	for(j = 0; j < 12; j++){
 		fprintf(stderr,"Event %d: ",j);
@@ -2856,13 +2874,19 @@ void proberr2(double **pr){
 
 }
 
-void proberr3(double **pr){
+void proberr3(double **pr, unsigned int *NW, unsigned int *NB){
 
 	unsigned int j, x;
 	
 	fprintf(stderr,"Summed probabilites are zero or negative, you need to double-check your algebra (or probability inputs).\n");
 	fprintf(stderr,"\n");
-	fprintf(stderr,"For error reporting, the final probability calculations per deme are:\n");
+	fprintf(stderr,"For error reporting, the number of paired and unpaired samples per deme are:\n");
+	for(x = 0; x < d; x++){			
+		fprintf(stderr,"%d %d\n",*(NW + x), *(NB + x));
+	}
+	
+	fprintf(stderr,"\n");
+	fprintf(stderr,"The final probability calculations per deme are:\n");
 	
 	for(j = 0; j < 12; j++){
 		fprintf(stderr,"Event %d: ",j);
@@ -3529,13 +3553,13 @@ int main(int argc, char *argv[]){
 							
 			/* Intermediate error checking */
 			if(psum > 1){
-				proberr2(pr);
+				proberr2(pr,Nwith,Nbet);
 			}
 			if((psum <= 0) && (isallD(sexC,d,0) != 1)){
-				proberr3(pr);
+				proberr3(pr,Nwith,Nbet);
 			}
 			if(isanylessD_2D(pr,12,d,0) == 1){
-				proberr(0, pr);
+				proberr(0,pr,Nwith,Nbet,evsex);
 			}
 			
 			/* Drawing time to next event, SCALED TO 2NT GENERATIONS */
@@ -3593,7 +3617,7 @@ int main(int argc, char *argv[]){
 					/* Then recalculating probability of events */
 					probset2(N, gmi, gme, sexC, rec, bigQmi, bigQme, nsites, nlrec, nlrec2, mig, Nwith, Nbet, evsex, 1, pr);
 					if(isanylessD_2D(pr,12,d,0) == 1){
-						proberr(1, pr);
+						proberr(1, pr, Nwith, Nbet, evsex);
 					}
 				}
 				
