@@ -82,7 +82,7 @@ void probset2(unsigned int N, double gmi, double gme, double *sexC, double rec, 
 void rate_change(unsigned int N, unsigned int pST,double pLH, double pHL, double *sexH, double *sexL, unsigned int switch1, double *sexCN, double *sexCNInv, double *tts, unsigned int *npST,const gsl_rng *r);
 void stchange2(unsigned int ev, unsigned int deme, unsigned int *kin, int *WCH, int *BCH);
 void sexconv(unsigned int **Tin, unsigned int *rsex, unsigned int nsum, unsigned int Ntot, unsigned int Nid, unsigned int ex);
-unsigned int coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, unsigned int **nlri, double Ttot, unsigned int *Nwith, unsigned int *Nbet, unsigned int deme, unsigned int *rsex, unsigned int *nsex, unsigned int ex, unsigned int drec, unsigned int e2, unsigned int **breaks, unsigned int nsites, unsigned int *nbreaks, unsigned int NMax, unsigned int Itot, double lambdami, double lambdame, double gmi, double gme, double Qmi, double Qme, unsigned int *gcalt, double *sexC, int *WCHex, int *BCHex, const gsl_rng *r, unsigned int ei);
+unsigned int coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, unsigned int **nlri, unsigned int **nlrix, double Ttot, unsigned int *Nwith, unsigned int *Nbet, unsigned int deme, unsigned int *rsex, unsigned int *nsex, unsigned int ex, unsigned int drec, unsigned int e2, unsigned int **breaks, unsigned int nsites, unsigned int *nbreaks, unsigned int NMax, unsigned int Itot, double lambdami, double lambdame, double gmi, double gme, double Qmi, double Qme, unsigned int *gcalt, double *sexC, int *WCHex, int *BCHex, const gsl_rng *r, unsigned int ei);
 void cchange(unsigned int **indvs, int **GType, double **CTms, int **TAnc, unsigned int **breaks, unsigned int *csamp, unsigned int *par, unsigned int lsamp, unsigned int Ntot, unsigned int cst, unsigned int *cend, double Ttot, unsigned int isall);
 unsigned int ccheck(unsigned int **indvs, int **GType, unsigned int **breaks, unsigned int nsites, unsigned int Ntot, unsigned int nbreaks);
 void excoal(unsigned int **indvs, int **GType, unsigned int *par, unsigned int nbreaks, unsigned int npar, unsigned int Ntot, int *WCHex, int *BCHex, unsigned int deme);
@@ -728,7 +728,7 @@ void sexconv(unsigned int **Tin, unsigned int *rsex, unsigned int nsum, unsigned
 }
 
 /* Function to change status of samples following event change */
-unsigned int coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, unsigned int **nlri, double Ttot, unsigned int *Nwith, unsigned int *Nbet, unsigned int deme, unsigned int *rsex, unsigned int *nsex, unsigned int ex, unsigned int drec, unsigned int e2, unsigned int **breaks, unsigned int nsites, unsigned int *nbreaks, unsigned int NMax, unsigned int Itot, double lambdami, double lambdame, double gmi, double gme, double Qmi, double Qme, unsigned int *gcalt, double *sexC, int *WCHex, int *BCHex, const gsl_rng *r, unsigned int ei){
+unsigned int coalesce(unsigned int **indvs, int **GType, double **CTms , int **TAnc, unsigned int **nlri, unsigned int **nlrix, double Ttot, unsigned int *Nwith, unsigned int *Nbet, unsigned int deme, unsigned int *rsex, unsigned int *nsex, unsigned int ex, unsigned int drec, unsigned int e2, unsigned int **breaks, unsigned int nsites, unsigned int *nbreaks, unsigned int NMax, unsigned int Itot, double lambdami, double lambdame, double gmi, double gme, double Qmi, double Qme, unsigned int *gcalt, double *sexC, int *WCHex, int *BCHex, const gsl_rng *r, unsigned int ei){
 	
 	unsigned int NWtot = 2*sumUI(Nwith,d);
 	unsigned int NBtot = sumUI(Nbet,d);
@@ -737,11 +737,13 @@ unsigned int coalesce(unsigned int **indvs, int **GType, double **CTms , int **T
 	unsigned int nsum = sumUI(nsex,d);
 	unsigned int j = 0;
 	unsigned int a = 0;
+	unsigned int k = 0;	
 	int x = 0;
 	unsigned int count = 0;		/* For converting WH to BH samples */
 	unsigned int done = 0;		/* For sampling right individual */
 	unsigned int rands = 0;		/* Sample split by rec (event 10) */
 	unsigned int rands2 = 0;	/* Sample that does not split fully (event 1; also used in event 8) */
+	unsigned int rands3 = 0;	/* Other chromosome arm during mitotic rec event (event 12) */
 	unsigned int nos = 0;		/* Sub-sample that does not split fully (event 1) */
 	unsigned int bhc = 0;		/* Single sample that repairs (ev 1) or migrates (ev 9); */
 	unsigned int csamp = 0;		/* Sample that coalesces */
@@ -780,6 +782,7 @@ unsigned int coalesce(unsigned int **indvs, int **GType, double **CTms , int **T
 	unsigned int achange = 0;	/* Note whether to run extra coal check */
 	unsigned int length = 0;	/* Length of sampled chrom (event 10) */
 	unsigned int start = 0;		/* Start of sampled chrom  (event 10) */
+	int tempGT = 0;				/* Temporary storage of genotype entry during mitotic recombination (event 12) */
 	
 	/* Then further actions based on other event */
 	switch(ex)
@@ -1597,7 +1600,126 @@ unsigned int coalesce(unsigned int **indvs, int **GType, double **CTms , int **T
 		
 			free(parsamps11);
 		
-			break;	
+			break;
+		case 12:	/* Event 12: Mitotic Recombination - exchanging coalescent histories within paired samples */
+			
+			/* Converting WH to BH samples  */
+			sexconv(indvs, rsex, nsum, Ntot, Nindv, ex);
+			
+			/* For storing WH weights */
+			double *weights12 = calloc(2*(*(Nwith + deme) - *(nsex + deme)),sizeof(double));
+			double *parsamps12 = calloc(2*(*(Nwith + deme) - *(nsex + deme)),sizeof(double));
+			double *startp12 = calloc(2*(*(Nwith + deme) - *(nsex + deme)),sizeof(double));			
+			
+			/* Obtaining weights of each sample */
+			count = 0;
+			while(count < 2*(*(Nwith + deme) - *(nsex + deme))){
+				for(j = 0; j < 2*(NWtot - nsum); j++){
+					if( *((*(nlrix + j)) + 3) == deme){
+						*(weights12 + count) = *((*(nlrix + j)) + 2);
+						*(startp12 + count) = *((*(nlrix + j)) + 1);						
+						*(parsamps12 + count) = *((*(nlrix + j)) + 0);
+						*(weights12 + count + 1) = *((*(nlrix + j + 1)) + 2);
+						*(startp12 + count + 1) = *((*(nlrix + j + 1)) + 1);						
+						*(parsamps12 + count + 1) = *((*(nlrix + j + 1)) + 0);
+						count++;
+						count++;
+					}
+				}
+			}
+			
+			/* For storing BH samples */
+			unsigned int *parsamps12a = calloc((*(Nbet + deme) + 2*(*(nsex + deme))),sizeof(unsigned int));
+				
+			/* Choosing single sample to be split in recombination */
+			gsl_ran_multinomial(r,2*(*(Nwith + deme) - *(nsex + deme)),1,weights12,parsamps12a);
+				
+			/* Matching choice to sample */
+			for(j = 0; j < (2*(*(Nwith + deme) - *(nsex + deme))); j++){
+				if(*(parsamps12a + j) == 1){
+					rands = *(parsamps12 + j);
+					if(j%2 == 0){
+						rands3 = *(parsamps12 + j + 1);
+					}else if(j%2 != 0){
+						rands3 = *(parsamps12 + j - 1);
+					}
+					length = *(weights12 + j);
+					start = *(startp12 + j);
+					break;
+				}
+			}
+			
+			free(parsamps12a);
+			
+			rsite = gsl_rng_uniform_int(r,length) + (start + 1);
+			if(*nbreaks == 1){
+				yesrec = 1;
+				isyetbp = 0;
+				maxtr = 1;
+			}else if(*nbreaks > 1){
+				/* First, check if (1) rsite is already in existing table of breakpoints;
+				and (2) if so, breakpoint included at end of existing table */
+				isyetbp = 0;
+				maxtr = 0;
+				for(x = 0; x < *nbreaks; x++){
+					if( *((*(breaks + 0)) + x) == rsite){
+						isyetbp = 1;
+					}
+					if( *((*(breaks + 0)) + x) <= rsite){
+						maxtr = (x+1);
+					}
+				}
+			}
+								
+			/* Adding new site and re-ordering tracts in other tables */
+			if((isyetbp != 1) && ((*((*(GType + rands)) + maxtr) != (-1)) || (*((*(GType + rands3)) + maxtr) != (-1))) ){
+				(*nbreaks)++;
+				for(x = *nbreaks-2; x >= (int)(maxtr-1); x--){
+					*((*(breaks + 0)) + x + 1) = *((*(breaks + 0)) + x);
+					*((*(breaks + 1)) + x + 1) = *((*(breaks + 1)) + x);						
+				}
+				*((*(breaks + 0)) + maxtr) = rsite;
+				*((*(breaks + 1)) + maxtr) = *((*(breaks + 1)) + maxtr - 1);
+				/* Adding new site to genotype; coalescent time; ancestry table */
+				for(j = 0; j < NMax; j++){
+					for(x = (*nbreaks-1); x >= (int)(maxtr); x--){
+						*((*(GType + j)) + x + 1) = *((*(GType + j)) + x);
+						if(j < Itot){
+							*((*(CTms + j)) + x + 1) = *((*(CTms + j)) + x);
+							*((*(TAnc + j)) + x + 1) = *((*(TAnc + j)) + x);
+						}
+					}
+				}
+			}else if((isyetbp == 1) || ((*((*(GType + rands)) + maxtr) == (-1) ) && (*((*(GType + rands3)) + maxtr) == (-1) ))){
+				maxtr--;
+			}
+						
+			/* Now creating the new sample genotype, by swapping genealogies */
+			for(j = 0; j < NMax; j++){
+				if( *((*(GType + j)) + 0) == rands ){
+					if(j%2 == 0){
+						k = j + 1;
+					}else if(j%2 != 0){
+						k = j - 1;
+					}
+					for(x = (*nbreaks); x > (int)maxtr; x--){
+						tempGT = *((*(GType + k)) + x);
+						*((*(GType + k)) + x) = *((*(GType + j)) + x);;
+						*((*(GType + j)) + x) = tempGT;
+					}
+					break;
+				}
+			}
+			
+			for(x = maxtr; x > (int)0; x--){
+				*((*(GType + NMax)) + x) = (-1);
+			}
+			*((*(GType + NMax)) + 0) = NMax;
+			
+			free(startp12);
+			free(parsamps12);
+			free(weights12);
+			break;
 		default:	/* If none of these cases chosen, exit with error message */
 			fprintf(stderr,"Error: Non-standard coalescent case selected ('coalesce').\n");
 			exit(1);
@@ -3816,7 +3938,7 @@ int main(int argc, char *argv[]){
 				
 				/* Change ancestry accordingly */
 				gcalt = 0;
-				achange = coalesce(indvs, GType, CTms, TAnc, nlri, Ttot, Nwith, Nbet, deme, rsex, evsex, event, drec, e2, breaks, nsites, &nbreaks, NMax, Itot, lambdami, lambdame, gmi, gme, bigQmi, bigQme, &gcalt, sexC, WCHex, BCHex, r, i);
+				achange = coalesce(indvs, GType, CTms, TAnc, nlri, nlrix, Ttot, Nwith, Nbet, deme, rsex, evsex, event, drec, e2, breaks, nsites, &nbreaks, NMax, Itot, lambdami, lambdame, gmi, gme, bigQmi, bigQme, &gcalt, sexC, WCHex, BCHex, r, i);
 				
 				/* Based on outcome, altering (non-mig) states accordingly */
 				if(event != 9){		/* Since already done for state = 9 above... */
