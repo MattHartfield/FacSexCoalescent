@@ -3937,9 +3937,14 @@ int main(int argc, char *argv[]){
 				gsl_ran_multinomial(r,d,1,(*(pr + event)),draw2);
 				deme = matchUI(draw2,d,1);
 				printf("Event is %d\n",event);
+				
+				/*
 				if(event==12){
+					printf("BEFORE MITOTIC REC\n");
 					TestTabs(indvs, GType, CTms, TAnc, breaks, nlri, nlrix, NMax, Itot, *(Nbet + 0),  *(Nwith + 0), nbreaks);
 				}
+				*/
+
 								
 				if(event == 9){		/* Choosing demes to swap NOW if there is a migration */
 					stchange2(event,deme,evsex,WCH,BCH);
@@ -3995,10 +4000,6 @@ int main(int argc, char *argv[]){
 							Ntot--;
 						}
 					}
-					
-					if(event==12){
-						TestTabs(indvs, GType, CTms, TAnc, breaks, nlri, nlrix, NMax, Itot, *(Nbet + 0),  *(Nwith + 0), nbreaks);
-					}
 
 					if(achange == 1){
 						vsum_UI_I(Nwith, WCHex, d);
@@ -4012,7 +4013,7 @@ int main(int argc, char *argv[]){
 					}
 					
 				}
-				if(event == 10 || event == 12){
+				if(event == 10){
 					NMax++;
 					if(NMax > HUGEVAL){
 						manyr();		
@@ -4021,6 +4022,13 @@ int main(int argc, char *argv[]){
 				
 				/* Sorting table afterwards to ensure paired samples are together */
 				indv_sort(indvs, NMax);
+				
+				/*
+				if(event==12){
+					printf("AFTER MITOTIC REC\n");
+					TestTabs(indvs, GType, CTms, TAnc, breaks, nlri, nlrix, NMax, Itot, *(Nbet + 0),  *(Nwith + 0), nbreaks);
+				}
+				*/
 				
 				/* Updating baseline recombinable material depending on number single samples */
 				if(isallUI(*(breaks+1),nbreaks,1,0) == 0){	
