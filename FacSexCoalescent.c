@@ -1629,7 +1629,7 @@ unsigned int coalesce(unsigned int **indvs, int **GType, double **CTms , int **T
 			}
 			
 			/* For storing BH samples */
-			unsigned int *parsamps12a = calloc((*(Nbet + deme) + 2*(*(nsex + deme))),sizeof(unsigned int));
+			unsigned int *parsamps12a = calloc((2*(*(Nwith + deme) - *(nsex + deme))),sizeof(unsigned int));
 				
 			/* Choosing single sample to be split in recombination */
 			gsl_ran_multinomial(r,2*(*(Nwith + deme) - *(nsex + deme)),1,weights12,parsamps12a);
@@ -1704,7 +1704,7 @@ unsigned int coalesce(unsigned int **indvs, int **GType, double **CTms , int **T
 					}
 					for(x = (*nbreaks); x > (int)maxtr; x--){
 						tempGT = *((*(GType + k)) + x);
-						*((*(GType + k)) + x) = *((*(GType + j)) + x);;
+						*((*(GType + k)) + x) = *((*(GType + j)) + x);
 						*((*(GType + j)) + x) = tempGT;
 					}
 					break;
@@ -2988,9 +2988,6 @@ void reccalx(unsigned int **indvs, int **GType, unsigned int **breaks, unsigned 
 					for(k = 0; k < esex; k++){
 						if( *((*(indvs + j)) + 1) == *(rsex + count2) ){
 							issex = 1;
-							/* If sample marked as sex then skip */
-							/* Assuming sex events are sorted - need to double check... */
-							count2++;
 						}
 						
 						if(issex == 1){
