@@ -2943,9 +2943,10 @@ void reccal(unsigned int **indvs, int **GType, unsigned int **breaks, unsigned i
 
 /* ReccalX: calculating effective recombination rate over potential sites FOR PAIRED SAMPLES (for mitotic recombination) */
 void reccalx(unsigned int **indvs, int **GType, unsigned int **breaks, unsigned int **nlrix, unsigned int *Nbet, unsigned int *Nwith, unsigned int *rsex, unsigned int esex, unsigned int *lnrec, unsigned int nbreaks, unsigned int NMax, unsigned int sw, unsigned int run){
-	unsigned int j, i, k;
+	unsigned int j, i;
 	unsigned int count = 0;
-	unsigned int count2 = 0;	
+	unsigned int count2 = 0;
+	unsigned int count3 = 0;		
 	unsigned int vl = 0;
 	unsigned int mintr = 0;
 	unsigned int maxtr = 0;
@@ -2962,20 +2963,24 @@ void reccalx(unsigned int **indvs, int **GType, unsigned int **breaks, unsigned 
 	}else if(sw == 1){
 		vl = 2*(sumUI(Nwith,d) - esex);
 	}
+/*	printf("In situation %d vl is %d\n",sw,vl);	*/
 	unsigned int *WHi = calloc(vl,sizeof(unsigned int));
 	unsigned int *WHid = calloc(vl,sizeof(unsigned int));
 	
 	/* Vector of samples */
-	count = 0;
 	if(sw == 0){
 		while(count < vl){
 			for(j = 0; j < Ntot; j++){
+/*				printf("j is %d, indv is %d\n",j,*((*(indvs + j)) + 2));	*/
 				if( *((*(indvs + j)) + 2) == 0){
-					*(WHi + count) = *((*(indvs + 2*j)) + 0);
-					*(WHid + count) = *((*(indvs + 2*j)) + 3);
-					*(WHi + count + 1) = *((*(indvs + 2*j + 1)) + 0);
-					*(WHid + count + 1) = *((*(indvs + 2*j + 1)) + 3);
+/*					printf("indv is %d; sample %d\n",*((*(indvs + j)) + 2),*((*(indvs + j)) + 0));	*/
+					*(WHi + count) = *((*(indvs + j)) + 0);
+					*(WHid + count) = *((*(indvs + j)) + 3);
+					/*
+					*(WHi + count + 1) = *((*(indvs + j + 1)) + 0);
+					*(WHid + count + 1) = *((*(indvs + j + 1)) + 3);
 					count++;
+					*/
 					count++;				
 				}
 			}
@@ -2985,23 +2990,27 @@ void reccalx(unsigned int **indvs, int **GType, unsigned int **breaks, unsigned 
 			for(j = 0; j < Ntot; j++){
 				if( *((*(indvs + j)) + 2) == 0){
 					issex = 0;
-					for(k = 0; k < esex; k++){
-						if( *((*(indvs + j)) + 1) == *(rsex + count2) ){
-							issex = 1;
-						}
+					if( *((*(indvs + j)) + 1) == *(rsex + count2) ){
+						issex = 1;
+					}
 						
-						if(issex == 1){
-							/* If sample marked as sex then skip */
-							/* Assuming sex events are sorted - need to double check... */
+					if(issex == 1){
+						/* If sample marked as sex then skip */
+						/* Assuming sex events are sorted - need to double check... */
+						count3++;
+						if(count3 == 2){
+							count3 = 0;
 							count2++;
-						}else if(issex == 0){
-							*(WHi + count) = *((*(indvs + 2*j)) + 0);
-							*(WHid + count) = *((*(indvs + 2*j)) + 3);
-							*(WHi + count + 1) = *((*(indvs + 2*j + 1)) + 0);
-							*(WHid + count + 1) = *((*(indvs + 2*j + 1)) + 3);
-							count++;
-							count++;
 						}
+					}else if(issex == 0){
+						*(WHi + count) = *((*(indvs + j)) + 0);
+						*(WHid + count) = *((*(indvs + j)) + 3);
+						/*
+						*(WHi + count + 1) = *((*(indvs + j + 1)) + 0);
+						*(WHid + count + 1) = *((*(indvs + j + 1)) + 3);
+						count++;
+						*/
+						count++;
 					}
 				}
 			}
@@ -3196,7 +3205,7 @@ fprintf(stderr," -T: prints out individuals trees to file\n");
 fprintf(stderr," (Note that one of -t or -T MUST be used)\n");
 fprintf(stderr," -P: prints out data to screen using MS-style format\n");
 fprintf(stderr," -D: 'Debug mode'; prints table of coalescent times to file.\n");
-fprintf(stderr," -r: [2Nr nsites] to specify MEIOTIC recombination\n");
+fprintf(stderr," -r: [2Nc nsites] to specify MEIOTIC recombination\n");
 fprintf(stderr," -x: [2N(rA)] to specify MITOTIC recombination\n");
 fprintf(stderr," -c: [2N(g_me) lambda_me] specifies rate and mean length of MEIOTIC gene conversion\n");
 fprintf(stderr," -m: [2N(g_mi) lambda_mi] specifies rate and mean length of MITOTIC gene conversion\n");
@@ -3711,7 +3720,7 @@ int main(int argc, char *argv[]){
 	/* Running the simulation Nreps times */
 	for(i = 0; i < Nreps; i++){
 		
-/*		printf("Starting Run %d\n",i);	*/
+		printf("Starting Run %d\n",i);
 		nmutT = 0;
 
 		/* Setting up type of sex heterogeneity */
@@ -3991,6 +4000,7 @@ int main(int argc, char *argv[]){
 				/* Updating baseline recombinable material depending on number single samples */
 				if(isallUI(*(breaks+1),nbreaks,1,0) == 0){	
 					reccal(indvs, GType, breaks, nlri, Nbet, Nwith, rsex, esex, nlrec, nbreaks, NMax, 0, i);
+/*					TestTabs(indvs, GType, CTms, TAnc, breaks, nlri, NMax, Itot, *Nbet, nbreaks);	*/
 					reccalx(indvs, GType, breaks, nlrix, Nbet, Nwith, rsex, esex, nlrecx, nbreaks, NMax, 0, i);
 					for(x = 0; x < d; x++){
 						*(nlrec2 + x) = 0;
