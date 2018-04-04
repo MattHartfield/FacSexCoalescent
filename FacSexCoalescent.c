@@ -91,7 +91,7 @@ void sexsamp(unsigned int **indvs, unsigned int *rsex, unsigned int *nsex, unsig
 void indv_sort(unsigned int **indvs, unsigned int nrow);
 void indv_sortD(double **Tin, unsigned int nrow, unsigned int ncol, unsigned int tcol);
 void Wait();
-void TestTabs(unsigned int **indvs, int **GType, double **CTms, int **TAnc, unsigned int **breaks, unsigned int **nlri, unsigned int NMax, unsigned int Itot, unsigned int Nbet, unsigned int nbreaks);
+void TestTabs(unsigned int **indvs, int **GType, double **CTms, int **TAnc, unsigned int **breaks, unsigned int **nlri, unsigned int **nlrix, unsigned int NMax, unsigned int Itot, unsigned int Nbet, unsigned int Nwith, unsigned int nbreaks);
 char * treemaker(double **TFin, double thetain, unsigned int mind2, unsigned int maxd2, double mind, double maxd, unsigned int Itot, unsigned int run, double gmi, double gme, unsigned int ismsp, unsigned int *nmutT, unsigned int prtrees, unsigned int ismut, double pburst, unsigned int mburst, double bdist, const gsl_rng *r);
 void reccal(unsigned int **indvs, int **GType, unsigned int **breaks, unsigned int **nlri, unsigned int *Nbet, unsigned int *Nwith, unsigned int *rsex, unsigned int esex, unsigned int *lnrec, unsigned int nbreaks, unsigned int NMax, unsigned int sw, unsigned int run);
 void reccalx(unsigned int **indvs, int **GType, unsigned int **breaks, unsigned int **nlrix, unsigned int *Nbet, unsigned int *Nwith, unsigned int *rsex, unsigned int esex, unsigned int *lnrec, unsigned int nbreaks, unsigned int NMax, unsigned int sw, unsigned int run);
@@ -690,6 +690,10 @@ void stchange2(unsigned int ev, unsigned int deme, unsigned int *kin, int *WCH, 
 		case 11:
 			*(oo3 + 0) = -1;
 			*(oo3 + 1) = 1;
+			break;
+		case 12:
+			*(oo3 + 0) = 0;
+			*(oo3 + 1) = 0;
 			break;			
 		default:	/* If none of these cases chosen, exit with error message */
 			fprintf(stderr,"Error: Non-standard coalescent case selected ('stchange2').\n");
@@ -1603,6 +1607,8 @@ unsigned int coalesce(unsigned int **indvs, int **GType, double **CTms , int **T
 			break;
 		case 12:	/* Event 12: Mitotic Recombination - exchanging coalescent histories within paired samples */
 			
+			printf("Executing mitotic recombination routine\n");
+			
 			/* Converting WH to BH samples  */
 			sexconv(indvs, rsex, nsum, Ntot, Nindv, ex);
 			
@@ -1613,12 +1619,12 @@ unsigned int coalesce(unsigned int **indvs, int **GType, double **CTms , int **T
 			
 			/* Obtaining weights of each sample */
 			count = 0;
-			printf("NW = %d %d %d\n",*(Nwith + deme),*(nsex + deme),2*(*(Nwith + deme) - *(nsex + deme)));
+/*			printf("NW = %d %d %d\n",*(Nwith + deme),*(nsex + deme),2*(*(Nwith + deme) - *(nsex + deme)));	*/
+			printf("NW = %d %d %d\n",NWtot,nsum,(NWtot - 2*nsum));	
 			while(count < 2*(*(Nwith + deme) - *(nsex + deme))){
-				for(j = 0; j < 2*(NWtot - nsum); j++){
-					printf("Deme is %u\n",*((*(nlrix + j)) + 3));
+				for(j = 0; j < (NWtot - 2*nsum); j++){
 					if( *((*(nlrix + j)) + 3) == deme){
-						printf("Values are %u %u %u\n",*((*(nlrix + j)) + 0),*((*(nlrix + j)) + 1),*((*(nlrix + j)) + 2));
+/*						printf("Values are %u %u %u\n",*((*(nlrix + j)) + 0),*((*(nlrix + j)) + 1),*((*(nlrix + j)) + 2));	*/
 						*(weights12 + count) = *((*(nlrix + j)) + 2);
 						*(startp12 + count) = *((*(nlrix + j)) + 1);						
 						*(parsamps12 + count) = *((*(nlrix + j)) + 0);
@@ -1653,11 +1659,12 @@ unsigned int coalesce(unsigned int **indvs, int **GType, double **CTms , int **T
 					break;
 				}
 			}
+			printf("Rands, Rands3 are %d, %d\n",rands,rands3);
 			
 			free(parsamps12a);
 			
-			printf("Length is %d; starting point is %d\n",length,start);
 			rsite = gsl_rng_uniform_int(r,length) + (start + 1);
+			printf("Length is %d; starting point is %d; breakpoint is %d\n",length,start,rsite);
 			if(*nbreaks == 1){
 				yesrec = 1;
 				isyetbp = 0;
@@ -1716,11 +1723,6 @@ unsigned int coalesce(unsigned int **indvs, int **GType, double **CTms , int **T
 					break;
 				}
 			}
-			
-			for(x = maxtr; x > (int)0; x--){
-				*((*(GType + NMax)) + x) = (-1);
-			}
-			*((*(GType + NMax)) + 0) = NMax;
 			
 			free(startp12);
 			free(parsamps12);
@@ -1999,7 +2001,7 @@ void Wait(){
 	printf("\n");
 }
 
-void TestTabs(unsigned int **indvs, int **GType, double **CTms, int **TAnc, unsigned int **breaks, unsigned int **nlri, unsigned int NMax, unsigned int Itot, unsigned int Nbet, unsigned int nbreaks){
+void TestTabs(unsigned int **indvs, int **GType, double **CTms, int **TAnc, unsigned int **breaks, unsigned int **nlri, unsigned int **nlrix, unsigned int NMax, unsigned int Itot, unsigned int Nbet, unsigned int Nwith, unsigned int nbreaks){
 
 	unsigned int j, x;
 	
@@ -2047,7 +2049,16 @@ void TestTabs(unsigned int **indvs, int **GType, double **CTms, int **TAnc, unsi
 		printf("\n");
 	}
 	printf("\n");
-*/	
+	
+	printf("NLRIX TABLE\n");
+	for(j = 0; j < 2*Nwith; j++){
+		for(x = 0; x < 4; x++){
+			printf("%d ",*((*(nlrix + j)) + x));
+		}
+		printf("\n");
+	}
+	printf("\n");
+*/
 	printf("BREAKS TABLE\n");
 	for(j = 0; j < 2; j++){
 		for(x = 0; x < nbreaks; x++){
@@ -3925,6 +3936,10 @@ int main(int argc, char *argv[]){
 				event = matchUI(draw,13,1);
 				gsl_ran_multinomial(r,d,1,(*(pr + event)),draw2);
 				deme = matchUI(draw2,d,1);
+				printf("Event is %d\n",event);
+				if(event==12){
+					TestTabs(indvs, GType, CTms, TAnc, breaks, nlri, nlrix, NMax, Itot, *(Nbet + 0),  *(Nwith + 0), nbreaks);
+				}
 								
 				if(event == 9){		/* Choosing demes to swap NOW if there is a migration */
 					stchange2(event,deme,evsex,WCH,BCH);
@@ -3980,6 +3995,10 @@ int main(int argc, char *argv[]){
 							Ntot--;
 						}
 					}
+					
+					if(event==12){
+						TestTabs(indvs, GType, CTms, TAnc, breaks, nlri, nlrix, NMax, Itot, *(Nbet + 0),  *(Nwith + 0), nbreaks);
+					}
 
 					if(achange == 1){
 						vsum_UI_I(Nwith, WCHex, d);
@@ -4006,7 +4025,6 @@ int main(int argc, char *argv[]){
 				/* Updating baseline recombinable material depending on number single samples */
 				if(isallUI(*(breaks+1),nbreaks,1,0) == 0){	
 					reccal(indvs, GType, breaks, nlri, Nbet, Nwith, rsex, esex, nlrec, nbreaks, NMax, 0, i);
-/*					TestTabs(indvs, GType, CTms, TAnc, breaks, nlri, NMax, Itot, *Nbet, nbreaks);	*/
 					reccalx(indvs, GType, breaks, nlrix, Nbet, Nwith, rsex, esex, nlrecx, nbreaks, NMax, 0, i);
 					for(x = 0; x < d; x++){
 						*(nlrec2 + x) = 0;
