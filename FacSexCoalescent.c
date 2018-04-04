@@ -73,7 +73,7 @@ double P9(unsigned int x, unsigned int y, unsigned int k, double geemi, double g
 double P10(unsigned int x, unsigned int y, unsigned int k, double mee);
 double P11(unsigned int y, unsigned int k, double sexC, double rec, double mrec, unsigned int lrec, unsigned int nlrec, unsigned int nlrec2);
 double P12(unsigned int x, unsigned int k, double geemi, double Qmi, unsigned int nsites);
-double P13(unsigned int x, double mrec, unsigned int lrec, unsigned int nlrecx);
+double P13(unsigned int x, unsigned int k, double mrec, unsigned int lrec, unsigned int nlrecx);
 double invs1(double Si, double Qin);
 double invt1(double Ti, double Qin);
 double invs2(double Si, double Qin);
@@ -507,9 +507,9 @@ double P12(unsigned int x, unsigned int k, double geemi, double Qmi, unsigned in
 	}
 	return outs;
 }
-double P13(unsigned int x, double mrec, unsigned int lrec, unsigned int nlrecx){
+double P13(unsigned int x, unsigned int k, double mrec, unsigned int lrec, unsigned int nlrecx){
 	/* Mitotic recombination acting on paired sample. Does not change sample partition, instead alters genealogy along samples */
-	return ((mrec)*((lrec - 1)*(2*x) - nlrecx));		/* Note factor of two dow to considering two samples per individual */
+	return ((mrec)*((lrec - 1)*(2*(x-k)) - nlrecx));		/* Note factor of two dow to considering two samples per individual */
 }
 
 double invs1(double Si, double Qin){
@@ -552,7 +552,7 @@ void probset2(unsigned int N, double gmi, double gme, double *sexC, double rec, 
 		*((*(pr + 9)) + x) = P10(*(Nwith + x),*(Nbet + x),*(kin + x),mig);
 		*((*(pr + 10)) + x) = P11(*(Nbet + x),*(kin + x),*(sexC + x),rec,mrec,lrec,*(nlrec + x),*(nlrec2 + x));
 		*((*(pr + 11)) + x) = P12(*(Nwith + x),*(kin + x),gmi,Qmi,nsites);
-		*((*(pr + 12)) + x) = P13(*(Nwith + x),mrec,lrec,*(nlrecx + x));
+		*((*(pr + 12)) + x) = P13(*(Nwith + x),*(kin + x),mrec,lrec,*(nlrecx + x));
 		
 		/* Only activate the first three events if need to consider segregation via sex 
 		(fourth is 'split pairs remain split') */
@@ -1613,16 +1613,21 @@ unsigned int coalesce(unsigned int **indvs, int **GType, double **CTms , int **T
 			
 			/* Obtaining weights of each sample */
 			count = 0;
+			printf("NW = %d %d %d\n",*(Nwith + deme),*(nsex + deme),2*(*(Nwith + deme) - *(nsex + deme)));
 			while(count < 2*(*(Nwith + deme) - *(nsex + deme))){
 				for(j = 0; j < 2*(NWtot - nsum); j++){
+					printf("Deme is %u\n",*((*(nlrix + j)) + 3));
 					if( *((*(nlrix + j)) + 3) == deme){
+						printf("Values are %u %u %u\n",*((*(nlrix + j)) + 0),*((*(nlrix + j)) + 1),*((*(nlrix + j)) + 2));
 						*(weights12 + count) = *((*(nlrix + j)) + 2);
 						*(startp12 + count) = *((*(nlrix + j)) + 1);						
 						*(parsamps12 + count) = *((*(nlrix + j)) + 0);
+						/*
 						*(weights12 + count + 1) = *((*(nlrix + j + 1)) + 2);
 						*(startp12 + count + 1) = *((*(nlrix + j + 1)) + 1);						
 						*(parsamps12 + count + 1) = *((*(nlrix + j + 1)) + 0);
 						count++;
+						*/
 						count++;
 					}
 				}
@@ -1651,6 +1656,7 @@ unsigned int coalesce(unsigned int **indvs, int **GType, double **CTms , int **T
 			
 			free(parsamps12a);
 			
+			printf("Length is %d; starting point is %d\n",length,start);
 			rsite = gsl_rng_uniform_int(r,length) + (start + 1);
 			if(*nbreaks == 1){
 				yesrec = 1;
