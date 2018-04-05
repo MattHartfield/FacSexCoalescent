@@ -3007,8 +3007,10 @@ void reccalx(unsigned int **indvs, int **GType, unsigned int **breaks, unsigned 
 			for(j = 0; j < Ntot; j++){
 				if( *((*(indvs + j)) + 2) == 0){
 					issex = 0;
-					if( *((*(indvs + j)) + 1) == *(rsex + count2) ){
-						issex = 1;
+					if(count2 < esex){
+						if( *((*(indvs + j)) + 1) == *(rsex + count2) ){
+							issex = 1;
+						}
 					}
 						
 					if(issex == 1){
@@ -3018,6 +3020,7 @@ void reccalx(unsigned int **indvs, int **GType, unsigned int **breaks, unsigned 
 						if(count3 == 2){
 							count3 = 0;
 							count2++;
+							printf("Count2 is %d\n",count2);
 						}
 					}else if(issex == 0){
 						*(WHi + count) = *((*(indvs + j)) + 0);
@@ -3915,7 +3918,7 @@ int main(int argc, char *argv[]){
 					
 					/* First, choosing samples to split by sex */
 					sexsamp(indvs, rsex, evsex, Nwith, Ntot, r);
-					
+										
 					/* Then calculating relevant breakpoints in each new sample */
 					/* (And recalculate for paired samples) */
 					reccal(indvs, GType, breaks, nlri, Nbet, Nwith, rsex, esex, nlrec2, nbreaks, NMax, 1, i);
