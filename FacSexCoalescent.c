@@ -2965,7 +2965,9 @@ void reccalx(unsigned int **indvs, int **GType, unsigned int **breaks, unsigned 
 	}else if(sw == 1){
 		vl = 2*(sumUI(Nwith,d) - esex);
 	}
+	/*
 	printf("In situation %d, total WH = %d with %d sex events, so vl is %d\n",sw,sumUI(Nwith,d),esex,vl);
+	*/
 	unsigned int *WHi = calloc(vl,sizeof(unsigned int));
 	unsigned int *WHid = calloc(vl,sizeof(unsigned int));
 	
@@ -2994,9 +2996,11 @@ void reccalx(unsigned int **indvs, int **GType, unsigned int **breaks, unsigned 
 			*(rst + k) = *(rsex + k);
 		}
 		qsort(rst, esex, sizeof(unsigned int), cmpfunc);
+		/*
 		for(k = 0; k < esex; k++){
 			printf("Sex %d is %d\n",k,*(rst+k));
-		}			
+		}
+		*/			
 		
 		while(count < vl){
 			for(j = 0; j < Ntot; j++){
