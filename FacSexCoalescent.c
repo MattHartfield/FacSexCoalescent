@@ -31,6 +31,7 @@ separately from this file.
 #define WARNQ 0.05
 
 /* Function prototypes */
+int cmpfunc (const void * a, const void * b);
 unsigned int isanyUI(unsigned int *vin, unsigned int size_t, unsigned int match);
 unsigned int isanyD(double *vin, unsigned int size_t, double match, unsigned int offset);
 unsigned int isallUI(unsigned int *vin, unsigned int size_t, unsigned int match, unsigned int offset);
@@ -106,6 +107,11 @@ void usage();
 double rec = 0;				/* Per-site recombination rate */
 unsigned int nsites = 1;	/* Number of sites (for recombination) */
 unsigned int d = 1;			/* Number of demes */
+
+/* Comparison function (for use with C qsort command) */
+int cmpfunc (const void * a, const void * b) {
+   return ( *(int*)a - *(int*)b );
+}
 
 /* Function to replicate the 'any' func in R (unsigned int) */
 unsigned int isanyUI(unsigned int *vin, unsigned int size_t, unsigned int match){
@@ -2939,7 +2945,7 @@ void reccal(unsigned int **indvs, int **GType, unsigned int **breaks, unsigned i
 
 /* ReccalX: calculating effective recombination rate over potential sites FOR PAIRED SAMPLES (for mitotic recombination) */
 void reccalx(unsigned int **indvs, int **GType, unsigned int **breaks, unsigned int **nlrix, unsigned int *Nbet, unsigned int *Nwith, unsigned int *rsex, unsigned int esex, unsigned int *lnrec, unsigned int nbreaks, unsigned int NMax, unsigned int sw, unsigned int run){
-	unsigned int j, i;
+	unsigned int j, i, k;
 	unsigned int count = 0;
 	unsigned int count2 = 0;
 	unsigned int count3 = 0;		
@@ -2959,7 +2965,7 @@ void reccalx(unsigned int **indvs, int **GType, unsigned int **breaks, unsigned 
 	}else if(sw == 1){
 		vl = 2*(sumUI(Nwith,d) - esex);
 	}
-/*	printf("In situation %d vl is %d\n",sw,vl);	*/
+	printf("In situation %d, total WH = %d with %d sex events, so vl is %d\n",sw,sumUI(Nwith,d),esex,vl);
 	unsigned int *WHi = calloc(vl,sizeof(unsigned int));
 	unsigned int *WHid = calloc(vl,sizeof(unsigned int));
 	
@@ -2982,15 +2988,27 @@ void reccalx(unsigned int **indvs, int **GType, unsigned int **breaks, unsigned 
 			}
 		}
 	}else if(sw == 1){
+		/* Creating temp 'rst' array; all sex events sorted so they can be detected */
+		unsigned int *rst = calloc(esex,sizeof(unsigned int));
+		for(k = 0; k < esex; k++){
+			*(rst + k) = *(rsex + k);
+		}
+		qsort(rst, esex, sizeof(unsigned int), cmpfunc);
+		for(k = 0; k < esex; k++){
+			printf("Sex %d is %d\n",k,*(rst+k));
+		}			
+		
 		while(count < vl){
 			for(j = 0; j < Ntot; j++){
 				if( *((*(indvs + j)) + 2) == 0){
 					issex = 0;
 					if(count2 < esex){
-						if( *((*(indvs + j)) + 1) == *(rsex + count2) ){
+						if( *((*(indvs + j)) + 1) == *(rst + count2) ){
+							printf("Found individual %d\n",*(rst + count2));
 							issex = 1;
 						}
 					}
+					printf("Individual is %d, is-sex is %d\n",*((*(indvs + j)) + 0),issex);
 						
 					if(issex == 1){
 						/* If sample marked as sex then skip */
@@ -3009,10 +3027,12 @@ void reccalx(unsigned int **indvs, int **GType, unsigned int **breaks, unsigned 
 						count++;
 						*/
 						count++;
+						printf("Count is %d\n",count);
 					}
 				}
 			}
 		}
+		free(rst);
 	}
 	
 	for(i = 0; i < d; i++){
@@ -3715,7 +3735,7 @@ int main(int argc, char *argv[]){
 	/* Running the simulation Nreps times */
 	for(i = 0; i < Nreps; i++){
 		
-/*		printf("Starting Run %d\n",i);	*/
+		printf("Starting Run %d\n",i);
 		nmutT = 0;
 
 		/* Setting up type of sex heterogeneity */
@@ -3892,7 +3912,9 @@ int main(int argc, char *argv[]){
 					
 					/* First, choosing samples to split by sex */
 					sexsamp(indvs, rsex, evsex, Nwith, Ntot, r);
-										
+					
+					TestTabs(indvs, GType, CTms, TAnc, breaks, nlri, nlrix, NMax, Itot, *(Nbet + 0), *(Nwith + 0), nbreaks);
+					
 					/* Then calculating relevant breakpoints in each new sample */
 					/* (And recalculate for paired samples) */
 					reccal(indvs, GType, breaks, nlri, Nbet, Nwith, rsex, esex, nlrec2, nbreaks, NMax, 1, i);
@@ -3913,14 +3935,7 @@ int main(int argc, char *argv[]){
 				event = matchUI(draw,13,1);
 				gsl_ran_multinomial(r,d,1,(*(pr + event)),draw2);
 				deme = matchUI(draw2,d,1);
-/*				printf("Event is %d\n",event);	*/
-				
-				/*
-				if(event==12 && NMax==105){
-					printf("BEFORE MITOTIC REC\n");
-					TestTabs(indvs, GType, CTms, TAnc, breaks, nlri, nlrix, NMax, Itot, *(Nbet + 0), *(Nwith + 0), nbreaks);
-				}
-				*/
+				printf("Event is %d\n",event);
 								
 				if(event == 9){		/* Choosing demes to swap NOW if there is a migration */
 					stchange2(event,deme,evsex,WCH,BCH);
