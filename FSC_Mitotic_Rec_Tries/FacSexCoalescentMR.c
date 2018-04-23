@@ -1705,6 +1705,30 @@ unsigned int coalesce(unsigned int **indvs, int **GType, double **CTms , int **T
 				*((*(GType + rands2)) + x) = tempGT;
 			}
 			
+			/* Final check: if one GT only contains non-ancestral material, turn into BH sample */
+			unsigned int ctype, ntype;
+			if(
+			( (isallI((*(GType + rands2)), (*nbreaks+1), (-1), 1) == 1) )
+			|| ( (isallI((*(GType + rands3)), (*nbreaks+1), (-1), 1) == 1) )
+			){
+				if(isallI((*(GType + rands2)), (*nbreaks+1), (-1), 1) == 1){
+					ctype = rands2;
+					ntype = rands3;
+				}else if(isallI((*(GType + rands3)), (*nbreaks+1), (-1), 1) == 1){
+					ctype = rands3;
+					ntype = rands2;				
+				}
+
+				for(j = 0; j < Ntot; j++){
+					if( *((*(indvs + j)) + 0) == ctype){
+						*((*(indvs + j)) + 1) = HUGEVAL;
+						*((*(indvs + j)) + 2) = 2;
+						break;
+					}
+				}
+				
+			}
+			
 			free(startp12);
 			free(parsamps12);
 			free(weights12);
