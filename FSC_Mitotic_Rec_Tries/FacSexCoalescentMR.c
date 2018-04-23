@@ -1655,6 +1655,7 @@ unsigned int coalesce(unsigned int **indvs, int **GType, double **CTms , int **T
 			}
 			
 			rsite = gsl_rng_uniform_int(r,length) + (start + 1);
+			printf("Indv %d has bp at %d\n",rands,rsite);
 			if(*nbreaks == 1){
 				isyetbp = 0;
 				maxtr = 1;
@@ -2985,7 +2986,6 @@ void reccalx(unsigned int **indvs, int **GType, unsigned int **breaks, unsigned 
 		/* Creating temp 'rst' array; all sex events sorted so they can be detected as they appear */
 		unsigned int *rst = calloc(esex,sizeof(unsigned int));
 		for(k = 0; k < esex; k++){
-			printf("Sex event %d is %d\n",k,*(rsex + k));
 			*(rst + k) = *(rsex + k);
 		}
 		qsort(rst, esex, sizeof(unsigned int), cmpfunc);		
@@ -3005,7 +3005,6 @@ void reccalx(unsigned int **indvs, int **GType, unsigned int **breaks, unsigned 
 					}else if(issex == 0){
 						*(WHi + count) = *((*(indvs + j)) + 1);
 						*(WHid + count) = *((*(indvs + j)) + 3);
-						printf("Found individual %d\n",*((*(indvs + j)) + 1));
 						count++;
 					}
 				}
@@ -3041,7 +3040,6 @@ void reccalx(unsigned int **indvs, int **GType, unsigned int **breaks, unsigned 
 					if( (*((*(GType + ridx1)) + nbreaks) == -1) && (*((*(GType + ridx2)) + nbreaks) == -1) ){
 						is0r = 1;
 					}
-					printf("For individual %d ridx1, 2 are %d %d\n",*(WHi + i),ridx1,ridx2);
 					printf("is0l, is0r are %d %d\n",is0l,is0r);
 					break;
 				}
@@ -3054,9 +3052,11 @@ void reccalx(unsigned int **indvs, int **GType, unsigned int **breaks, unsigned 
 				}else if(mintr1 >= mintr2){
 					mintr = mintr2;
 				}
+				printf("mintr1, 2 for indv %d are %d %d\n",*(WHi + i),mintr1,mintr2);
 				mintr--;	/* So concordant with 'breaks' table */
 				*((*(nlrix + i)) + 1) = *((*(breaks + 0)) + mintr);
 				brec = *((*(breaks + 0)) + mintr);
+				printf("brec LHS is %d\n",brec);
 				*(lnrec + (*(WHid + i))) += brec;
 				intot = brec;
 			}
@@ -3070,8 +3070,10 @@ void reccalx(unsigned int **indvs, int **GType, unsigned int **breaks, unsigned 
 				}else if(maxtr1 <= maxtr2){
 					maxtr = maxtr2;
 				}
+				printf("maxtr1, 2 for indv %d are %d %d\n",*(WHi + i),maxtr1,maxtr2);
 				maxtr--;	/* So concordant with 'breaks' table */
 				brec = nsites - *((*(breaks + 0)) + maxtr + 1);
+				printf("brec RHS is %d\n",brec);
 				*(lnrec + (*(WHid + i))) += brec;
 				intot += brec;
 			}
@@ -3912,12 +3914,10 @@ int main(int argc, char *argv[]){
 					/* Then calculating relevant breakpoints in each new sample */
 					/* (And recalculate for paired samples) */
 
-					if(*(Nwith+0) == 6 && *(Nbet+0)==0){
-						TestTabs(indvs, GType, CTms, TAnc, breaks, nlri, nlrix, NMax, Itot, *(Nbet+0), *(Nwith+0), nbreaks);
-					}
 					reccal(indvs, GType, breaks, nlri, Nbet, Nwith, rsex, esex, nlrec2, nbreaks, NMax, 1, i);
 					reccalx(indvs, GType, breaks, nlrix, Nbet, Nwith, rsex, esex, nlrecx, nbreaks, NMax, 1, i);
-					if(*(Nwith+0) == 6 && *(Nbet+0)==0){
+
+					if(*(Nwith+0) == 3 && *(Nbet+0)==1){
 						exit(1);
 					}
 					
@@ -3962,9 +3962,17 @@ int main(int argc, char *argv[]){
 					}
 				}
 				
+				if(*(nlrecx + 0)==904){
+					TestTabs(indvs, GType, CTms, TAnc, breaks, nlri, nlrix, NMax, Itot, *(Nbet + 0), *(Nwith + 0), nbreaks);
+				}
+				
 				/* Change ancestry accordingly */
 				gcalt = 0;
 				achange = coalesce(indvs, GType, CTms, TAnc, nlri, nlrix, Ttot, Nwith, Nbet, deme, rsex, evsex, event, drec, e2, breaks, nsites, &nbreaks, NMax, Itot, gmi, gme, bigQmi, bigQme, &gcalt, sexC, WCHex, BCHex, r, i);
+				
+				if(*(nlrecx + 0)==904){
+					TestTabs(indvs, GType, CTms, TAnc, breaks, nlri, nlrix, NMax, Itot, *(Nbet + 0), *(Nwith + 0), nbreaks);
+				}
 				
 				/* Based on outcome, altering (non-mig) states accordingly */
 				if(event != 9){		/* Since already done for state = 9 above... */
@@ -4025,7 +4033,7 @@ int main(int argc, char *argv[]){
 						*(nlrec2 + x) = 0;
 					}
 				}
-				free(rsex);		/* Can be discarded once used to change ancestry */
+				free(rsex); 	/* Can be discarded once used to change ancestry */
 				printf("STATS: %d %d %d\n",*(Nwith+0),*(Nbet+0),*(nlrecx + 0));
 																				
 				/* Checking if need to expand tables */
