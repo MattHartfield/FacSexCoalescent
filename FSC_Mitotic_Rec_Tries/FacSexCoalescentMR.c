@@ -1706,26 +1706,33 @@ unsigned int coalesce(unsigned int **indvs, int **GType, double **CTms , int **T
 			}
 			
 			/* Final check: if one GT only contains non-ancestral material, turn into BH sample */
-			unsigned int ctype, ntype;
+			/* NOTE FOR NEXT TIME: Need to make sure I turn WH into BH and adjust numbers accordingly */
+			unsigned int ctype; /*, ntype;	*/
 			if(
 			( (isallI((*(GType + rands2)), (*nbreaks+1), (-1), 1) == 1) )
 			|| ( (isallI((*(GType + rands3)), (*nbreaks+1), (-1), 1) == 1) )
 			){
 				if(isallI((*(GType + rands2)), (*nbreaks+1), (-1), 1) == 1){
 					ctype = rands2;
-					ntype = rands3;
+					/* ntype = rands3;				*/
 				}else if(isallI((*(GType + rands3)), (*nbreaks+1), (-1), 1) == 1){
 					ctype = rands3;
-					ntype = rands2;				
+					/* ntype = rands2;				*/
 				}
+				
+				achange = 1;
+				excoal(indvs, GType, &ctype, *nbreaks, 1, Ntot, WCHex, BCHex, deme);
 
+				/*
 				for(j = 0; j < Ntot; j++){
 					if( *((*(indvs + j)) + 0) == ctype){
+						Add something else as well, turn 'ntype' into WH sample? 
 						*((*(indvs + j)) + 1) = HUGEVAL;
 						*((*(indvs + j)) + 2) = 2;
 						break;
 					}
 				}
+				*/
 				
 			}
 			
@@ -3940,10 +3947,6 @@ int main(int argc, char *argv[]){
 
 					reccal(indvs, GType, breaks, nlri, Nbet, Nwith, rsex, esex, nlrec2, nbreaks, NMax, 1, i);
 					reccalx(indvs, GType, breaks, nlrix, Nbet, Nwith, rsex, esex, nlrecx, nbreaks, NMax, 1, i);
-
-					if(*(Nwith+0) == 3 && *(Nbet+0)==1){
-						exit(1);
-					}
 					
 					
 					/* Then recalculating probability of events */
@@ -3986,17 +3989,23 @@ int main(int argc, char *argv[]){
 					}
 				}
 				
+				/*
 				if(*(nlrecx + 0)==904){
+					printf("BEFORE COAL:\n");
 					TestTabs(indvs, GType, CTms, TAnc, breaks, nlri, nlrix, NMax, Itot, *(Nbet + 0), *(Nwith + 0), nbreaks);
 				}
+				*/
 				
 				/* Change ancestry accordingly */
 				gcalt = 0;
 				achange = coalesce(indvs, GType, CTms, TAnc, nlri, nlrix, Ttot, Nwith, Nbet, deme, rsex, evsex, event, drec, e2, breaks, nsites, &nbreaks, NMax, Itot, gmi, gme, bigQmi, bigQme, &gcalt, sexC, WCHex, BCHex, r, i);
 				
+				/*
 				if(*(nlrecx + 0)==904){
+					printf("AFTER COAL:\n");
 					TestTabs(indvs, GType, CTms, TAnc, breaks, nlri, nlrix, NMax, Itot, *(Nbet + 0), *(Nwith + 0), nbreaks);
 				}
+				*/
 				
 				/* Based on outcome, altering (non-mig) states accordingly */
 				if(event != 9){		/* Since already done for state = 9 above... */
