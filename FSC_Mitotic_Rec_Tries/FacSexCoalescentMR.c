@@ -1655,7 +1655,7 @@ unsigned int coalesce(unsigned int **indvs, int **GType, double **CTms , int **T
 			}
 			
 			rsite = gsl_rng_uniform_int(r,length) + (start + 1);
-			printf("Indv %d has bp at %d\n",rands,rsite);
+/*			printf("Indv %d has bp at %d\n",rands,rsite);	*/
 			if(*nbreaks == 1){
 				isyetbp = 0;
 				maxtr = 1;
@@ -2971,8 +2971,7 @@ void reccal(unsigned int **indvs, int **GType, unsigned int **breaks, unsigned i
 /* ReccalX: calculating effective recombination rate over potential sites FOR PAIRED SAMPLES (for mitotic recombination) */
 void reccalx(unsigned int **indvs, int **GType, unsigned int **breaks, unsigned int **nlrix, unsigned int *Nbet, unsigned int *Nwith, unsigned int *rsex, unsigned int esex, unsigned int *lnrec, unsigned int nbreaks, unsigned int NMax, unsigned int sw, unsigned int run){
 	unsigned int j, i, k;
-	unsigned int count = 0;
-	unsigned int count2 = 0;		
+	unsigned int count = 0;		
 	unsigned int vl = 0;
 	unsigned int mintr1 = 0;
 	unsigned int mintr2 = 0;
@@ -2987,14 +2986,12 @@ void reccalx(unsigned int **indvs, int **GType, unsigned int **breaks, unsigned 
 	unsigned int ridx2 = 0;	
 	unsigned int brec = 0; 		/* Accounted breakpoints */
 	unsigned int intot = 0;
-	unsigned int issex = 0;
 	
 	if(sw == 0){
 		vl = sumUI(Nwith,d);
 	}else if(sw == 1){
 		vl = (sumUI(Nwith,d) - esex);
 	}
-	printf("vl is %d\n",vl);	
 	unsigned int *WHi = calloc(vl,sizeof(unsigned int));
 	unsigned int *WHid = calloc(vl,sizeof(unsigned int));
 	for(j = 0; j < vl; j++){
@@ -3022,22 +3019,10 @@ void reccalx(unsigned int **indvs, int **GType, unsigned int **breaks, unsigned 
 		qsort(rst, esex, sizeof(unsigned int), cmpfunc);		
 		while(count < vl){
 			for(j = 0; j < Ntot; j++){
-				if( *((*(indvs + j)) + 2) == 0 && (isanyUI(WHi, vl, *((*(indvs + j)) + 1)) == 0) ){
-					issex = 0;
-					if(count2 < esex){
-						if( *((*(indvs + j)) + 1) == *(rst + count2) ){
-							issex = 1;
-						}
-					}
-						
-					if(issex == 1 && (isanyUI(rst, esex, *(rst + count2) ) == 0) ){
-						/* If sample marked as sex (and hasn't been seen before) then skip */
-						count2++;
-					}else if(issex == 0){
-						*(WHi + count) = *((*(indvs + j)) + 1);
-						*(WHid + count) = *((*(indvs + j)) + 3);
-						count++;
-					}
+				if( (*((*(indvs + j)) + 2) == 0) && (isanyUI(WHi, vl, *((*(indvs + j)) + 1)) == 0) && (isanyUI(rst, esex, *((*(indvs + j)) + 1) ) == 0) ){
+					*(WHi + count) = *((*(indvs + j)) + 1);
+					*(WHid + count) = *((*(indvs + j)) + 3);
+					count++;
 				}
 			}
 		}
@@ -3071,7 +3056,6 @@ void reccalx(unsigned int **indvs, int **GType, unsigned int **breaks, unsigned 
 					if( (*((*(GType + ridx1)) + nbreaks) == -1) && (*((*(GType + ridx2)) + nbreaks) == -1) ){
 						is0r = 1;
 					}
-					printf("is0l, is0r are %d %d\n",is0l,is0r);
 					break;
 				}
 			}
@@ -3083,11 +3067,9 @@ void reccalx(unsigned int **indvs, int **GType, unsigned int **breaks, unsigned 
 				}else if(mintr1 >= mintr2){
 					mintr = mintr2;
 				}
-				printf("mintr1, 2 for indv %d are %d %d\n",*(WHi + i),mintr1,mintr2);
 				mintr--;	/* So concordant with 'breaks' table */
 				*((*(nlrix + i)) + 1) = *((*(breaks + 0)) + mintr);
 				brec = *((*(breaks + 0)) + mintr);
-				printf("brec LHS is %d\n",brec);
 				*(lnrec + (*(WHid + i))) += brec;
 				intot = brec;
 			}
@@ -3101,10 +3083,8 @@ void reccalx(unsigned int **indvs, int **GType, unsigned int **breaks, unsigned 
 				}else if(maxtr1 <= maxtr2){
 					maxtr = maxtr2;
 				}
-				printf("maxtr1, 2 for indv %d are %d %d\n",*(WHi + i),maxtr1,maxtr2);
 				maxtr--;	/* So concordant with 'breaks' table */
 				brec = nsites - *((*(breaks + 0)) + maxtr + 1);
-				printf("brec RHS is %d\n",brec);
 				*(lnrec + (*(WHid + i))) += brec;
 				intot += brec;
 			}
@@ -3767,7 +3747,7 @@ int main(int argc, char *argv[]){
 	/* Running the simulation Nreps times */
 	for(i = 0; i < Nreps; i++){
 		
-		printf("Starting Run %d\n",i);
+/*		printf("Starting Run %d\n",i);	*/
 		nmutT = 0;
 
 		/* Setting up type of sex heterogeneity */
@@ -3948,7 +3928,6 @@ int main(int argc, char *argv[]){
 					reccal(indvs, GType, breaks, nlri, Nbet, Nwith, rsex, esex, nlrec2, nbreaks, NMax, 1, i);
 					reccalx(indvs, GType, breaks, nlrix, Nbet, Nwith, rsex, esex, nlrecx, nbreaks, NMax, 1, i);
 					
-					
 					/* Then recalculating probability of events */
 					probset2(N, gmi, gme, sexC, rec, mrec, bigQmi, bigQme, nsites, nlrec, nlrec2, nlrecx, mig, Nwith, Nbet, evsex, 1, pr);
 					if(isanylessD_2D(pr,13,d,0) == 1){
@@ -3964,8 +3943,7 @@ int main(int argc, char *argv[]){
 				event = matchUI(draw,13,1);
 				gsl_ran_multinomial(r,d,1,(*(pr + event)),draw2);
 				deme = matchUI(draw2,d,1);
-				printf("Event is %d\n",event);
-				printf("esex is %d\n",esex);
+/*				printf("Event is %d\n",event);*/
 								
 				if(event == 9){		/* Choosing demes to swap NOW if there is a migration */
 					stchange2(event,deme,evsex,WCH,BCH);
@@ -3989,23 +3967,9 @@ int main(int argc, char *argv[]){
 					}
 				}
 				
-				/*
-				if(*(nlrecx + 0)==904){
-					printf("BEFORE COAL:\n");
-					TestTabs(indvs, GType, CTms, TAnc, breaks, nlri, nlrix, NMax, Itot, *(Nbet + 0), *(Nwith + 0), nbreaks);
-				}
-				*/
-				
 				/* Change ancestry accordingly */
 				gcalt = 0;
 				achange = coalesce(indvs, GType, CTms, TAnc, nlri, nlrix, Ttot, Nwith, Nbet, deme, rsex, evsex, event, drec, e2, breaks, nsites, &nbreaks, NMax, Itot, gmi, gme, bigQmi, bigQme, &gcalt, sexC, WCHex, BCHex, r, i);
-				
-				/*
-				if(*(nlrecx + 0)==904){
-					printf("AFTER COAL:\n");
-					TestTabs(indvs, GType, CTms, TAnc, breaks, nlri, nlrix, NMax, Itot, *(Nbet + 0), *(Nwith + 0), nbreaks);
-				}
-				*/
 				
 				/* Based on outcome, altering (non-mig) states accordingly */
 				if(event != 9){		/* Since already done for state = 9 above... */
@@ -4058,7 +4022,7 @@ int main(int argc, char *argv[]){
 				/* Sorting table afterwards to ensure paired samples are together */
 				indv_sort(indvs, NMax);
 				
-				/* Updating baseline recombinable material depending on number single samples */
+				/* Updating baseline recombinable material depending on number single samples */			
 				if(isallUI(*(breaks+1),nbreaks,1,0) == 0){	
 					reccal(indvs, GType, breaks, nlri, Nbet, Nwith, rsex, esex, nlrec, nbreaks, NMax, 0, i);
 					reccalx(indvs, GType, breaks, nlrix, Nbet, Nwith, rsex, esex, nlrecx, nbreaks, NMax, 0, i);
@@ -4067,7 +4031,6 @@ int main(int argc, char *argv[]){
 					}
 				}
 				free(rsex); 	/* Can be discarded once used to change ancestry */
-				printf("STATS: %d %d %d\n",*(Nwith+0),*(Nbet+0),*(nlrecx + 0));
 																				
 				/* Checking if need to expand tables */
 				if(NMax == (exr+Itot-1)){
