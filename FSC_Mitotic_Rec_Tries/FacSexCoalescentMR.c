@@ -31,7 +31,6 @@ separately from this file.
 #define WARNQ 0.05
 
 /* Function prototypes */
-int cmpfunc (const void * a, const void * b);
 unsigned int isanyUI(unsigned int *vin, unsigned int size_t, unsigned int match);
 unsigned int isanyD(double *vin, unsigned int size_t, double match, unsigned int offset);
 unsigned int isallUI(unsigned int *vin, unsigned int size_t, unsigned int match, unsigned int offset);
@@ -107,11 +106,6 @@ void usage();
 double rec = 0;				/* Per-site recombination rate */
 unsigned int nsites = 1;	/* Number of sites (for recombination) */
 unsigned int d = 1;			/* Number of demes */
-
-/* Comparison function (for use with C qsort command) */
-int cmpfunc (const void * a, const void * b) {
-   return ( *(int*)a - *(int*)b );
-}
 
 /* Function to replicate the 'any' func in R (unsigned int) */
 unsigned int isanyUI(unsigned int *vin, unsigned int size_t, unsigned int match){
@@ -2970,7 +2964,7 @@ void reccal(unsigned int **indvs, int **GType, unsigned int **breaks, unsigned i
 
 /* ReccalX: calculating effective recombination rate over potential sites FOR PAIRED SAMPLES (for mitotic recombination) */
 void reccalx(unsigned int **indvs, int **GType, unsigned int **breaks, unsigned int **nlrix, unsigned int *Nbet, unsigned int *Nwith, unsigned int *rsex, unsigned int esex, unsigned int *lnrec, unsigned int nbreaks, unsigned int NMax, unsigned int sw, unsigned int run){
-	unsigned int j, i, k;
+	unsigned int j, i;
 	unsigned int count = 0;		
 	unsigned int vl = 0;
 	unsigned int mintr1 = 0;
@@ -3011,22 +3005,15 @@ void reccalx(unsigned int **indvs, int **GType, unsigned int **breaks, unsigned 
 			}
 		}
 	}else if(sw == 1){
-		/* Creating temp 'rst' array; all sex events sorted so they can be detected as they appear */
-		unsigned int *rst = calloc(esex,sizeof(unsigned int));
-		for(k = 0; k < esex; k++){
-			*(rst + k) = *(rsex + k);
-		}
-		qsort(rst, esex, sizeof(unsigned int), cmpfunc);		
 		while(count < vl){
 			for(j = 0; j < Ntot; j++){
-				if( (*((*(indvs + j)) + 2) == 0) && (isanyUI(WHi, vl, *((*(indvs + j)) + 1)) == 0) && (isanyUI(rst, esex, *((*(indvs + j)) + 1) ) == 0) ){
+				if( (*((*(indvs + j)) + 2) == 0) && (isanyUI(WHi, vl, *((*(indvs + j)) + 1)) == 0) && (isanyUI(rsex, esex, *((*(indvs + j)) + 1) ) == 0) ){
 					*(WHi + count) = *((*(indvs + j)) + 1);
 					*(WHid + count) = *((*(indvs + j)) + 3);
 					count++;
 				}
 			}
 		}
-		free(rst);
 	}
 	
 	for(i = 0; i < d; i++){
