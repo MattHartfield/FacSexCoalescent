@@ -509,7 +509,7 @@ double P12(unsigned int x, unsigned int k, double geemi, double Qmi, unsigned in
 }
 double P13(unsigned int x, unsigned int k, double mrec, unsigned int lrec, unsigned int nlrecx){
 	/* Mitotic recombination acting on paired sample. Does not change sample partition, instead alters genealogy along samples */
-	return ((mrec)*((lrec - 1)*((x-k)) - nlrecx));
+	return (2*(mrec)*((lrec - 1)*((x-k)) - nlrecx));
 }
 
 double invs1(double Si, double Qin){
@@ -784,6 +784,7 @@ unsigned int coalesce(unsigned int **indvs, int **GType, double **CTms , int **T
 	unsigned int achange = 0;	/* Note whether to run extra coal check */
 	unsigned int length = 0;	/* Length of sampled chrom (event 10) */
 	unsigned int start = 0;		/* Start of sampled chrom  (event 10) */
+	unsigned int ctype = 0;		/* Coalesced type if mitotic rec creates non-ancestral tract (event 12) */
 	int tempGT = 0;				/* Temporary storage of genotype entry during mitotic recombination (event 12) */
 	
 	/* Then further actions based on other event */
@@ -1701,7 +1702,6 @@ unsigned int coalesce(unsigned int **indvs, int **GType, double **CTms , int **T
 			
 			/* Final check: if one GT only contains non-ancestral material, turn into BH sample */
 			/* NOTE FOR NEXT TIME: Need to make sure I turn WH into BH and adjust numbers accordingly */
-			unsigned int ctype; /*, ntype;	*/
 			if(
 			( (isallI((*(GType + rands2)), (*nbreaks+1), (-1), 1) == 1) )
 			|| ( (isallI((*(GType + rands3)), (*nbreaks+1), (-1), 1) == 1) )
@@ -3218,12 +3218,12 @@ fprintf(stderr," -T: prints out individuals trees to file\n");
 fprintf(stderr," (Note that one of -t or -T MUST be used)\n");
 fprintf(stderr," -P: prints out data to screen using MS-style format\n");
 fprintf(stderr," -D: 'Debug mode'; prints table of coalescent times to file.\n");
-fprintf(stderr," -r: [2Nc nsites] to specify MEIOTIC recombination\n");
-fprintf(stderr," -x: [2N(rA)] to specify MITOTIC recombination\n");
+fprintf(stderr," -r: [2Nc nsites] to specify MEIOTIC crossover recombination\n");
+fprintf(stderr," -x: [2N(cA)] to specify MITOTIC crossover recombination\n");
 fprintf(stderr," -c: [2N(g_me) lambda_me] specifies rate and mean length of MEIOTIC gene conversion\n");
 fprintf(stderr," -m: [2N(g_mi) lambda_mi] specifies rate and mean length of MITOTIC gene conversion\n");
-fprintf(stderr," -b: [p_burst max_burst dist] specifies parameters for some polymorphisms to cluster ('burst')\n");
-fprintf(stderr," (For -x, -c, -m, -b: need to first use -r to specify number of sites, even if 2Nc = 0)\n");
+/*fprintf(stderr," -b: [p_burst max_burst dist] specifies parameters for some polymorphisms to cluster ('burst')\n");*/
+fprintf(stderr," (For -x, -c, -m: need to first use -r to specify number of sites, even if 2Nc = 0)\n");
 /*fprintf(stderr," -G: [alpha] specifies population growth (scaled by 2N), N(t) = N0 exp(-alpha*t) \n");*/
 fprintf(stderr," -I: d [Paired_j Single_j]...[2Nm] for defining island model.\n");
 fprintf(stderr,"     d is number of demes: [Paired_j Single_j] are d pairs of samples per deme;\n");
@@ -3322,7 +3322,7 @@ int main(int argc, char *argv[]){
 	
 	/* Reading in data from command line */
 	if(argc < 6){
-		fprintf(stderr,"At least 5 inputs are needed.\n");
+		fprintf(stderr,"At least 6 inputs are needed.\n");
 		usage();
 	}
 	
