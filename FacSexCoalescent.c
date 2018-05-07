@@ -72,13 +72,13 @@ double P8(unsigned int x, unsigned int y, unsigned int k, unsigned int Na);
 double P9(unsigned int x, unsigned int y, unsigned int k, double geemi, double geeme, double Qmi, double Qme, double sexC, unsigned int nsites);
 double P10(unsigned int x, unsigned int y, unsigned int k, double mee);
 double P11(unsigned int y, unsigned int k, double sexC, double rec, double mrec, unsigned int lrec, unsigned int nlrec, unsigned int nlrec2);
-double P12(unsigned int x, unsigned int k, double geemi, double Qmi, double lambdain, unsigned int nsites);
+double P12(unsigned int x, unsigned int k, double geemi, double Qmi, unsigned int nsites);
 double P13(unsigned int x, unsigned int k, double mrec, unsigned int lrec, unsigned int nlrecx);
 double invs1(double Si, double Qin);
 double invt1(double Ti, double Qin);
 double invs2(double Si, double Qin);
 double invt2(double Ti, double Si, double Qin);
-void probset2(unsigned int N, double gmi, double gme, double *sexC, double rec, double mrec, double Qmi, double Qme, unsigned int lrec, unsigned int *nlrec, unsigned int *nlrec2, unsigned int *nlrecx, double mig, unsigned int *Nwith, unsigned int *Nbet, unsigned int *kin, unsigned int sw, double lambdain, double **pr);
+void probset2(unsigned int N, double gmi, double gme, double *sexC, double rec, double mrec, double Qmi, double Qme, unsigned int lrec, unsigned int *nlrec, unsigned int *nlrec2, unsigned int *nlrecx, double mig, unsigned int *Nwith, unsigned int *Nbet, unsigned int *kin, unsigned int sw, double **pr);
 void rate_change(unsigned int N, unsigned int pST,double pLH, double pHL, double *sexH, double *sexL, unsigned int switch1, double *sexCN, double *sexCNInv, double *tts, unsigned int *npST,const gsl_rng *r);
 void stchange2(unsigned int ev, unsigned int deme, unsigned int *kin, int *WCH, int *BCH);
 void sexconv(unsigned int **Tin, unsigned int *rsex, unsigned int nsum, unsigned int Ntot, unsigned int Nid, unsigned int ex);
@@ -497,18 +497,15 @@ double P11(unsigned int y, unsigned int k, double sexC, double rec, double mrec,
 	/* One of the single samples splits by recombination, creates two new single samples: (x,y) -> (x-k,y+2k+1) */
 	return ((sexC*rec + mrec)*((lrec - 1)*(y) - nlrec) + (rec + mrec)*((lrec - 1)*(2*k) - nlrec2));
 }
-double P12(unsigned int x, unsigned int k, double geemi, double Qmi, double lambdain, unsigned int nsites){
+double P12(unsigned int x, unsigned int k, double geemi, double Qmi, unsigned int nsites){
 	/* Complete gene conversion, coalesces paired sample into single sample */
-	/*
 	double outs = 0;
 	if(nsites == 1){
-		outs = 
+		outs = geemi*(x-k);
 	}else if(nsites > 1){
-		outs = (2*(x-k)*geemi*(nsites-1)*(exp(-Qmi)/(1.0*Qmi)));
+		outs = (2*geemi*(x-k)*(exp(-Qmi)/(1.0*Qmi)));
 	}
 	return outs;
-	*/
-	return 2*geemi*lambdain*(x-k)*exp(-((nsites-1.0)/lambdain));
 }
 double P13(unsigned int x, unsigned int k, double mrec, unsigned int lrec, unsigned int nlrecx){
 	/* Mitotic recombination acting on paired sample. Does not change sample partition, instead alters genealogy along samples */
@@ -536,7 +533,7 @@ double invt2(double Ti, double Si, double Qin){
 }
 
 /* Calculate probability change vectors each time OVER EACH DEME */
-void probset2(unsigned int N, double gmi, double gme, double *sexC, double rec, double mrec, double Qmi, double Qme, unsigned int lrec, unsigned int *nlrec, unsigned int *nlrec2, unsigned int *nlrecx, double mig, unsigned int *Nwith, unsigned int *Nbet, unsigned int *kin, unsigned int sw, double lambdain, double **pr){
+void probset2(unsigned int N, double gmi, double gme, double *sexC, double rec, double mrec, double Qmi, double Qme, unsigned int lrec, unsigned int *nlrec, unsigned int *nlrec2, unsigned int *nlrecx, double mig, unsigned int *Nwith, unsigned int *Nbet, unsigned int *kin, unsigned int sw, double **pr){
 	unsigned int x;				/* Deme counter */
 	unsigned int ksum = 0;		/* Total number of segregating events */
 	
@@ -554,7 +551,7 @@ void probset2(unsigned int N, double gmi, double gme, double *sexC, double rec, 
 		*((*(pr + 8)) + x) = P9(*(Nwith + x),*(Nbet + x),*(kin + x),gmi,gme,Qmi,Qme,*(sexC + x),nsites);
 		*((*(pr + 9)) + x) = P10(*(Nwith + x),*(Nbet + x),*(kin + x),mig);
 		*((*(pr + 10)) + x) = P11(*(Nbet + x),*(kin + x),*(sexC + x),rec,mrec,lrec,*(nlrec + x),*(nlrec2 + x));
-		*((*(pr + 11)) + x) = P12(*(Nwith + x),*(kin + x),gmi,Qmi,lambdain, nsites);
+		*((*(pr + 11)) + x) = P12(*(Nwith + x),*(kin + x),gmi,Qmi,nsites);
 		*((*(pr + 12)) + x) = P13(*(Nwith + x),*(kin + x),mrec,lrec,*(nlrecx + x));
 		
 		/* Only activate the first three events if need to consider segregation via sex 
@@ -3848,7 +3845,7 @@ int main(int argc, char *argv[]){
 		while(done != 1){
 					
 			/* Setting up vector of state-change probabilities *without sex* */
-			probset2(N, gmi, gme, sexC, rec, mrec, bigQmi, bigQme, nsites, nlrec, zeros, nlrecx, mig, Nwith, Nbet, zeros, 0, lambdami, pr);
+			probset2(N, gmi, gme, sexC, rec, mrec, bigQmi, bigQme, nsites, nlrec, zeros, nlrecx, mig, Nwith, Nbet, zeros, 0, pr);
 			nosex = powDUI(sexCInv,Nwith,d);				/* Probability of no segregation via sex, accounting for within-deme variation */
 			psum = (1-nosex) + nosex*(sumT_D(pr,13,d));		/* Sum of all event probabilities, for drawing random time */
 							
@@ -3919,7 +3916,7 @@ int main(int argc, char *argv[]){
 					reccalx(indvs, GType, breaks, nlrix, Nbet, Nwith, rsex, esex, nlrecx, nbreaks, NMax, 1, i);
 					
 					/* Then recalculating probability of events */
-					probset2(N, gmi, gme, sexC, rec, mrec, bigQmi, bigQme, nsites, nlrec, nlrec2, nlrecx, mig, Nwith, Nbet, evsex, 1, lambdami, pr);
+					probset2(N, gmi, gme, sexC, rec, mrec, bigQmi, bigQme, nsites, nlrec, nlrec2, nlrecx, mig, Nwith, Nbet, evsex, 1, pr);
 					if(isanylessD_2D(pr,13,d,0) == 1){
 						proberr(1, pr, Nwith, Nbet, evsex);
 					}
