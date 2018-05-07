@@ -499,13 +499,16 @@ double P11(unsigned int y, unsigned int k, double sexC, double rec, double mrec,
 }
 double P12(unsigned int x, unsigned int k, double geemi, double Qmi, double lambdain, unsigned int nsites){
 	/* Complete gene conversion, coalesces paired sample into single sample */
+	/*
 	double outs = 0;
 	if(nsites == 1){
-		outs = 2*geemi*lambdain*(x-k);
+		outs = 
 	}else if(nsites > 1){
-		outs = (2*geemi*(x-k)*(exp(-Qmi)/(1.0*Qmi)));
+		outs = (2*(x-k)*geemi*(nsites-1)*(exp(-Qmi)/(1.0*Qmi)));
 	}
 	return outs;
+	*/
+	return 2*geemi*lambdain*(x-k)*exp(-((nsites-1.0)/lambdain));
 }
 double P13(unsigned int x, unsigned int k, double mrec, unsigned int lrec, unsigned int nlrecx){
 	/* Mitotic recombination acting on paired sample. Does not change sample partition, instead alters genealogy along samples */
