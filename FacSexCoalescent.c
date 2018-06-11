@@ -101,6 +101,7 @@ void proberr3(double **pr, unsigned int *NW, unsigned int *NB);
 void printCT(double **CTms, unsigned int **breaks, unsigned int nbreaks, unsigned int nsites, unsigned int Itot, unsigned int run);
 void manyr();
 void usage();
+void argcheck(int arg, int argc, char *argv[] );
 
 /* Global variable declaration */
 double rec = 0;				/* Per-site recombination rate */
@@ -3238,7 +3239,14 @@ fprintf(stderr,"\n");
 exit(1);
 }
 
+void argcheck(int arg, int argc, char *argv[] ){
 
+	if( arg >= argc || argv[arg][0] == '-' ){
+		fprintf(stderr,"Not enough arguments provided (last input: %s)\n",argv[arg-1]);
+		usage();
+	}
+	
+}
 
 /* Main program */
 int main(int argc, char *argv[]){
@@ -3383,6 +3391,7 @@ int main(int argc, char *argv[]){
 				case 't':		/* Defining Mutation Rate (theta) */
 					ismut = 1;
 					argx++;
+					argcheck(argx, argc, argv);
 					theta = strtod(argv[argx],NULL);
 					if(theta <= 0){
 						fprintf(stderr,"Mutation rate must be a positive value.\n");
@@ -3393,12 +3402,14 @@ int main(int argc, char *argv[]){
 				case 'r':		/* Defining recombination (cross over) */
 					isrec = 1;
 					argx++;
+					argcheck(argx, argc, argv);
 					rec = strtod(argv[argx],NULL);
 					if(rec < 0){
 						fprintf(stderr,"Must define a positive recombination rate.\n");
 						usage();
 					}
 					argx++;
+					argcheck(argx, argc, argv);
 					nsites = atoi(argv[argx]);
 					if(nsites < 2 && rec > 0){
 						fprintf(stderr,"Must define at least two sites with recombination.\n");
@@ -3412,6 +3423,7 @@ int main(int argc, char *argv[]){
 						usage();
 					}
 					argx++;
+					argcheck(argx, argc, argv);
 					mrec = strtod(argv[argx],NULL);
 					if(mrec < 0){
 						fprintf(stderr,"Must define a positive mitotic recombination rate.\n");
@@ -3433,6 +3445,7 @@ int main(int argc, char *argv[]){
 						usage();
 					}
 					argx++;
+					argcheck(argx, argc, argv);
 					gme = strtod(argv[argx],NULL);
 					if(gme < 0){
 						fprintf(stderr,"Must define a positive meiotic gene conversion rate.\n");
@@ -3443,6 +3456,7 @@ int main(int argc, char *argv[]){
 						usage();
 					}
 					argx++;
+					argcheck(argx, argc, argv);
 					lambdame = strtod(argv[argx],NULL);
 					if(lambdame < 1){
 						fprintf(stderr,"With meiotic gene conversion, average length (lambda) has to be at least 1.\n");
@@ -3461,12 +3475,14 @@ int main(int argc, char *argv[]){
 						usage();
 					}
 					argx++;
+					argcheck(argx, argc, argv);
 					gmi = strtod(argv[argx],NULL);
 					if(gmi < 0){
 						fprintf(stderr,"Must define a positive mitotic gene conversion rate.\n");
 						usage();
 					}
 					argx++;
+					argcheck(argx, argc, argv);
 					lambdami = strtod(argv[argx],NULL);
 					if(lambdami < 1 && nsites > 1){
 						fprintf(stderr,"With mitotic gene conversion, average length (lambda) has to be at least 1 with multiple sites.\n");
@@ -3482,6 +3498,7 @@ int main(int argc, char *argv[]){
 				case 'I':		/* Population subdivision (Island model) */
 					ismig = 1;
 					argx++;
+					argcheck(argx, argc, argv);
 					d = atoi(argv[argx]);
 					if(d <= 0){
 						fprintf(stderr,"Number of demes has to be a positive integer.\n");
@@ -3505,8 +3522,10 @@ int main(int argc, char *argv[]){
 	
 						for(x = 0; x < d; x++){
 							argx++;
+							argcheck(argx, argc, argv);
 							*(Iwith + x) = atoi(argv[argx]);
 							argx++;
+							argcheck(argx, argc, argv);
 							*(Ibet + x) = atoi(argv[argx]);
 							*(sexL + x) = bsex;
 							*(sexH + x) = 0;
@@ -3527,6 +3546,7 @@ int main(int argc, char *argv[]){
 						argx += 2;
 					}
 					argx++;
+					argcheck(argx, argc, argv);
 					mig = strtod(argv[argx],NULL);
 					mig = mig/(2.0*N*d);
 					if(mig < 0){
@@ -3547,10 +3567,13 @@ int main(int argc, char *argv[]){
 					
 					/* Defining type of heterogeneity */
 					argx++;
+					argcheck(argx, argc, argv);
 					pSTIN = atoi(argv[argx]);
 					argx++;
+					argcheck(argx, argc, argv);
 					pLH = strtod(argv[argx],NULL);
 					argx++;
+					argcheck(argx, argc, argv);
 					pHL = strtod(argv[argx],NULL);
 					
 					if(pSTIN != 0 && pSTIN != 1 && pSTIN != 2){
@@ -3570,8 +3593,10 @@ int main(int argc, char *argv[]){
 					
 					for(x = 0; x < d; x++){
 						argx++;
+						argcheck(argx, argc, argv);
 						*(sexL + x) = strtod(argv[argx],NULL);
 						argx++;						
+						argcheck(argx, argc, argv);
 						*(sexH + x) = strtod(argv[argx],NULL);
 
 						if( *(sexL + x) < 0 || *(sexL + x) > 1 || *(sexH + x) < 0 || *(sexH + x) > 1){
@@ -3609,10 +3634,13 @@ int main(int argc, char *argv[]){
 				
 					isburst = 1;
 					argx++;
+					argcheck(argx, argc, argv);
 					pburst = strtod(argv[argx],NULL);
 					argx++;
+					argcheck(argx, argc, argv);
 					mburst = atoi(argv[argx]);
 					argx++;
+					argcheck(argx, argc, argv);
 					bdist = strtod(argv[argx],NULL);
 					
 					if( (pburst < 0) || (pburst > 1) ){
@@ -3632,6 +3660,7 @@ int main(int argc, char *argv[]){
 				case 'G':
 					isexp = 1;
 					argx++;
+					argcheck(argx, argc, argv);
 					alpha = strtod(argv[argx],NULL);
 					if(alpha <= 0){
 						fprintf(stderr,"Growth rate has to be a positive, non-zero value.\n");
