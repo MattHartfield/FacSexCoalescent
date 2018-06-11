@@ -1701,7 +1701,6 @@ unsigned int coalesce(unsigned int **indvs, int **GType, double **CTms , int **T
 			}
 			
 			/* Final check: if one GT only contains non-ancestral material, turn into BH sample */
-			/* NOTE FOR NEXT TIME: Need to make sure I turn WH into BH and adjust numbers accordingly */
 			if(
 			( (isallI((*(GType + rands2)), (*nbreaks+1), (-1), 1) == 1) )
 			|| ( (isallI((*(GType + rands3)), (*nbreaks+1), (-1), 1) == 1) )
@@ -1720,7 +1719,6 @@ unsigned int coalesce(unsigned int **indvs, int **GType, double **CTms , int **T
 				/*
 				for(j = 0; j < Ntot; j++){
 					if( *((*(indvs + j)) + 0) == ctype){
-						Add something else as well, turn 'ntype' into WH sample? 
 						*((*(indvs + j)) + 1) = HUGEVAL;
 						*((*(indvs + j)) + 2) = 2;
 						break;
@@ -3175,9 +3173,6 @@ void proberr3(double **pr, unsigned int *NW, unsigned int *NB){
 
 /* Function to print coalescent times of individual loci */
 void printCT(double **CTms, unsigned int **breaks, unsigned int nbreaks, unsigned int nsites, unsigned int Itot, unsigned int run){
-
-	/* Note: If proceeding with implementing different population sizes,
-	need to adjust code to print off re-scaled pop times! */
 
 	unsigned int j, x;
 	char Cout[32];				 /* String to hold filename in */
