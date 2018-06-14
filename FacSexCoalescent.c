@@ -101,7 +101,7 @@ void proberr3(double **pr, unsigned int *NW, unsigned int *NB);
 void printCT(double **CTms, unsigned int **breaks, unsigned int nbreaks, unsigned int nsites, unsigned int Itot, unsigned int run);
 void manyr();
 void usage();
-void argcheck(int arg, int argc, char *argv[] );
+void inputtest(unsigned int argno, unsigned int argmax, char *args[]);
 
 /* Global variable declaration */
 double rec = 0;				/* Per-site recombination rate */
@@ -3206,7 +3206,7 @@ void manyr(){
 
 void usage(){
 fprintf(stderr,"\n");
-fprintf(stderr,"Command: FacSexCoalescent <Population Size> <Paired Samples> <Single Samples> <Rate of Sex> <Reps> <Other parameters>\n");
+fprintf(stderr,"Command: FacSexCoalescent <Population Size> <Paired Samples> <Single Samples> <Frequency of Sex> <Reps> <Other parameters>\n");
 fprintf(stderr,"\n");
 fprintf(stderr,"'Other parameters' include:\n");
 fprintf(stderr," -t: [4N(mu)] defines neutral mutation rate\n");
@@ -3214,23 +3214,21 @@ fprintf(stderr," -T: prints out individuals trees to file\n");
 fprintf(stderr," (Note that one of -t or -T MUST be used)\n");
 fprintf(stderr," -P: prints out data to screen using MS-style format\n");
 fprintf(stderr," -D: 'Debug mode'; prints table of coalescent times to file.\n");
-fprintf(stderr," -r: [2Nc nsites] to specify MEIOTIC crossover recombination\n");
-fprintf(stderr," -x: [2N(cA)] to specify MITOTIC crossover recombination\n");
-fprintf(stderr," -c: [2N(g_me) lambda_me] specifies rate and mean length of MEIOTIC gene conversion\n");
-fprintf(stderr," -m: [2N(g_mi) lambda_mi] specifies rate and mean length of MITOTIC gene conversion\n");
-/*fprintf(stderr," -b: [p_burst max_burst dist] specifies parameters for some polymorphisms to cluster ('burst')\n");*/
-fprintf(stderr," (For -x, -c, -m: need to first use -r to specify number of sites, even if 2Nc = 0)\n");
-/*fprintf(stderr," -G: [alpha] specifies population growth (scaled by 2N), N(t) = N0 exp(-alpha*t) \n");*/
+fprintf(stderr," -r: [2Nc(L-1) L] to specify MEIOTIC crossover recombination (rate 2Nc(L-1) and number of sites L)\n");
+fprintf(stderr," -x: [2N(cA)(L-1)] to specify MITOTIC crossover recombination\n");
+fprintf(stderr," -c: [2N(gS)(L-1) lambda_S] specifies rate and mean length of MEIOTIC gene conversion\n");
+fprintf(stderr," -m: [2Ng(L-1) lambda] specifies rate and mean length of MITOTIC gene conversion\n");
+fprintf(stderr," (For -x, -c, -m: need to first use -r to specify number of sites L, even if 2Nc(L-1) = 0)\n");
 fprintf(stderr," -I: d [Paired_j Single_j]...[2Nm] for defining island model.\n");
 fprintf(stderr,"     d is number of demes: [Paired_j Single_j] are d pairs of samples per deme;\n");
 fprintf(stderr,"     2Nm is net migration rate between demes.\n");
-fprintf(stderr," -H: [Type of heterogeneity] [pLH pHL] [SexL_j SexH_j] for heterogeneity in rates of sex.\n");
+fprintf(stderr," -H: [Type of heterogeneity] [pLH pHL] [SexL_j SexH_j] for heterogeneity in frequencies of sex.\n");
 fprintf(stderr,"     Type of heterogeneity is 0 for constant switching; 1 for stepwise change; 2 for no temporal change (only spatial change).\n");
 fprintf(stderr,"     If type = 0; pLH pHL is probability of switching from low-sex to high-sex state (and vice versa).\n");
 fprintf(stderr,"     If type = 1; pLH is time (units of 2N generations) when switch occurs.\n");
-fprintf(stderr,"     If type = 2; these do not need to be defined.\n");
-fprintf(stderr,"     [SexL_j SexH_j] are d pairs of low-sex, high-sex rates in deme j (if type = 0).\n");
-fprintf(stderr,"     OR they are d pairs of initial-rate, changed-rate of sex (if type = 1).\n");
+fprintf(stderr,"     If type = 2; these are not used so should be set to zero.\n");
+fprintf(stderr,"     [SexL_j SexH_j] are d pairs of low-sex, high-sex frequencies in deme j (if type = 0).\n");
+fprintf(stderr,"     OR they are d pairs of initial-frequency, changed-frequency of sex (if type = 1).\n");
 fprintf(stderr,"     Only SexL_j is defined if just spatial heterogeneity is present (if type = 2).\n");
 fprintf(stderr,"     Note that with -H, one must first specify -I to specify subdivision (even if only one population).\n");
 fprintf(stderr,"\n");
@@ -3239,13 +3237,11 @@ fprintf(stderr,"\n");
 exit(1);
 }
 
-void argcheck(int arg, int argc, char *argv[] ){
-
-	if( arg >= argc || argv[arg][0] == '-' ){
-		fprintf(stderr,"Not enough arguments provided (last input: %s)\n",argv[arg-1]);
+void inputtest(unsigned int argno, unsigned int argmax, char *args[]){
+	if( argno >= argmax || args[argno][0] == '-' ){
+		fprintf(stderr,"Incorrect command line setup.\n");
 		usage();
 	}
-	
 }
 
 /* Main program */
@@ -3381,6 +3377,7 @@ int main(int argc, char *argv[]){
 	*(demes + 0) = 0;
 	
 	/* Now moving onto case-by-case parameter setting */
+	/* Based on routine as used in ms (Hudson 2002, Bioinformatics) */
 	if(argc > 6){
 		while(argx < argc){
 			if(argv[argx][0] != '-'){
@@ -3391,7 +3388,7 @@ int main(int argc, char *argv[]){
 				case 't':		/* Defining Mutation Rate (theta) */
 					ismut = 1;
 					argx++;
-					argcheck(argx, argc, argv);
+					inputtest(argx, argc, argv);
 					theta = strtod(argv[argx],NULL);
 					if(theta <= 0){
 						fprintf(stderr,"Mutation rate must be a positive value.\n");
@@ -3402,14 +3399,14 @@ int main(int argc, char *argv[]){
 				case 'r':		/* Defining recombination (cross over) */
 					isrec = 1;
 					argx++;
-					argcheck(argx, argc, argv);
+					inputtest(argx, argc, argv);
 					rec = strtod(argv[argx],NULL);
 					if(rec < 0){
 						fprintf(stderr,"Must define a positive recombination rate.\n");
 						usage();
 					}
 					argx++;
-					argcheck(argx, argc, argv);
+					inputtest(argx, argc, argv);
 					nsites = atoi(argv[argx]);
 					if(nsites < 2 && rec > 0){
 						fprintf(stderr,"Must define at least two sites with recombination.\n");
@@ -3423,7 +3420,7 @@ int main(int argc, char *argv[]){
 						usage();
 					}
 					argx++;
-					argcheck(argx, argc, argv);
+					inputtest(argx, argc, argv);
 					mrec = strtod(argv[argx],NULL);
 					if(mrec < 0){
 						fprintf(stderr,"Must define a positive mitotic recombination rate.\n");
@@ -3445,7 +3442,7 @@ int main(int argc, char *argv[]){
 						usage();
 					}
 					argx++;
-					argcheck(argx, argc, argv);
+					inputtest(argx, argc, argv);
 					gme = strtod(argv[argx],NULL);
 					if(gme < 0){
 						fprintf(stderr,"Must define a positive meiotic gene conversion rate.\n");
@@ -3456,7 +3453,7 @@ int main(int argc, char *argv[]){
 						usage();
 					}
 					argx++;
-					argcheck(argx, argc, argv);
+					inputtest(argx, argc, argv);
 					lambdame = strtod(argv[argx],NULL);
 					if(lambdame < 1){
 						fprintf(stderr,"With meiotic gene conversion, average length (lambda) has to be at least 1.\n");
@@ -3475,14 +3472,14 @@ int main(int argc, char *argv[]){
 						usage();
 					}
 					argx++;
-					argcheck(argx, argc, argv);
+					inputtest(argx, argc, argv);
 					gmi = strtod(argv[argx],NULL);
 					if(gmi < 0){
 						fprintf(stderr,"Must define a positive mitotic gene conversion rate.\n");
 						usage();
 					}
 					argx++;
-					argcheck(argx, argc, argv);
+					inputtest(argx, argc, argv);
 					lambdami = strtod(argv[argx],NULL);
 					if(lambdami < 1 && nsites > 1){
 						fprintf(stderr,"With mitotic gene conversion, average length (lambda) has to be at least 1 with multiple sites.\n");
@@ -3498,7 +3495,7 @@ int main(int argc, char *argv[]){
 				case 'I':		/* Population subdivision (Island model) */
 					ismig = 1;
 					argx++;
-					argcheck(argx, argc, argv);
+					inputtest(argx, argc, argv);
 					d = atoi(argv[argx]);
 					if(d <= 0){
 						fprintf(stderr,"Number of demes has to be a positive integer.\n");
@@ -3522,10 +3519,10 @@ int main(int argc, char *argv[]){
 	
 						for(x = 0; x < d; x++){
 							argx++;
-							argcheck(argx, argc, argv);
+							inputtest(argx, argc, argv);
 							*(Iwith + x) = atoi(argv[argx]);
 							argx++;
-							argcheck(argx, argc, argv);
+							inputtest(argx, argc, argv);
 							*(Ibet + x) = atoi(argv[argx]);
 							*(sexL + x) = bsex;
 							*(sexH + x) = 0;
@@ -3546,7 +3543,7 @@ int main(int argc, char *argv[]){
 						argx += 2;
 					}
 					argx++;
-					argcheck(argx, argc, argv);
+					inputtest(argx, argc, argv);
 					mig = strtod(argv[argx],NULL);
 					mig = mig/(2.0*N*d);
 					if(mig < 0){
@@ -3567,13 +3564,13 @@ int main(int argc, char *argv[]){
 					
 					/* Defining type of heterogeneity */
 					argx++;
-					argcheck(argx, argc, argv);
+					inputtest(argx, argc, argv);
 					pSTIN = atoi(argv[argx]);
 					argx++;
-					argcheck(argx, argc, argv);
+					inputtest(argx, argc, argv);
 					pLH = strtod(argv[argx],NULL);
 					argx++;
-					argcheck(argx, argc, argv);
+					inputtest(argx, argc, argv);
 					pHL = strtod(argv[argx],NULL);
 					
 					if(pSTIN != 0 && pSTIN != 1 && pSTIN != 2){
@@ -3593,10 +3590,10 @@ int main(int argc, char *argv[]){
 					
 					for(x = 0; x < d; x++){
 						argx++;
-						argcheck(argx, argc, argv);
+						inputtest(argx, argc, argv);
 						*(sexL + x) = strtod(argv[argx],NULL);
 						argx++;						
-						argcheck(argx, argc, argv);
+						inputtest(argx, argc, argv);
 						*(sexH + x) = strtod(argv[argx],NULL);
 
 						if( *(sexL + x) < 0 || *(sexL + x) > 1 || *(sexH + x) < 0 || *(sexH + x) > 1){
@@ -3634,13 +3631,13 @@ int main(int argc, char *argv[]){
 				
 					isburst = 1;
 					argx++;
-					argcheck(argx, argc, argv);
+					inputtest(argx, argc, argv);
 					pburst = strtod(argv[argx],NULL);
 					argx++;
-					argcheck(argx, argc, argv);
+					inputtest(argx, argc, argv);
 					mburst = atoi(argv[argx]);
 					argx++;
-					argcheck(argx, argc, argv);
+					inputtest(argx, argc, argv);
 					bdist = strtod(argv[argx],NULL);
 					
 					if( (pburst < 0) || (pburst > 1) ){
@@ -3660,7 +3657,7 @@ int main(int argc, char *argv[]){
 				case 'G':
 					isexp = 1;
 					argx++;
-					argcheck(argx, argc, argv);
+					inputtest(argx, argc, argv);
 					alpha = strtod(argv[argx],NULL);
 					if(alpha <= 0){
 						fprintf(stderr,"Growth rate has to be a positive, non-zero value.\n");
